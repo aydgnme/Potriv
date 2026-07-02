@@ -1,0 +1,2 @@
+-- Initial Potriv database schema.
+-- Tables will be added incrementally by feature modules.
