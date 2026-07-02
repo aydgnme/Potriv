@@ -5,25 +5,6 @@ spring:
   profiles:
     active: dev
 
-  datasource:
-    url: jdbc:postgresql://localhost:5432/potriv
-    username: potriv
-    password: potriv
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
-    properties:
-      hibernate:
-        format_sql: true
-        jdbc:
-          time_zone: UTC
-
-  flyway:
-    enabled: true
-    locations: classpath:db/migration
-
 server:
   port: 8080
   servlet:
@@ -37,6 +18,12 @@ app:
     secret: change-this-secret-in-production-change-this-secret
     access-token-minutes: 15
     refresh-token-days: 7
+
+potriv:
+  system-admin:
+    email: ${SYSTEM_ADMIN_EMAIL:admin@aydgn.me}
+    password: ${SYSTEM_ADMIN_PASSWORD:ChangeMe123!}
+    name: ${SYSTEM_ADMIN_NAME:Potriv System Admin}
 
 cors:
   allowed-origins:

@@ -1,0 +1,40 @@
+# OS files
+.DS_Store
+
+# Editor/IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Backend (Java/Maven)
+apps/backend/target/
+apps/backend/**/surefire-reports/
+
+# Frontend (Node toolchains)
+apps/frontend/node_modules/
+apps/frontend/dist/
+apps/frontend/build/
+apps/frontend/.next/
+apps/frontend/.nuxt/
+apps/frontend/.cache/
+apps/frontend/coverage/
+
+# Terraform/IaC local state
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# Temporary files
+*.tmp
+*.temp
