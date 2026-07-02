@@ -2,8 +2,6 @@ package me.aydgn.potriv.identity.service;
 
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.exception.NotFoundException;
-import me.aydgn.potriv.identity.dto.AuthUserResponse;
 import me.aydgn.potriv.identity.dto.RegisterAdminRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminResponse;
 import me.aydgn.potriv.identity.dto.RegisterEmployeeRequest;
@@ -27,9 +24,8 @@ import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.organization.entity.Organization;
 import me.aydgn.potriv.organization.repository.OrganizationRepository;
 
-
 @Service
-public class AuthService {
+public class AuthRegistrationService {
 
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
@@ -41,7 +37,7 @@ public class AuthService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    public AuthService(
+    public AuthRegistrationService(
         OrganizationRepository organizationRepository,
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
@@ -57,22 +53,20 @@ public class AuthService {
 
     @Transactional
     public RegisterAdminResponse registerOrganizationAdmin(RegisterAdminRequest request) {
-        String normalizedEmail = normailzeEmail(request.email());
-
+        String normalizedEmail = normalizeEmail(request.email());
         ensureEmailIsAvailable(normalizedEmail);
 
         Organization organization = new Organization(
             request.organizationName().trim(),
             request.headquarterAddress().trim()
         );
-
         organizationRepository.save(organization);
 
         User admin = new User(
             organization,
             request.name().trim(),
             normalizedEmail,
-            passwordEncoder.encode(request.password().trim())
+            passwordEncoder.encode(request.password())
         );
         userRepository.save(admin);
 
@@ -89,12 +83,9 @@ public class AuthService {
         );
     }
 
-
     @Transactional
     public RegisterEmployeeResponse registerEmployee(String inviteTokenValue, RegisterEmployeeRequest request) {
-        String normalizedEmail = normailzeEmail(request.email());
-
-
+        String normalizedEmail = normalizeEmail(request.email());
         ensureEmailIsAvailable(normalizedEmail);
 
         InviteToken inviteToken = inviteTokenRepository.findByToken(inviteTokenValue)
@@ -110,10 +101,10 @@ public class AuthService {
             organization,
             request.name().trim(),
             normalizedEmail,
-            passwordEncoder.encode(request.password().trim())
+            passwordEncoder.encode(request.password())
         );
-
         userRepository.save(employee);
+
         userRoleRepository.save(new UserRole(employee, AccessRole.EMPLOYEE));
 
         return new RegisterEmployeeResponse(
@@ -122,27 +113,8 @@ public class AuthService {
         );
     }
 
-    @Transactional(readOnly = true)
-    public AuthUserResponse getUser(UUID userId) {
-        User user = userRepository.findById(userId)
-        .orElseThrow(() -> new NotFoundException("User was not found."));
-
-        List<AccessRole> roles = userRoleRepository.findByUserId(userId)
-            .stream()
-            .map(UserRole::getRole)
-            .toList();
-
-        UUID organizationId = user.getOrganization() == null ? null : user.getOrganization().getId();
-
-        return new AuthUserResponse(user.getId(), organizationId, user.getName(), user.getEmail(), roles);
-    }
-
     private InviteToken createInviteToken(Organization organization) {
-        return new InviteToken(
-            organization,
-            generateToken(),
-            null
-        );
+        return new InviteToken(organization, generateToken(), null);
     }
 
     private String generateToken() {
@@ -161,7 +133,7 @@ public class AuthService {
         }
     }
 
-    private String normailzeEmail(String email) {
+    private String normalizeEmail(String email) {
         return email.trim().toLowerCase();
     }
 }
