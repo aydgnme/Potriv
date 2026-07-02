@@ -13,27 +13,27 @@ public class Organization extends BaseEntity {
     private String name;
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    private String headquaterAddress;
+    private String headquarterAddress;
 
     protected Organization() {
         // JPA requires a default constructor
     }
 
-    public Organization(String name, String headquaterAddress) {
+    public Organization(String name, String headquarterAddress) {
         this.name = name;
-        this.headquaterAddress = headquaterAddress;
+        this.headquarterAddress = headquarterAddress;
     }
 
     public String getName() {
         return name;
     }
 
-    public String getHeadquaterAddress() {
-        return headquaterAddress;
+    public String getHeadquarterAddress() {
+        return headquarterAddress;
     }
 
-    public void updateDetails(String name, String headquaterAddress) {
+    public void updateDetails(String name, String headquarterAddress) {
         this.name = name;
-        this.headquaterAddress = headquaterAddress;
+        this.headquarterAddress = headquarterAddress;
     }
 }
