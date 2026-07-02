@@ -21,13 +21,13 @@ public class SystemAdminSeeder implements ApplicationRunner {
     private final UserRoleRepository userRoleRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${potriv.system-admin.email}")
+    @Value("${app.system-admin.email}")
     private String email;
 
-    @Value("${potriv.system-admin.password}")
+    @Value("${app.system-admin.password}")
     private String password;
 
-    @Value("${potriv.system-admin.name}")
+    @Value("${app.system-admin.name}")
     private String name;
 
     public SystemAdminSeeder(UserRepository userRepository, UserRoleRepository userRoleRepository, PasswordEncoder passwordEncoder) {

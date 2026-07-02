@@ -18,8 +18,6 @@ app:
     secret: change-this-secret-in-production-change-this-secret
     access-token-minutes: 15
     refresh-token-days: 7
-
-potriv:
   system-admin:
     email: ${SYSTEM_ADMIN_EMAIL:admin@aydgn.me}
     password: ${SYSTEM_ADMIN_PASSWORD:ChangeMe123!}
