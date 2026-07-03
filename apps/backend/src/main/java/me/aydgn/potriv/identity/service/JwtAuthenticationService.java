@@ -94,7 +94,7 @@ public class JwtAuthenticationService {
     }
 
     private List<AccessRole> getRoles(User user) {
-        return userRoleRepository.findByUserId(user.getId())
+        return userRoleRepository.findByUser(user)
             .stream()
             .map(UserRole::getRole)
             .toList();
