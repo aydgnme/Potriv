@@ -1,0 +1,23 @@
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: false
+
+  mail:
+    host: localhost
+    port: 3025
+
+potriv:
+  system-admin:
+    email: test-admin@potriv.test
+    password: TestAdminPassword1!
+    name: Test System Admin
