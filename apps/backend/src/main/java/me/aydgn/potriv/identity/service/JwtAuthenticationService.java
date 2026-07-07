@@ -21,11 +21,16 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
 @Service
 public class JwtAuthenticationService {
+
+    private static final Duration LAST_SEEN_UPDATE_INTERVAL = Duration.ofMinutes(5);
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
@@ -104,7 +109,7 @@ public class JwtAuthenticationService {
         return buildTokenPairResponse(session.getUser(), session, issuedRefreshToken.rawToken());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthenticatedUser authenticateAccessToken(String token) {
         Claims claims = jwtService.parseAccessToken(token);
 
@@ -116,6 +121,13 @@ public class JwtAuthenticationService {
 
         if (session.isRevoked() || !session.getUser().getId().equals(userId)) {
             throw new JwtException("Invalid or expired access token.");
+        }
+
+        // lastSeenAt is refreshed at most once per interval to avoid a
+        // database write on every authenticated request.
+        if (Duration.between(session.getLastSeenAt(), OffsetDateTime.now(ZoneOffset.UTC))
+                .compareTo(LAST_SEEN_UPDATE_INTERVAL) >= 0) {
+            session.touch();
         }
 
         User user = session.getUser();
