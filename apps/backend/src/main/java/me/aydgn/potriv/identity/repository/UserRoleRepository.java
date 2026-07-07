@@ -1,5 +1,6 @@
 package me.aydgn.potriv.identity.repository;
 
+import me.aydgn.potriv.identity.entity.AccessAccountStatus;
 import me.aydgn.potriv.identity.entity.AccessRole;
 import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.identity.entity.UserRole;
@@ -18,4 +19,10 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
     void deleteByUserAndRoleIn(User user, Collection<AccessRole> roles);
 
     long countByUser_Organization_IdAndRole(UUID organizationId, AccessRole role);
+
+    long countByRoleAndUser_StatusAndUser_IdNot(
+        AccessRole role,
+        AccessAccountStatus status,
+        UUID excludedUserId
+    );
 }

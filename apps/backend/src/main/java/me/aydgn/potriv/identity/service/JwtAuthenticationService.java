@@ -17,6 +17,7 @@ import me.aydgn.potriv.identity.entity.UserSession;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.identity.repository.UserSessionRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,13 +40,18 @@ public class JwtAuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
+    private final int maxFailedLoginAttempts;
+    private final Duration loginLockDuration;
+
     public JwtAuthenticationService(
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
         UserSessionRepository userSessionRepository,
         RefreshTokenService refreshTokenService,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService
+        JwtService jwtService,
+        @Value("${app.auth.max-failed-login-attempts}") int maxFailedLoginAttempts,
+        @Value("${app.auth.lock-duration-minutes}") long lockDurationMinutes
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
@@ -53,18 +59,29 @@ public class JwtAuthenticationService {
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.maxFailedLoginAttempts = maxFailedLoginAttempts;
+        this.loginLockDuration = Duration.ofMinutes(lockDurationMinutes);
     }
 
-    @Transactional
+    // Failed-attempt and lockout updates must persist even though the login
+    // request itself is rejected with an exception.
+    @Transactional(noRollbackFor = BadRequestException.class)
     public TokenPairResponse login(LoginRequest request, String userAgent, String ipAddress) {
         String normalizedEmail = request.email().trim().toLowerCase();
 
-        User user = userRepository.findByEmail(normalizedEmail)
-            .orElseThrow(() -> new BadRequestException("Invalid email or password."));
+        User user = userRepository.findByEmailForUpdate(normalizedEmail)
+            .orElseThrow(JwtAuthenticationService::invalidCredentialsException);
+
+        if (!user.isActive() || user.isLoginLocked()) {
+            throw invalidCredentialsException();
+        }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            throw new BadRequestException("Invalid email or password.");
+            user.registerFailedLogin(maxFailedLoginAttempts, loginLockDuration);
+            throw invalidCredentialsException();
         }
+
+        user.resetLoginFailures();
 
         UserSession session = userSessionRepository.save(
             new UserSession(user, userAgent, ipAddress)
@@ -100,6 +117,10 @@ public class JwtAuthenticationService {
             throw new UnauthorizedException("Invalid refresh token.");
         }
 
+        if (!session.getUser().isActive()) {
+            throw new UnauthorizedException("Invalid refresh token.");
+        }
+
         RefreshTokenService.IssuedRefreshToken issuedRefreshToken =
             refreshTokenService.issue(session);
 
@@ -119,7 +140,9 @@ public class JwtAuthenticationService {
         UserSession session = userSessionRepository.findById(sessionId)
             .orElseThrow(() -> new JwtException("Invalid or expired access token."));
 
-        if (session.isRevoked() || !session.getUser().getId().equals(userId)) {
+        if (session.isRevoked()
+            || !session.getUser().getId().equals(userId)
+            || !session.getUser().isActive()) {
             throw new JwtException("Invalid or expired access token.");
         }
 
@@ -171,6 +194,10 @@ public class JwtAuthenticationService {
             user.getEmail(),
             roles
         );
+    }
+
+    private static BadRequestException invalidCredentialsException() {
+        return new BadRequestException("Invalid email or password.");
     }
 
     private UUID parseUuidClaim(String value) {

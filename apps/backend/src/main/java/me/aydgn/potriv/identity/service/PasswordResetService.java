@@ -76,6 +76,7 @@ public class PasswordResetService {
         User user = resetToken.getUser();
 
         user.changePassword(passwordEncoder.encode(request.newPassword()));
+        user.resetLoginFailures();
         resetToken.markUsed();
 
         userSessionService.revokeAllSessionsForUser(user.getId());
