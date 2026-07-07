@@ -20,6 +20,8 @@ app:
     refresh-token-days: 7
   auth:
     password-reset-token-minutes: 30
+    max-failed-login-attempts: 5
+    lock-duration-minutes: 15
   mail:
     from: no-reply@potriv.local
 
