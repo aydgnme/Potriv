@@ -12,10 +12,6 @@ spring:
   flyway:
     enabled: false
 
-  mail:
-    host: localhost
-    port: 3025
-
 potriv:
   system-admin:
     email: test-admin@potriv.test
