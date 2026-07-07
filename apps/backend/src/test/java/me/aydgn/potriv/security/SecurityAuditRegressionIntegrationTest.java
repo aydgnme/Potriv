@@ -7,14 +7,19 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mail.SimpleMailMessage;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -22,11 +27,17 @@ import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
 import me.aydgn.potriv.security.entity.SecurityAuditEvent;
 import me.aydgn.potriv.security.entity.SecurityAuditEventType;
 import me.aydgn.potriv.security.repository.SecurityAuditEventRepository;
+import me.aydgn.potriv.support.RecordingMailSender;
 
 class SecurityAuditRegressionIntegrationTest extends AbstractMockMvcIntegrationTest {
 
+    private static final Pattern TOKEN_PATTERN = Pattern.compile("token=([A-Za-z0-9_-]+)");
+
     @Autowired
     private SecurityAuditEventRepository auditRepository;
+
+    @Autowired
+    private RecordingMailSender recordingMailSender;
 
     @Test
     void loginSuccessAndFailureAreAudited() throws Exception {
@@ -107,7 +118,19 @@ class SecurityAuditRegressionIntegrationTest extends AbstractMockMvcIntegrationT
                 .content(objectMapper.writeValueAsString(Map.of("email", email))))
             .andExpect(status().isAccepted());
 
+        // Obtain the raw token from the recorded email, then complete the reset.
+        String rawToken = extractTokenFromLatestMailTo(email);
+        mockMvc.perform(post("/auth/password-reset/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(
+                    Map.of("token", rawToken, "newPassword", "NewPassword1!"))))
+            .andExpect(status().isNoContent());
+
+        // eventsFor filters by userId, so both events are asserted to belong
+        // to the expected user.
         assertThat(eventsFor(userId, SecurityAuditEventType.PASSWORD_RESET_REQUESTED))
+            .isNotEmpty();
+        assertThat(eventsFor(userId, SecurityAuditEventType.PASSWORD_RESET_COMPLETED))
             .isNotEmpty();
     }
 
@@ -247,5 +270,22 @@ class SecurityAuditRegressionIntegrationTest extends AbstractMockMvcIntegrationT
             .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
         return UUID.fromString(objectMapper.readTree(me).get("userId").asText());
+    }
+
+    private String extractTokenFromLatestMailTo(String email) {
+        Matcher matcher = TOKEN_PATTERN.matcher(
+            Objects.requireNonNull(latestMessageTo(email).getText()));
+        assertThat(matcher.find()).isTrue();
+        return matcher.group(1);
+    }
+
+    private SimpleMailMessage latestMessageTo(String email) {
+        SimpleMailMessage latest = null;
+        for (SimpleMailMessage message : recordingMailSender.getSentMessages()) {
+            if (message.getTo() != null && Arrays.asList(message.getTo()).contains(email)) {
+                latest = message;
+            }
+        }
+        return Objects.requireNonNull(latest, "No reset email captured for " + email);
     }
 }

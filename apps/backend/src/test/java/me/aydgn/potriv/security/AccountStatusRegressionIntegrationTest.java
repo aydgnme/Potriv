@@ -1,11 +1,13 @@
 package me.aydgn.potriv.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -13,20 +15,44 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
+import me.aydgn.potriv.common.exception.BadRequestException;
+import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.entity.AccessAccountStatus;
+import me.aydgn.potriv.identity.entity.AccessRole;
 import me.aydgn.potriv.identity.entity.User;
+import me.aydgn.potriv.identity.entity.UserRole;
 import me.aydgn.potriv.identity.repository.UserRepository;
+import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.identity.repository.UserSessionRepository;
+import me.aydgn.potriv.identity.service.UserAccountStatusService;
 
 class AccountStatusRegressionIntegrationTest extends AbstractMockMvcIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserRoleRepository userRoleRepository;
+
+    @Autowired
+    private UserAccountStatusService userAccountStatusService;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Autowired
     private UserSessionRepository userSessionRepository;
@@ -118,17 +144,54 @@ class AccountStatusRegressionIntegrationTest extends AbstractMockMvcIntegrationT
     }
 
     @Test
-    void finalActiveSystemAdminProtectionWorks() throws Exception {
-        // The seeded system admin is the only active SYSTEM_ADMIN. Attempting to
-        // disable it (even by itself) is blocked; the own-account guard fires first
-        // but the last-admin guard equally protects it.
-        User systemAdmin = userRepository.findByEmail(SYSTEM_ADMIN_EMAIL).orElseThrow();
+    @Transactional
+    void lastActiveSystemAdminCannotBeSuspendedOrDisabled() {
+        // Build an isolated last-admin scenario: a fresh SYSTEM_ADMIN target and
+        // no other ACTIVE SYSTEM_ADMIN. The @Transactional method rolls every
+        // mutation back, so the seeded admin stays usable for other tests. The
+        // actor is a different user, so the self-account guard cannot fire and
+        // only the last-active-system-admin invariant is exercised.
+        User target = userRepository.save(new User(
+            null, "Last Admin", uniqueEmail("last-admin"), passwordEncoder.encode("Password123!")));
+        userRoleRepository.save(new UserRole(target, AccessRole.SYSTEM_ADMIN));
 
-        patchStatus(systemAdminAccessToken(), systemAdmin.getId(), "SUSPENDED")
-            .andExpect(status().isBadRequest());
+        List<User> otherActiveSystemAdmins = entityManager.createQuery(
+                "select distinct ur.user from UserRole ur "
+                    + "where ur.role = :role and ur.user.status = :status "
+                    + "and ur.user.id <> :targetId",
+                User.class)
+            .setParameter("role", AccessRole.SYSTEM_ADMIN)
+            .setParameter("status", AccessAccountStatus.ACTIVE)
+            .setParameter("targetId", target.getId())
+            .getResultList();
+        otherActiveSystemAdmins.forEach(user -> user.changeStatus(AccessAccountStatus.SUSPENDED));
+        entityManager.flush();
 
-        assertThat(userRepository.findByEmail(SYSTEM_ADMIN_EMAIL).orElseThrow().getStatus())
-            .isEqualTo(AccessAccountStatus.ACTIVE);
+        // Precondition: the target is genuinely the only active SYSTEM_ADMIN.
+        assertThat(userRoleRepository.countByRoleAndUser_StatusAndUser_IdNot(
+            AccessRole.SYSTEM_ADMIN, AccessAccountStatus.ACTIVE, target.getId())).isZero();
+
+        authenticateAs(UUID.randomUUID());
+        try {
+            assertThatThrownBy(() -> userAccountStatusService.changeStatus(
+                target.getId(), AccessAccountStatus.SUSPENDED))
+                .isInstanceOf(BadRequestException.class);
+            assertThatThrownBy(() -> userAccountStatusService.changeStatus(
+                target.getId(), AccessAccountStatus.DISABLED))
+                .isInstanceOf(BadRequestException.class);
+
+            assertThat(userRepository.findById(target.getId()).orElseThrow().getStatus())
+                .isEqualTo(AccessAccountStatus.ACTIVE);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    private void authenticateAs(UUID actorUserId) {
+        AuthenticatedUser actor = new AuthenticatedUser(
+            actorUserId, UUID.randomUUID(), null, "actor@potriv.test", List.of());
+        SecurityContextHolder.getContext().setAuthentication(
+            new UsernamePasswordAuthenticationToken(actor, null, List.of()));
     }
 
     @Test

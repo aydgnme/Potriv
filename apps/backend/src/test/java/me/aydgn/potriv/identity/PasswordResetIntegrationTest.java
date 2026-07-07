@@ -6,8 +6,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -20,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
 import me.aydgn.potriv.common.security.TokenDigest;
+import me.aydgn.potriv.identity.entity.PasswordResetToken;
 import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.identity.repository.PasswordResetTokenRepository;
 import me.aydgn.potriv.identity.repository.UserRepository;
@@ -113,9 +117,29 @@ class PasswordResetIntegrationTest extends AbstractMockMvcIntegrationTest {
     }
 
     @Test
-    void expiredOrInvalidTokenIsRejected() throws Exception {
+    void invalidTokenIsRejected() throws Exception {
         confirmReset("never-issued-token", "NewPassword1!")
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void expiredTokenIsRejected() throws Exception {
+        String email = uniqueEmail("reset");
+        registerAdmin(uniqueName("Org"), email, "OldPassword1!");
+        User user = userRepository.findByEmail(email).orElseThrow();
+
+        // Persist a genuine reset token whose expiry is already in the past.
+        String rawToken = "expired-reset-" + UUID.randomUUID();
+        passwordResetTokenRepository.save(new PasswordResetToken(
+            user,
+            TokenDigest.sha256Base64Url(rawToken),
+            OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1)
+        ));
+
+        confirmReset(rawToken, "NewPassword1!").andExpect(status().isBadRequest());
+
+        // The password must remain unchanged: the original still logs in.
+        login(email, "OldPassword1!");
     }
 
     @Test
