@@ -18,6 +18,10 @@ app:
     secret: change-this-secret-in-production-change-this-secret
     access-token-minutes: 15
     refresh-token-days: 7
+  auth:
+    password-reset-token-minutes: 30
+  mail:
+    from: no-reply@potriv.local
 
 potriv:
   system-admin:

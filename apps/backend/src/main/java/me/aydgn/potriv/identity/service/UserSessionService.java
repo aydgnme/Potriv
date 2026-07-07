@@ -35,8 +35,13 @@ public class UserSessionService {
 
     @Transactional
     public void revokeAllSessions(AuthenticatedUser currentUser) {
+        revokeAllSessionsForUser(currentUser.userId());
+    }
+
+    @Transactional
+    public void revokeAllSessionsForUser(UUID userId) {
         userSessionRepository
-            .findByUserIdOrderByCreatedAtDesc(currentUser.userId())
+            .findByUserIdOrderByCreatedAtDesc(userId)
             .forEach(this::revokeSession);
     }
 

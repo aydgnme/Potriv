@@ -11,5 +11,12 @@ services:
     volumes:
       - potriv_postgres_data:/var/lib/postgresql/data
 
+  mailpit:
+    image: axllent/mailpit
+    container_name: potriv-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   potriv_postgres_data:
