@@ -12,6 +12,9 @@ import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.identity.entity.UserRole;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
+import me.aydgn.potriv.security.entity.SecurityAuditEvent;
+import me.aydgn.potriv.security.entity.SecurityAuditEventType;
+import me.aydgn.potriv.security.service.SecurityAuditService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,15 +29,18 @@ public class UserRoleManagementService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final CurrentUserProvider currentUserProvider;
+    private final SecurityAuditService securityAuditService;
 
     public UserRoleManagementService(
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
-        CurrentUserProvider currentUserProvider
+        CurrentUserProvider currentUserProvider,
+        SecurityAuditService securityAuditService
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.currentUserProvider = currentUserProvider;
+        this.securityAuditService = securityAuditService;
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +104,16 @@ public class UserRoleManagementService {
         for (AccessRole role : rolesToAdd) {
             userRoleRepository.save(new UserRole(targetUser, role));
         }
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.USER_ROLES_CHANGED, true)
+                .userId(targetUser.getId())
+                .organizationId(getOrganizationId(targetUser))
+                .actorUserId(currentUser.userId())
+                .normalizedEmail(targetUser.getEmail())
+                .details("Roles changed from " + currentRoles + " to " + requestedRoles + ".")
+                .build()
+        );
 
         return toDetailResponse(targetUser);
     }
