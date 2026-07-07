@@ -1,9 +1,5 @@
 package me.aydgn.potriv.identity.service;
 
-import java.security.SecureRandom;
-import java.util.Base64;
-
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,23 +27,22 @@ public class AuthRegistrationService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final InviteTokenRepository inviteTokenRepository;
+    private final InviteTokenService inviteTokenService;
     private final PasswordEncoder passwordEncoder;
-    private final SecureRandom secureRandom = new SecureRandom();
-
-    @Value("${app.frontend-url}")
-    private String frontendUrl;
 
     public AuthRegistrationService(
         OrganizationRepository organizationRepository,
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
         InviteTokenRepository inviteTokenRepository,
+        InviteTokenService inviteTokenService,
         PasswordEncoder passwordEncoder
     ) {
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.inviteTokenRepository = inviteTokenRepository;
+        this.inviteTokenService = inviteTokenService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -73,13 +68,12 @@ public class AuthRegistrationService {
         userRoleRepository.save(new UserRole(admin, AccessRole.EMPLOYEE));
         userRoleRepository.save(new UserRole(admin, AccessRole.ORGANIZATION_ADMIN));
 
-        InviteToken inviteToken = createInviteToken(organization);
-        inviteTokenRepository.save(inviteToken);
+        InviteToken inviteToken = inviteTokenService.createForOrganization(organization);
 
         return new RegisterAdminResponse(
             organization.getId(),
             admin.getId(),
-            buildEmployeeInviteUrl(inviteToken.getToken())
+            inviteTokenService.buildInviteUrl(inviteToken)
         );
     }
 
@@ -111,20 +105,6 @@ public class AuthRegistrationService {
             organization.getId(),
             employee.getId()
         );
-    }
-
-    private InviteToken createInviteToken(Organization organization) {
-        return new InviteToken(organization, generateToken(), null);
-    }
-
-    private String generateToken() {
-        byte[] bytes = new byte[32];
-        secureRandom.nextBytes(bytes);
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private String buildEmployeeInviteUrl(String token) {
-        return frontendUrl + "/invite?token=" + token;
     }
 
     private void ensureEmailIsAvailable(String email) {
