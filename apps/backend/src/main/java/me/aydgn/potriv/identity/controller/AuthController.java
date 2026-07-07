@@ -11,8 +11,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import me.aydgn.potriv.common.config.OpenApiConfig;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.dto.CurrentUserResponse;
 import me.aydgn.potriv.identity.dto.LoginRequest;
@@ -31,6 +34,7 @@ import me.aydgn.potriv.identity.service.PasswordResetService;
 
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "Authentication", description = "Registration, login, token refresh, and password reset")
 public class AuthController {
 
     private final AuthRegistrationService authRegistrationService;
@@ -102,6 +106,7 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    @SecurityRequirement(name = OpenApiConfig.BEARER_SECURITY_SCHEME)
     public CurrentUserResponse me(
         @AuthenticationPrincipal AuthenticatedUser authenticatedUser
     ) {

@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import me.aydgn.potriv.common.config.OpenApiConfig;
 import me.aydgn.potriv.common.security.annotation.SystemAdminOnly;
 import me.aydgn.potriv.identity.dto.UpdateUserStatusRequest;
 import me.aydgn.potriv.identity.dto.UserStatusResponse;
@@ -17,6 +20,8 @@ import me.aydgn.potriv.identity.service.UserAccountStatusService;
 @RestController
 @RequestMapping("/admin/users")
 @SystemAdminOnly
+@Tag(name = "System Administration", description = "Platform-level user administration")
+@SecurityRequirement(name = OpenApiConfig.BEARER_SECURITY_SCHEME)
 public class AdminUserController {
 
     private final UserAccountStatusService userAccountStatusService;

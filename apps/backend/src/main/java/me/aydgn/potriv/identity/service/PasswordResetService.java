@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import me.aydgn.potriv.common.config.AuthProperties;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.dto.PasswordResetConfirmRequest;
@@ -44,8 +45,8 @@ public class PasswordResetService {
         PasswordResetMailService passwordResetMailService,
         UserSessionService userSessionService,
         PasswordEncoder passwordEncoder,
-        @Value("${app.frontend-url}") String frontendUrl,
-        @Value("${app.auth.password-reset-token-minutes}") long resetTokenMinutes
+        AuthProperties authProperties,
+        @Value("${app.frontend-url}") String frontendUrl
     ) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -53,7 +54,7 @@ public class PasswordResetService {
         this.userSessionService = userSessionService;
         this.passwordEncoder = passwordEncoder;
         this.frontendUrl = frontendUrl;
-        this.resetTokenMinutes = resetTokenMinutes;
+        this.resetTokenMinutes = authProperties.passwordResetTokenMinutes();
     }
 
     @Transactional

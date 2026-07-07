@@ -8,36 +8,36 @@ import java.util.UUID;
 
 import javax.crypto.SecretKey;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import me.aydgn.potriv.common.config.JwtProperties;
 import me.aydgn.potriv.identity.entity.AccessRole;
 import me.aydgn.potriv.identity.entity.User;
 
 
 @Service
 public class JwtService {
-    private final String issuer;
-    private final String secret;
-    private final long accessTokenMinutes;
 
-    public JwtService(
-        @Value("${app.jwt.issuer}") String issuer,
-        @Value("${app.jwt.secret}") String secret,
-        @Value("${app.jwt.access-token-minutes}") long accessTokenMinutes
-    ) {
-        this.issuer = issuer;
-        this.secret = secret;
-        this.accessTokenMinutes = accessTokenMinutes;
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
+    private static final String ACCESS_TOKEN_TYPE = "ACCESS";
+
+    private final JwtProperties jwtProperties;
+    private final SecretKey secretKey;
+
+    public JwtService(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+        this.secretKey = Keys.hmacShaKeyFor(
+            jwtProperties.secret().getBytes(StandardCharsets.UTF_8)
+        );
     }
 
     public String createAccessToken(User user, List<AccessRole> roles, UUID sessionId) {
         Instant now = Instant.now();
-        Instant expiresAt = now.plusSeconds(accessTokenMinutes * 60);
+        Instant expiresAt = now.plusSeconds(jwtProperties.accessTokenMinutes() * 60);
 
         List<String> roleNames = roles.stream()
             .map(AccessRole::name)
@@ -48,36 +48,42 @@ public class JwtService {
             : user.getOrganization().getId();
 
         return Jwts.builder()
-            .issuer(issuer)
+            .issuer(jwtProperties.issuer())
             .subject(user.getId().toString())
+            .id(UUID.randomUUID().toString())
             .issuedAt(Date.from(now))
             .expiration(Date.from(expiresAt))
+            .claim(TOKEN_TYPE_CLAIM, ACCESS_TOKEN_TYPE)
             .claim("sid", sessionId.toString())
             .claim("email", user.getEmail())
             .claim("organizationId", organizationId == null ? null : organizationId.toString())
             .claim("roles", roleNames)
-            .signWith(secretKey())
+            .signWith(secretKey)
             .compact();
     }
 
     public Claims parseAccessToken(String token) {
+        Claims claims;
+
         try {
-            return Jwts.parser()
-                .verifyWith(secretKey())
-                .requireIssuer(issuer)
+            claims = Jwts.parser()
+                .verifyWith(secretKey)
+                .requireIssuer(jwtProperties.issuer())
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
         } catch (JwtException exception) {
             throw new JwtException("Invalid or expired access token.");
         }
+
+        if (!ACCESS_TOKEN_TYPE.equals(claims.get(TOKEN_TYPE_CLAIM, String.class))) {
+            throw new JwtException("Invalid or expired access token.");
+        }
+
+        return claims;
     }
 
     public long getAccessTokenExpiresInSeconds() {
-        return accessTokenMinutes * 60;
-    }
-
-    private SecretKey secretKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        return jwtProperties.accessTokenMinutes() * 60;
     }
 }

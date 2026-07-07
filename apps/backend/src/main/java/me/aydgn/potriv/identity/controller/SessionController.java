@@ -13,12 +13,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import me.aydgn.potriv.common.config.OpenApiConfig;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.dto.SessionResponse;
 import me.aydgn.potriv.identity.service.UserSessionService;
 
 @RestController
 @RequestMapping("/auth")
+@Tag(name = "Sessions", description = "Logout and self-service session management")
+@SecurityRequirement(name = OpenApiConfig.BEARER_SECURITY_SCHEME)
 public class SessionController {
 
     private final UserSessionService userSessionService;
