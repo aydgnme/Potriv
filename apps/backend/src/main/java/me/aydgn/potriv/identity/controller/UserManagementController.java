@@ -10,7 +10,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import me.aydgn.potriv.common.config.OpenApiConfig;
 import me.aydgn.potriv.common.security.annotation.OrganizationAdminOnly;
 import me.aydgn.potriv.identity.dto.UpdateUserRolesRequest;
 import me.aydgn.potriv.identity.dto.UserDetailResponse;
@@ -20,6 +23,8 @@ import me.aydgn.potriv.identity.service.UserRoleManagementService;
 @RestController
 @RequestMapping("/users")
 @OrganizationAdminOnly
+@Tag(name = "User Management", description = "User listing, detail, and role management")
+@SecurityRequirement(name = OpenApiConfig.BEARER_SECURITY_SCHEME)
 public class UserManagementController {
 
     private final UserRoleManagementService userRoleManagementService;

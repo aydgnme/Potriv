@@ -6,9 +6,9 @@ import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import me.aydgn.potriv.common.config.JwtProperties;
 import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.entity.RefreshToken;
 import me.aydgn.potriv.identity.entity.UserSession;
@@ -25,10 +25,10 @@ public class RefreshTokenService {
 
     public RefreshTokenService(
         RefreshTokenRepository refreshTokenRepository,
-        @Value("${app.jwt.refresh-token-days}") long refreshTokenDays
+        JwtProperties jwtProperties
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
-        this.refreshTokenDays = refreshTokenDays;
+        this.refreshTokenDays = jwtProperties.refreshTokenDays();
     }
 
     public record IssuedRefreshToken(String rawToken, RefreshToken token) {

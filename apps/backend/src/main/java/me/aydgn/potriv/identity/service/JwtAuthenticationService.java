@@ -2,6 +2,7 @@ package me.aydgn.potriv.identity.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import me.aydgn.potriv.common.config.AuthProperties;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.exception.UnauthorizedException;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
@@ -17,7 +18,6 @@ import me.aydgn.potriv.identity.entity.UserSession;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.identity.repository.UserSessionRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,8 +50,7 @@ public class JwtAuthenticationService {
         RefreshTokenService refreshTokenService,
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
-        @Value("${app.auth.max-failed-login-attempts}") int maxFailedLoginAttempts,
-        @Value("${app.auth.lock-duration-minutes}") long lockDurationMinutes
+        AuthProperties authProperties
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
@@ -59,8 +58,8 @@ public class JwtAuthenticationService {
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
-        this.maxFailedLoginAttempts = maxFailedLoginAttempts;
-        this.loginLockDuration = Duration.ofMinutes(lockDurationMinutes);
+        this.maxFailedLoginAttempts = authProperties.maxFailedLoginAttempts();
+        this.loginLockDuration = Duration.ofMinutes(authProperties.lockDurationMinutes());
     }
 
     // Failed-attempt and lockout updates must persist even though the login

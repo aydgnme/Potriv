@@ -11,17 +11,16 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
-import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.servers.Server;
 
 @Configuration
 public class OpenApiConfig {
 
+    public static final String BEARER_SECURITY_SCHEME = "bearerAuth";
+
     @Bean
     public OpenAPI potrivOpenAPI() {
-        String securitySchemeName = "bearerAuth";
-
         return new OpenAPI()
             .info(new Info()
                 .title("Potriv API")
@@ -42,14 +41,16 @@ public class OpenApiConfig {
             ))
             .components(new Components()
                 .addSecuritySchemes(
-                    securitySchemeName,
+                    BEARER_SECURITY_SCHEME,
                     new SecurityScheme()
-                        .name(securitySchemeName)
+                        .name(BEARER_SECURITY_SCHEME)
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
                         .bearerFormat("JWT")
                 ))
-            .addSecurityItem(new SecurityRequirement().addList(securitySchemeName))
+            // Security is declared per operation via @SecurityRequirement so
+            // public endpoints such as login, registration, refresh, and
+            // password reset are not documented as Bearer-secured.
             .externalDocs(new ExternalDocumentation()
                 .description("Potriv Repository")
                 .url("https://github.com/aydgnme/Potriv"));
