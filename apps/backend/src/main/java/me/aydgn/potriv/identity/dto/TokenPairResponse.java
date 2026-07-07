@@ -5,8 +5,9 @@ import java.util.UUID;
 
 import me.aydgn.potriv.identity.entity.AccessRole;
 
-public record LoginResponse(
+public record TokenPairResponse(
     String accessToken,
+    String refreshToken,
     String tokenType,
     long expiresInSeconds,
     UUID userId,
