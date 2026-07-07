@@ -1,17 +1,22 @@
 package me.aydgn.potriv.identity.service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import me.aydgn.potriv.common.exception.BadRequestException;
-import me.aydgn.potriv.common.exception.NotFoundException;
+import me.aydgn.potriv.common.exception.UnauthorizedException;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.common.security.JwtService;
 import me.aydgn.potriv.identity.dto.LoginRequest;
-import me.aydgn.potriv.identity.dto.LoginResponse;
+import me.aydgn.potriv.identity.dto.RefreshRequest;
+import me.aydgn.potriv.identity.dto.TokenPairResponse;
 import me.aydgn.potriv.identity.entity.AccessRole;
+import me.aydgn.potriv.identity.entity.RefreshToken;
 import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.identity.entity.UserRole;
+import me.aydgn.potriv.identity.entity.UserSession;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
+import me.aydgn.potriv.identity.repository.UserSessionRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,23 +29,29 @@ public class JwtAuthenticationService {
 
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
+    private final UserSessionRepository userSessionRepository;
+    private final RefreshTokenService refreshTokenService;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
     public JwtAuthenticationService(
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
+        UserSessionRepository userSessionRepository,
+        RefreshTokenService refreshTokenService,
         PasswordEncoder passwordEncoder,
         JwtService jwtService
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
+        this.userSessionRepository = userSessionRepository;
+        this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
     }
 
-    @Transactional(readOnly = true)
-    public LoginResponse login(LoginRequest request) {
+    @Transactional
+    public TokenPairResponse login(LoginRequest request, String userAgent, String ipAddress) {
         String normalizedEmail = request.email().trim().toLowerCase();
 
         User user = userRepository.findByEmail(normalizedEmail)
@@ -50,16 +61,96 @@ public class JwtAuthenticationService {
             throw new BadRequestException("Invalid email or password.");
         }
 
-        List<AccessRole> roles = getRoles(user);
+        UserSession session = userSessionRepository.save(
+            new UserSession(user, userAgent, ipAddress)
+        );
 
-        String accessToken = jwtService.createAccessToken(user, roles);
+        RefreshTokenService.IssuedRefreshToken issuedRefreshToken =
+            refreshTokenService.issue(session);
+
+        return buildTokenPairResponse(user, session, issuedRefreshToken.rawToken());
+    }
+
+    // Reuse detection must persist the session revocation even though the
+    // request itself is rejected with an exception.
+    @Transactional(noRollbackFor = UnauthorizedException.class)
+    public TokenPairResponse refresh(RefreshRequest request) {
+        RefreshToken presentedToken = refreshTokenService
+            .findByRawToken(request.refreshToken())
+            .orElseThrow(() -> new UnauthorizedException("Invalid refresh token."));
+
+        UserSession session = presentedToken.getSession();
+
+        if (presentedToken.isUsed() || presentedToken.isRevoked()) {
+            session.revoke();
+            refreshTokenService.revokeAllForSession(session);
+            throw new UnauthorizedException("Invalid refresh token.");
+        }
+
+        if (presentedToken.isExpired()) {
+            throw new UnauthorizedException("Invalid refresh token.");
+        }
+
+        if (session.isRevoked()) {
+            throw new UnauthorizedException("Invalid refresh token.");
+        }
+
+        RefreshTokenService.IssuedRefreshToken issuedRefreshToken =
+            refreshTokenService.issue(session);
+
+        presentedToken.markUsed(issuedRefreshToken.token().getId());
+        session.touch();
+
+        return buildTokenPairResponse(session.getUser(), session, issuedRefreshToken.rawToken());
+    }
+
+    @Transactional(readOnly = true)
+    public AuthenticatedUser authenticateAccessToken(String token) {
+        Claims claims = jwtService.parseAccessToken(token);
+
+        UUID userId = parseUuidClaim(claims.getSubject());
+        UUID sessionId = parseUuidClaim(claims.get("sid", String.class));
+
+        UserSession session = userSessionRepository.findById(sessionId)
+            .orElseThrow(() -> new JwtException("Invalid or expired access token."));
+
+        if (session.isRevoked() || !session.getUser().getId().equals(userId)) {
+            throw new JwtException("Invalid or expired access token.");
+        }
+
+        User user = session.getUser();
+
+        List<AccessRole> roles = getRoles(user);
 
         UUID organizationId = user.getOrganization() == null
             ? null
             : user.getOrganization().getId();
 
-        return new LoginResponse(
+        return new AuthenticatedUser(
+            user.getId(),
+            session.getId(),
+            organizationId,
+            user.getEmail(),
+            roles
+        );
+    }
+
+    private TokenPairResponse buildTokenPairResponse(
+        User user,
+        UserSession session,
+        String rawRefreshToken
+    ) {
+        List<AccessRole> roles = getRoles(user);
+
+        String accessToken = jwtService.createAccessToken(user, roles, session.getId());
+
+        UUID organizationId = user.getOrganization() == null
+            ? null
+            : user.getOrganization().getId();
+
+        return new TokenPairResponse(
             accessToken,
+            rawRefreshToken,
             "Bearer",
             jwtService.getAccessTokenExpiresInSeconds(),
             user.getId(),
@@ -70,27 +161,16 @@ public class JwtAuthenticationService {
         );
     }
 
-    @Transactional(readOnly = true)
-    public AuthenticatedUser authenticateAccessToken(String token) {
-        Claims claims = jwtService.parseAccessToken(token);
+    private UUID parseUuidClaim(String value) {
+        if (value == null) {
+            throw new JwtException("Invalid or expired access token.");
+        }
 
-        UUID userId = UUID.fromString(claims.getSubject());
-
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new NotFoundException("Authenticated user was not found."));
-
-        List<AccessRole> roles = getRoles(user);
-
-        UUID organizationId = user.getOrganization() == null
-            ? null
-            : user.getOrganization().getId();
-
-        return new AuthenticatedUser(
-            user.getId(),
-            organizationId,
-            user.getEmail(),
-            roles
-        );
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException exception) {
+            throw new JwtException("Invalid or expired access token.");
+        }
     }
 
     private List<AccessRole> getRoles(User user) {

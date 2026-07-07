@@ -35,7 +35,7 @@ public class JwtService {
         this.accessTokenMinutes = accessTokenMinutes;
     }
 
-    public String createAccessToken(User user, List<AccessRole> roles) {
+    public String createAccessToken(User user, List<AccessRole> roles, UUID sessionId) {
         Instant now = Instant.now();
         Instant expiresAt = now.plusSeconds(accessTokenMinutes * 60);
 
@@ -52,6 +52,7 @@ public class JwtService {
             .subject(user.getId().toString())
             .issuedAt(Date.from(now))
             .expiration(Date.from(expiresAt))
+            .claim("sid", sessionId.toString())
             .claim("email", user.getEmail())
             .claim("organizationId", organizationId == null ? null : organizationId.toString())
             .claim("roles", roleNames)

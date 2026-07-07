@@ -7,6 +7,7 @@ import me.aydgn.potriv.identity.entity.AccessRole;
 
 public record AuthenticatedUser(
     UUID userId,
+    UUID sessionId,
     UUID organizationId,
     String email,
     List<AccessRole> roles
