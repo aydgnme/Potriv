@@ -1,10 +1,8 @@
 package me.aydgn.potriv;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class PotrivBackendApplicationTests {
+class PotrivBackendApplicationTests extends AbstractIntegrationTest {
 
 	@Test
 	void contextLoads() {
