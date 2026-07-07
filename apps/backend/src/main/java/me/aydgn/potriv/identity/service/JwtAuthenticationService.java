@@ -18,6 +18,9 @@ import me.aydgn.potriv.identity.entity.UserSession;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.identity.repository.UserSessionRepository;
+import me.aydgn.potriv.security.entity.SecurityAuditEvent;
+import me.aydgn.potriv.security.entity.SecurityAuditEventType;
+import me.aydgn.potriv.security.service.SecurityAuditService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +43,7 @@ public class JwtAuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
+    private final SecurityAuditService securityAuditService;
     private final int maxFailedLoginAttempts;
     private final Duration loginLockDuration;
 
@@ -50,6 +54,7 @@ public class JwtAuthenticationService {
         RefreshTokenService refreshTokenService,
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
+        SecurityAuditService securityAuditService,
         AuthProperties authProperties
     ) {
         this.userRepository = userRepository;
@@ -58,6 +63,7 @@ public class JwtAuthenticationService {
         this.refreshTokenService = refreshTokenService;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.securityAuditService = securityAuditService;
         this.maxFailedLoginAttempts = authProperties.maxFailedLoginAttempts();
         this.loginLockDuration = Duration.ofMinutes(authProperties.lockDurationMinutes());
     }
@@ -69,14 +75,37 @@ public class JwtAuthenticationService {
         String normalizedEmail = request.email().trim().toLowerCase();
 
         User user = userRepository.findByEmailForUpdate(normalizedEmail)
-            .orElseThrow(JwtAuthenticationService::invalidCredentialsException);
+            .orElseThrow(() -> {
+                auditLoginFailure(null, normalizedEmail, userAgent, ipAddress, "Unknown email.");
+                return invalidCredentialsException();
+            });
 
         if (!user.isActive() || user.isLoginLocked()) {
+            auditLoginFailure(
+                user, normalizedEmail, userAgent, ipAddress,
+                user.isActive() ? "Account is locked." : "Account is not active."
+            );
             throw invalidCredentialsException();
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
             user.registerFailedLogin(maxFailedLoginAttempts, loginLockDuration);
+
+            auditLoginFailure(user, normalizedEmail, userAgent, ipAddress, "Wrong password.");
+
+            if (user.isLoginLocked()) {
+                securityAuditService.record(
+                    SecurityAuditEvent.builder(SecurityAuditEventType.ACCOUNT_LOCKED, false)
+                        .userId(user.getId())
+                        .organizationId(organizationIdOf(user))
+                        .normalizedEmail(normalizedEmail)
+                        .userAgent(userAgent)
+                        .ipAddress(ipAddress)
+                        .details("Account locked after too many failed login attempts.")
+                        .build()
+                );
+            }
+
             throw invalidCredentialsException();
         }
 
@@ -88,6 +117,17 @@ public class JwtAuthenticationService {
 
         RefreshTokenService.IssuedRefreshToken issuedRefreshToken =
             refreshTokenService.issue(session);
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.LOGIN_SUCCEEDED, true)
+                .userId(user.getId())
+                .organizationId(organizationIdOf(user))
+                .sessionId(session.getId())
+                .normalizedEmail(normalizedEmail)
+                .userAgent(userAgent)
+                .ipAddress(ipAddress)
+                .build()
+        );
 
         return buildTokenPairResponse(user, session, issuedRefreshToken.rawToken());
     }
@@ -105,6 +145,17 @@ public class JwtAuthenticationService {
         if (presentedToken.isUsed() || presentedToken.isRevoked()) {
             session.revoke();
             refreshTokenService.revokeAllForSession(session);
+
+            securityAuditService.record(
+                SecurityAuditEvent.builder(
+                        SecurityAuditEventType.REFRESH_TOKEN_REUSE_DETECTED, false)
+                    .userId(session.getUser().getId())
+                    .organizationId(organizationIdOf(session.getUser()))
+                    .sessionId(session.getId())
+                    .details("Session revoked after rotated refresh token reuse.")
+                    .build()
+            );
+
             throw new UnauthorizedException("Invalid refresh token.");
         }
 
@@ -125,6 +176,14 @@ public class JwtAuthenticationService {
 
         presentedToken.markUsed(issuedRefreshToken.token().getId());
         session.touch();
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.TOKEN_REFRESHED, true)
+                .userId(session.getUser().getId())
+                .organizationId(organizationIdOf(session.getUser()))
+                .sessionId(session.getId())
+                .build()
+        );
 
         return buildTokenPairResponse(session.getUser(), session, issuedRefreshToken.rawToken());
     }
@@ -193,6 +252,31 @@ public class JwtAuthenticationService {
             user.getEmail(),
             roles
         );
+    }
+
+    private void auditLoginFailure(
+        User user,
+        String normalizedEmail,
+        String userAgent,
+        String ipAddress,
+        String details
+    ) {
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.LOGIN_FAILED, false)
+                .userId(user == null ? null : user.getId())
+                .organizationId(user == null ? null : organizationIdOf(user))
+                .normalizedEmail(normalizedEmail)
+                .userAgent(userAgent)
+                .ipAddress(ipAddress)
+                .details(details)
+                .build()
+        );
+    }
+
+    private static UUID organizationIdOf(User user) {
+        return user.getOrganization() == null
+            ? null
+            : user.getOrganization().getId();
     }
 
     private static BadRequestException invalidCredentialsException() {

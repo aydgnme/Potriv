@@ -19,6 +19,9 @@ import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.organization.entity.Organization;
 import me.aydgn.potriv.organization.repository.OrganizationRepository;
+import me.aydgn.potriv.security.entity.SecurityAuditEvent;
+import me.aydgn.potriv.security.entity.SecurityAuditEventType;
+import me.aydgn.potriv.security.service.SecurityAuditService;
 
 @Service
 public class AuthRegistrationService {
@@ -28,6 +31,7 @@ public class AuthRegistrationService {
     private final UserRoleRepository userRoleRepository;
     private final InviteTokenRepository inviteTokenRepository;
     private final InviteTokenService inviteTokenService;
+    private final SecurityAuditService securityAuditService;
     private final PasswordEncoder passwordEncoder;
 
     public AuthRegistrationService(
@@ -36,6 +40,7 @@ public class AuthRegistrationService {
         UserRoleRepository userRoleRepository,
         InviteTokenRepository inviteTokenRepository,
         InviteTokenService inviteTokenService,
+        SecurityAuditService securityAuditService,
         PasswordEncoder passwordEncoder
     ) {
         this.organizationRepository = organizationRepository;
@@ -43,6 +48,7 @@ public class AuthRegistrationService {
         this.userRoleRepository = userRoleRepository;
         this.inviteTokenRepository = inviteTokenRepository;
         this.inviteTokenService = inviteTokenService;
+        this.securityAuditService = securityAuditService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -69,6 +75,15 @@ public class AuthRegistrationService {
         userRoleRepository.save(new UserRole(admin, AccessRole.ORGANIZATION_ADMIN));
 
         InviteToken inviteToken = inviteTokenService.createForOrganization(organization);
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(
+                    SecurityAuditEventType.ORGANIZATION_ADMIN_REGISTERED, true)
+                .userId(admin.getId())
+                .organizationId(organization.getId())
+                .normalizedEmail(normalizedEmail)
+                .build()
+        );
 
         return new RegisterAdminResponse(
             organization.getId(),
@@ -100,6 +115,14 @@ public class AuthRegistrationService {
         userRepository.save(employee);
 
         userRoleRepository.save(new UserRole(employee, AccessRole.EMPLOYEE));
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.EMPLOYEE_REGISTERED, true)
+                .userId(employee.getId())
+                .organizationId(organization.getId())
+                .normalizedEmail(normalizedEmail)
+                .build()
+        );
 
         return new RegisterEmployeeResponse(
             organization.getId(),

@@ -22,6 +22,9 @@ import me.aydgn.potriv.identity.entity.PasswordResetToken;
 import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.identity.repository.PasswordResetTokenRepository;
 import me.aydgn.potriv.identity.repository.UserRepository;
+import me.aydgn.potriv.security.entity.SecurityAuditEvent;
+import me.aydgn.potriv.security.entity.SecurityAuditEventType;
+import me.aydgn.potriv.security.service.SecurityAuditService;
 
 @Service
 public class PasswordResetService {
@@ -34,6 +37,7 @@ public class PasswordResetService {
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordResetMailService passwordResetMailService;
     private final UserSessionService userSessionService;
+    private final SecurityAuditService securityAuditService;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
     private final String frontendUrl;
@@ -44,6 +48,7 @@ public class PasswordResetService {
         PasswordResetTokenRepository passwordResetTokenRepository,
         PasswordResetMailService passwordResetMailService,
         UserSessionService userSessionService,
+        SecurityAuditService securityAuditService,
         PasswordEncoder passwordEncoder,
         AuthProperties authProperties,
         @Value("${app.frontend-url}") String frontendUrl
@@ -52,6 +57,7 @@ public class PasswordResetService {
         this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordResetMailService = passwordResetMailService;
         this.userSessionService = userSessionService;
+        this.securityAuditService = securityAuditService;
         this.passwordEncoder = passwordEncoder;
         this.frontendUrl = frontendUrl;
         this.resetTokenMinutes = authProperties.passwordResetTokenMinutes();
@@ -81,6 +87,17 @@ public class PasswordResetService {
         resetToken.markUsed();
 
         userSessionService.revokeAllSessionsForUser(user.getId());
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(
+                    SecurityAuditEventType.PASSWORD_RESET_COMPLETED, true)
+                .userId(user.getId())
+                .organizationId(
+                    user.getOrganization() == null ? null : user.getOrganization().getId()
+                )
+                .normalizedEmail(user.getEmail())
+                .build()
+        );
     }
 
     private void createAndSendResetToken(User user) {
@@ -97,6 +114,17 @@ public class PasswordResetService {
 
         passwordResetTokenRepository.save(
             new PasswordResetToken(user, TokenDigest.sha256Base64Url(rawToken), expiresAt)
+        );
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(
+                    SecurityAuditEventType.PASSWORD_RESET_REQUESTED, true)
+                .userId(user.getId())
+                .organizationId(
+                    user.getOrganization() == null ? null : user.getOrganization().getId()
+                )
+                .normalizedEmail(user.getEmail())
+                .build()
         );
 
         try {

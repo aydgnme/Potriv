@@ -15,6 +15,9 @@ import me.aydgn.potriv.identity.entity.AccessRole;
 import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
+import me.aydgn.potriv.security.entity.SecurityAuditEvent;
+import me.aydgn.potriv.security.entity.SecurityAuditEventType;
+import me.aydgn.potriv.security.service.SecurityAuditService;
 
 @Service
 public class UserAccountStatusService {
@@ -23,17 +26,20 @@ public class UserAccountStatusService {
     private final UserRoleRepository userRoleRepository;
     private final UserSessionService userSessionService;
     private final CurrentUserProvider currentUserProvider;
+    private final SecurityAuditService securityAuditService;
 
     public UserAccountStatusService(
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
         UserSessionService userSessionService,
-        CurrentUserProvider currentUserProvider
+        CurrentUserProvider currentUserProvider,
+        SecurityAuditService securityAuditService
     ) {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.userSessionService = userSessionService;
         this.currentUserProvider = currentUserProvider;
+        this.securityAuditService = securityAuditService;
     }
 
     @Transactional
@@ -53,11 +59,25 @@ public class UserAccountStatusService {
             ensureNotLastActiveSystemAdmin(target);
         }
 
+        AccessAccountStatus previousStatus = target.getStatus();
+
         target.changeStatus(newStatus);
 
         if (newStatus != AccessAccountStatus.ACTIVE) {
             userSessionService.revokeAllSessionsForUser(target.getId());
         }
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.USER_STATUS_CHANGED, true)
+                .userId(target.getId())
+                .organizationId(
+                    target.getOrganization() == null ? null : target.getOrganization().getId()
+                )
+                .actorUserId(actor.userId())
+                .normalizedEmail(target.getEmail())
+                .details("Status changed from " + previousStatus + " to " + newStatus + ".")
+                .build()
+        );
 
         return new UserStatusResponse(target.getId(), target.getStatus());
     }

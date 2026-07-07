@@ -11,19 +11,25 @@ import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.dto.SessionResponse;
 import me.aydgn.potriv.identity.entity.UserSession;
 import me.aydgn.potriv.identity.repository.UserSessionRepository;
+import me.aydgn.potriv.security.entity.SecurityAuditEvent;
+import me.aydgn.potriv.security.entity.SecurityAuditEventType;
+import me.aydgn.potriv.security.service.SecurityAuditService;
 
 @Service
 public class UserSessionService {
 
     private final UserSessionRepository userSessionRepository;
     private final RefreshTokenService refreshTokenService;
+    private final SecurityAuditService securityAuditService;
 
     public UserSessionService(
         UserSessionRepository userSessionRepository,
-        RefreshTokenService refreshTokenService
+        RefreshTokenService refreshTokenService,
+        SecurityAuditService securityAuditService
     ) {
         this.userSessionRepository = userSessionRepository;
         this.refreshTokenService = refreshTokenService;
+        this.securityAuditService = securityAuditService;
     }
 
     @Transactional
@@ -31,11 +37,29 @@ public class UserSessionService {
         userSessionRepository
             .findByIdAndUserId(currentUser.sessionId(), currentUser.userId())
             .ifPresent(this::revokeSession);
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.LOGOUT, true)
+                .userId(currentUser.userId())
+                .organizationId(currentUser.organizationId())
+                .sessionId(currentUser.sessionId())
+                .actorUserId(currentUser.userId())
+                .build()
+        );
     }
 
     @Transactional
     public void revokeAllSessions(AuthenticatedUser currentUser) {
         revokeAllSessionsForUser(currentUser.userId());
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.LOGOUT_ALL, true)
+                .userId(currentUser.userId())
+                .organizationId(currentUser.organizationId())
+                .sessionId(currentUser.sessionId())
+                .actorUserId(currentUser.userId())
+                .build()
+        );
     }
 
     @Transactional
@@ -61,6 +85,15 @@ public class UserSessionService {
             .orElseThrow(() -> new NotFoundException("Session was not found."));
 
         revokeSession(session);
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(SecurityAuditEventType.SESSION_REVOKED, true)
+                .userId(currentUser.userId())
+                .organizationId(currentUser.organizationId())
+                .sessionId(sessionId)
+                .actorUserId(currentUser.userId())
+                .build()
+        );
     }
 
     private void revokeSession(UserSession session) {

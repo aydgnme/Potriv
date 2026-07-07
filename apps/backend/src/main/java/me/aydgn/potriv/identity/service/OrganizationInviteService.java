@@ -13,6 +13,9 @@ import me.aydgn.potriv.identity.entity.InviteToken;
 import me.aydgn.potriv.identity.repository.InviteTokenRepository;
 import me.aydgn.potriv.organization.entity.Organization;
 import me.aydgn.potriv.organization.repository.OrganizationRepository;
+import me.aydgn.potriv.security.entity.SecurityAuditEvent;
+import me.aydgn.potriv.security.entity.SecurityAuditEventType;
+import me.aydgn.potriv.security.service.SecurityAuditService;
 
 @Service
 public class OrganizationInviteService {
@@ -20,15 +23,18 @@ public class OrganizationInviteService {
     private final InviteTokenRepository inviteTokenRepository;
     private final OrganizationRepository organizationRepository;
     private final InviteTokenService inviteTokenService;
+    private final SecurityAuditService securityAuditService;
 
     public OrganizationInviteService(
         InviteTokenRepository inviteTokenRepository,
         OrganizationRepository organizationRepository,
-        InviteTokenService inviteTokenService
+        InviteTokenService inviteTokenService,
+        SecurityAuditService securityAuditService
     ) {
         this.inviteTokenRepository = inviteTokenRepository;
         this.organizationRepository = organizationRepository;
         this.inviteTokenService = inviteTokenService;
+        this.securityAuditService = securityAuditService;
     }
 
     @Transactional(readOnly = true)
@@ -57,6 +63,16 @@ public class OrganizationInviteService {
             .forEach(InviteToken::deactivate);
 
         InviteToken newInvite = inviteTokenService.createForOrganization(organization);
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(
+                    SecurityAuditEventType.EMPLOYEE_INVITE_ROTATED, true)
+                .userId(currentUser.userId())
+                .organizationId(organization.getId())
+                .actorUserId(currentUser.userId())
+                .details("Employee invite rotated. New invite ID: " + newInvite.getId() + ".")
+                .build()
+        );
 
         return toResponse(newInvite);
     }
