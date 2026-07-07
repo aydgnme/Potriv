@@ -1,8 +1,5 @@
 package me.aydgn.potriv.identity.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -12,6 +9,7 @@ import java.util.Optional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.entity.RefreshToken;
 import me.aydgn.potriv.identity.entity.UserSession;
 import me.aydgn.potriv.identity.repository.RefreshTokenRepository;
@@ -45,28 +43,18 @@ public class RefreshTokenService {
         OffsetDateTime expiresAt = OffsetDateTime.now(ZoneOffset.UTC).plusDays(refreshTokenDays);
 
         RefreshToken token = refreshTokenRepository.save(
-            new RefreshToken(session, hash(rawToken), expiresAt)
+            new RefreshToken(session, TokenDigest.sha256Base64Url(rawToken), expiresAt)
         );
 
         return new IssuedRefreshToken(rawToken, token);
     }
 
     public Optional<RefreshToken> findByRawToken(String rawToken) {
-        return refreshTokenRepository.findByTokenHash(hash(rawToken));
+        return refreshTokenRepository.findByTokenHash(TokenDigest.sha256Base64Url(rawToken));
     }
 
     public void revokeAllForSession(UserSession session) {
         refreshTokenRepository.findBySessionAndRevokedAtIsNull(session)
             .forEach(RefreshToken::revoke);
-    }
-
-    private String hash(String rawToken) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(hashBytes);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 algorithm is not available.", exception);
-        }
     }
 }

@@ -16,6 +16,9 @@ import jakarta.validation.Valid;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.dto.CurrentUserResponse;
 import me.aydgn.potriv.identity.dto.LoginRequest;
+import me.aydgn.potriv.identity.dto.MessageResponse;
+import me.aydgn.potriv.identity.dto.PasswordResetConfirmRequest;
+import me.aydgn.potriv.identity.dto.PasswordResetRequest;
 import me.aydgn.potriv.identity.dto.RefreshRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminResponse;
@@ -24,6 +27,7 @@ import me.aydgn.potriv.identity.dto.RegisterEmployeeResponse;
 import me.aydgn.potriv.identity.dto.TokenPairResponse;
 import me.aydgn.potriv.identity.service.AuthRegistrationService;
 import me.aydgn.potriv.identity.service.JwtAuthenticationService;
+import me.aydgn.potriv.identity.service.PasswordResetService;
 
 @RestController
 @RequestMapping("/auth")
@@ -31,13 +35,16 @@ public class AuthController {
 
     private final AuthRegistrationService authRegistrationService;
     private final JwtAuthenticationService jwtAuthenticationService;
+    private final PasswordResetService passwordResetService;
 
     public AuthController(
         AuthRegistrationService authRegistrationService,
-        JwtAuthenticationService jwtAuthenticationService
+        JwtAuthenticationService jwtAuthenticationService,
+        PasswordResetService passwordResetService
     ) {
         this.authRegistrationService = authRegistrationService;
         this.jwtAuthenticationService = jwtAuthenticationService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/register-admin")
@@ -72,6 +79,26 @@ public class AuthController {
     @PostMapping("/refresh")
     public TokenPairResponse refresh(@Valid @RequestBody RefreshRequest request) {
         return jwtAuthenticationService.refresh(request);
+    }
+
+    @PostMapping("/password-reset/request")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public MessageResponse requestPasswordReset(
+        @Valid @RequestBody PasswordResetRequest request
+    ) {
+        passwordResetService.requestReset(request);
+
+        return new MessageResponse(
+            "If an account exists for this email, a password reset link has been sent."
+        );
+    }
+
+    @PostMapping("/password-reset/confirm")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmPasswordReset(
+        @Valid @RequestBody PasswordResetConfirmRequest request
+    ) {
+        passwordResetService.confirmReset(request);
     }
 
     @GetMapping("/me")

@@ -59,6 +59,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/auth/register-employee/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/refresh").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/password-reset/request").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/password-reset/confirm").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(
