@@ -99,6 +99,19 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
         return loginForAccessToken(SYSTEM_ADMIN_EMAIL, SYSTEM_ADMIN_PASSWORD);
     }
 
+    protected JsonNode refresh(String refreshToken) throws Exception {
+        String body = objectMapper.writeValueAsString(Map.of("refreshToken", refreshToken));
+
+        String response = mockMvc
+            .perform(post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+
+        return objectMapper.readTree(response);
+    }
+
     protected static String extractInviteToken(String inviteUrl) {
         return inviteUrl.substring(inviteUrl.indexOf("token=") + "token=".length());
     }
