@@ -23,6 +23,7 @@ import me.aydgn.potriv.organization.entity.Department;
 import me.aydgn.potriv.organization.entity.DepartmentManagerAssignment;
 import me.aydgn.potriv.organization.entity.Organization;
 import me.aydgn.potriv.organization.repository.DepartmentManagerAssignmentRepository;
+import me.aydgn.potriv.organization.repository.DepartmentMembershipRepository;
 import me.aydgn.potriv.organization.repository.DepartmentRepository;
 import me.aydgn.potriv.organization.repository.OrganizationRepository;
 
@@ -32,17 +33,20 @@ public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final OrganizationRepository organizationRepository;
     private final DepartmentManagerAssignmentRepository managerAssignmentRepository;
+    private final DepartmentMembershipRepository membershipRepository;
     private final CurrentOrganizationResolver currentOrganizationResolver;
 
     public DepartmentService(
         DepartmentRepository departmentRepository,
         OrganizationRepository organizationRepository,
         DepartmentManagerAssignmentRepository managerAssignmentRepository,
+        DepartmentMembershipRepository membershipRepository,
         CurrentOrganizationResolver currentOrganizationResolver
     ) {
         this.departmentRepository = departmentRepository;
         this.organizationRepository = organizationRepository;
         this.managerAssignmentRepository = managerAssignmentRepository;
+        this.membershipRepository = membershipRepository;
         this.currentOrganizationResolver = currentOrganizationResolver;
     }
 
@@ -71,19 +75,26 @@ public class DepartmentService {
         List<Department> departments =
             departmentRepository.findByOrganization_IdOrderByNameAsc(organizationId);
 
-        // Batch-load manager assignments once for the whole org to avoid N+1.
+        // Batch-load manager assignments and member counts once for the whole org
+        // to avoid N+1 across the listing.
         Map<UUID, DepartmentManagerSummary> managerByDepartment = managerAssignmentRepository
             .findAllWithManagerByOrganizationId(organizationId).stream()
             .collect(Collectors.toMap(
                 assignment -> assignment.getDepartment().getId(),
                 DepartmentService::managerSummary));
 
+        Map<UUID, Long> memberCountByDepartment = membershipRepository
+            .countMembersByOrganization(organizationId).stream()
+            .collect(Collectors.toMap(
+                row -> (UUID) row[0],
+                row -> (Long) row[1]));
+
         return departments.stream()
             .map(department -> new DepartmentResponse(
                 department.getId(),
                 department.getName(),
                 managerByDepartment.get(department.getId()),
-                0L,
+                memberCountByDepartment.getOrDefault(department.getId(), 0L),
                 department.getCreatedAt(),
                 department.getUpdatedAt()))
             .toList();
@@ -141,6 +152,11 @@ public class DepartmentService {
                 "Department has a manager assignment and cannot be deleted. "
                     + "Unassign the manager first.");
         }
+        if (membershipRepository.existsByDepartment_Id(department.getId())) {
+            throw new ConflictException(
+                "Department has members and cannot be deleted. "
+                    + "Remove all members first.");
+        }
     }
 
     protected DepartmentResponse toResponse(Department department) {
@@ -149,11 +165,13 @@ public class DepartmentService {
             .map(DepartmentService::managerSummary)
             .orElse(null);
 
+        long memberCount = membershipRepository.countByDepartment_Id(department.getId());
+
         return new DepartmentResponse(
             department.getId(),
             department.getName(),
             manager,
-            0L,
+            memberCount,
             department.getCreatedAt(),
             department.getUpdatedAt()
         );
