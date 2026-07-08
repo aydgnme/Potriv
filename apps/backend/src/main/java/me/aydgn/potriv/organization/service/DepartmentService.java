@@ -35,19 +35,22 @@ public class DepartmentService {
     private final DepartmentManagerAssignmentRepository managerAssignmentRepository;
     private final DepartmentMembershipRepository membershipRepository;
     private final CurrentOrganizationResolver currentOrganizationResolver;
+    private final List<DepartmentDeletionGuard> deletionGuards;
 
     public DepartmentService(
         DepartmentRepository departmentRepository,
         OrganizationRepository organizationRepository,
         DepartmentManagerAssignmentRepository managerAssignmentRepository,
         DepartmentMembershipRepository membershipRepository,
-        CurrentOrganizationResolver currentOrganizationResolver
+        CurrentOrganizationResolver currentOrganizationResolver,
+        List<DepartmentDeletionGuard> deletionGuards
     ) {
         this.departmentRepository = departmentRepository;
         this.organizationRepository = organizationRepository;
         this.managerAssignmentRepository = managerAssignmentRepository;
         this.membershipRepository = membershipRepository;
         this.currentOrganizationResolver = currentOrganizationResolver;
+        this.deletionGuards = deletionGuards;
     }
 
     @Transactional
@@ -157,6 +160,8 @@ public class DepartmentService {
                 "Department has members and cannot be deleted. "
                     + "Remove all members first.");
         }
+        // Other modules (for example skill-department links) may hold dependencies.
+        deletionGuards.forEach(guard -> guard.verifyDeletable(department.getId()));
     }
 
     protected DepartmentResponse toResponse(Department department) {

@@ -2,7 +2,9 @@ package me.aydgn.potriv.skill.service;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,10 +22,13 @@ import me.aydgn.potriv.skill.dto.CreateSkillRequest;
 import me.aydgn.potriv.skill.dto.SkillAuthorRef;
 import me.aydgn.potriv.skill.dto.SkillCategoryRef;
 import me.aydgn.potriv.skill.dto.SkillResponse;
+import me.aydgn.potriv.skill.dto.SkillDepartmentRef;
 import me.aydgn.potriv.skill.dto.UpdateSkillRequest;
 import me.aydgn.potriv.skill.entity.Skill;
 import me.aydgn.potriv.skill.entity.SkillCategory;
+import me.aydgn.potriv.skill.entity.SkillDepartmentLink;
 import me.aydgn.potriv.skill.repository.SkillCategoryRepository;
+import me.aydgn.potriv.skill.repository.SkillDepartmentLinkRepository;
 import me.aydgn.potriv.skill.repository.SkillRepository;
 
 @Service
@@ -31,17 +36,20 @@ public class SkillService {
 
     private final SkillRepository skillRepository;
     private final SkillCategoryRepository skillCategoryRepository;
+    private final SkillDepartmentLinkRepository skillDepartmentLinkRepository;
     private final UserRepository userRepository;
     private final CurrentOrganizationResolver currentOrganizationResolver;
 
     public SkillService(
         SkillRepository skillRepository,
         SkillCategoryRepository skillCategoryRepository,
+        SkillDepartmentLinkRepository skillDepartmentLinkRepository,
         UserRepository userRepository,
         CurrentOrganizationResolver currentOrganizationResolver
     ) {
         this.skillRepository = skillRepository;
         this.skillCategoryRepository = skillCategoryRepository;
+        this.skillDepartmentLinkRepository = skillDepartmentLinkRepository;
         this.userRepository = userRepository;
         this.currentOrganizationResolver = currentOrganizationResolver;
     }
@@ -67,7 +75,7 @@ public class SkillService {
             trimToNull(request.description()),
             author));
 
-        return toResponse(skill);
+        return toResponseWithLinks(skill);
     }
 
     @Transactional(readOnly = true)
@@ -79,15 +87,29 @@ public class SkillService {
     ) {
         UUID organizationId = currentOrganizationResolver.requireOrganizationId(currentUser);
 
-        return skillRepository
-            .search(organizationId, includeInactive, categoryId, trimToNull(q)).stream()
-            .map(SkillService::toResponse)
+        List<Skill> skills =
+            skillRepository.search(organizationId, includeInactive, categoryId, trimToNull(q));
+
+        if (skills.isEmpty()) {
+            return List.of();
+        }
+
+        // Batch-load department links once for all matched skills to avoid N+1.
+        Map<UUID, List<SkillDepartmentRef>> departmentsBySkill = skillDepartmentLinkRepository
+            .findBySkillIdsWithDepartment(skills.stream().map(Skill::getId).toList()).stream()
+            .collect(Collectors.groupingBy(
+                link -> link.getSkill().getId(),
+                Collectors.mapping(SkillService::departmentRef, Collectors.toList())));
+
+        return skills.stream()
+            .map(skill -> toResponse(
+                skill, departmentsBySkill.getOrDefault(skill.getId(), List.of())))
             .toList();
     }
 
     @Transactional(readOnly = true)
     public SkillResponse get(AuthenticatedUser currentUser, UUID skillId) {
-        return toResponse(requireOrganizationSkill(currentUser, skillId));
+        return toResponseWithLinks(requireOrganizationSkill(currentUser, skillId));
     }
 
     @Transactional
@@ -131,7 +153,7 @@ public class SkillService {
             }
         }
 
-        return toResponse(skill);
+        return toResponseWithLinks(skill);
     }
 
     @Transactional
@@ -198,7 +220,19 @@ public class SkillService {
         return StringUtils.hasText(trimmed) ? trimmed : null;
     }
 
-    private static SkillResponse toResponse(Skill skill) {
+    private SkillResponse toResponseWithLinks(Skill skill) {
+        List<SkillDepartmentRef> departments = skillDepartmentLinkRepository
+            .findBySkillIdWithDepartment(skill.getId()).stream()
+            .map(SkillService::departmentRef)
+            .toList();
+        return toResponse(skill, departments);
+    }
+
+    private static SkillDepartmentRef departmentRef(SkillDepartmentLink link) {
+        return new SkillDepartmentRef(link.getDepartment().getId(), link.getDepartment().getName());
+    }
+
+    private static SkillResponse toResponse(Skill skill, List<SkillDepartmentRef> departments) {
         SkillCategory category = skill.getCategory();
         User author = skill.getAuthor();
         return new SkillResponse(
@@ -207,7 +241,7 @@ public class SkillService {
             skill.getName(),
             skill.getDescription(),
             new SkillAuthorRef(author.getId(), author.getName(), author.getEmail()),
-            List.of(),
+            departments,
             skill.isActive(),
             skill.getCreatedAt(),
             skill.getUpdatedAt()
