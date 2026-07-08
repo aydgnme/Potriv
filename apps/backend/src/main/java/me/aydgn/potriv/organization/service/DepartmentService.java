@@ -2,7 +2,9 @@ package me.aydgn.potriv.organization.service;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,11 +14,15 @@ import me.aydgn.potriv.common.exception.ConflictException;
 import me.aydgn.potriv.common.exception.NotFoundException;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.common.security.CurrentOrganizationResolver;
+import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.organization.dto.CreateDepartmentRequest;
+import me.aydgn.potriv.organization.dto.DepartmentManagerSummary;
 import me.aydgn.potriv.organization.dto.DepartmentResponse;
 import me.aydgn.potriv.organization.dto.UpdateDepartmentRequest;
 import me.aydgn.potriv.organization.entity.Department;
+import me.aydgn.potriv.organization.entity.DepartmentManagerAssignment;
 import me.aydgn.potriv.organization.entity.Organization;
+import me.aydgn.potriv.organization.repository.DepartmentManagerAssignmentRepository;
 import me.aydgn.potriv.organization.repository.DepartmentRepository;
 import me.aydgn.potriv.organization.repository.OrganizationRepository;
 
@@ -25,15 +31,18 @@ public class DepartmentService {
 
     private final DepartmentRepository departmentRepository;
     private final OrganizationRepository organizationRepository;
+    private final DepartmentManagerAssignmentRepository managerAssignmentRepository;
     private final CurrentOrganizationResolver currentOrganizationResolver;
 
     public DepartmentService(
         DepartmentRepository departmentRepository,
         OrganizationRepository organizationRepository,
+        DepartmentManagerAssignmentRepository managerAssignmentRepository,
         CurrentOrganizationResolver currentOrganizationResolver
     ) {
         this.departmentRepository = departmentRepository;
         this.organizationRepository = organizationRepository;
+        this.managerAssignmentRepository = managerAssignmentRepository;
         this.currentOrganizationResolver = currentOrganizationResolver;
     }
 
@@ -59,8 +68,24 @@ public class DepartmentService {
     public List<DepartmentResponse> list(AuthenticatedUser currentUser) {
         UUID organizationId = currentOrganizationResolver.requireOrganizationId(currentUser);
 
-        return departmentRepository.findByOrganization_IdOrderByNameAsc(organizationId).stream()
-            .map(this::toResponse)
+        List<Department> departments =
+            departmentRepository.findByOrganization_IdOrderByNameAsc(organizationId);
+
+        // Batch-load manager assignments once for the whole org to avoid N+1.
+        Map<UUID, DepartmentManagerSummary> managerByDepartment = managerAssignmentRepository
+            .findAllWithManagerByOrganizationId(organizationId).stream()
+            .collect(Collectors.toMap(
+                assignment -> assignment.getDepartment().getId(),
+                DepartmentService::managerSummary));
+
+        return departments.stream()
+            .map(department -> new DepartmentResponse(
+                department.getId(),
+                department.getName(),
+                managerByDepartment.get(department.getId()),
+                0L,
+                department.getCreatedAt(),
+                department.getUpdatedAt()))
             .toList();
     }
 
@@ -105,23 +130,39 @@ public class DepartmentService {
     }
 
     /**
-     * Guards destructive deletion. Later tasks add manager-assignment and
-     * membership dependency checks here so a department is deletable only when
-     * it has no manager and no members. Users are never cascade-deleted.
+     * Guards destructive deletion. A department with a manager assignment must
+     * have the manager unassigned first; the service returns 409 before any FK
+     * failure. Users are never cascade-deleted. Later tasks extend this with a
+     * membership check.
      */
     protected void ensureDeletable(Department department) {
-        // No dependent relations exist yet in this task.
+        if (managerAssignmentRepository.existsByDepartment_Id(department.getId())) {
+            throw new ConflictException(
+                "Department has a manager assignment and cannot be deleted. "
+                    + "Unassign the manager first.");
+        }
     }
 
     protected DepartmentResponse toResponse(Department department) {
+        DepartmentManagerSummary manager = managerAssignmentRepository
+            .findByDepartment_Id(department.getId())
+            .map(DepartmentService::managerSummary)
+            .orElse(null);
+
         return new DepartmentResponse(
             department.getId(),
             department.getName(),
-            null,
+            manager,
             0L,
             department.getCreatedAt(),
             department.getUpdatedAt()
         );
+    }
+
+    private static DepartmentManagerSummary managerSummary(DepartmentManagerAssignment assignment) {
+        User manager = assignment.getManager();
+        return new DepartmentManagerSummary(
+            manager.getId(), manager.getName(), manager.getEmail());
     }
 
     private void ensureNameAvailable(UUID organizationId, String normalizedName) {
