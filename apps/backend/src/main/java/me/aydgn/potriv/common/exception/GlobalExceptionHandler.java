@@ -3,9 +3,11 @@ package me.aydgn.potriv.common.exception;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
@@ -65,6 +67,26 @@ public class GlobalExceptionHandler {
             .collect(Collectors.joining(", "));
 
         return build(HttpStatus.BAD_REQUEST, message, request);
+    }
+
+    // Unparseable request bodies (for example an invalid enum value) return a
+    // JSON 400 instead of a 500.
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadable(
+        HttpMessageNotReadableException exception,
+        HttpServletRequest request
+    ) {
+        return build(HttpStatus.BAD_REQUEST, "Malformed or invalid request body.", request);
+    }
+
+    // Malformed path/query parameters (for example an invalid UUID) return a
+    // JSON 400 instead of a 500.
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(
+        MethodArgumentTypeMismatchException exception,
+        HttpServletRequest request
+    ) {
+        return build(HttpStatus.BAD_REQUEST, "Invalid request parameter.", request);
     }
 
     private ResponseEntity<ApiErrorResponse> build(

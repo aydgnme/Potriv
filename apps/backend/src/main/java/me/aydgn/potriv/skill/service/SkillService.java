@@ -87,8 +87,8 @@ public class SkillService {
     ) {
         UUID organizationId = currentOrganizationResolver.requireOrganizationId(currentUser);
 
-        List<Skill> skills =
-            skillRepository.search(organizationId, includeInactive, categoryId, trimToNull(q));
+        List<Skill> skills = skillRepository.search(
+            organizationId, includeInactive, categoryId, likePattern(q));
 
         if (skills.isEmpty()) {
             return List.of();
@@ -210,6 +210,15 @@ public class SkillService {
 
     private static String normalize(String name) {
         return name.trim().toLowerCase(Locale.ROOT);
+    }
+
+    // Builds a non-null lowercase LIKE pattern; a blank query matches everything.
+    private static String likePattern(String q) {
+        String trimmed = trimToNull(q);
+        if (trimmed == null) {
+            return "%";
+        }
+        return "%" + trimmed.toLowerCase(Locale.ROOT) + "%";
     }
 
     private static String trimToNull(String value) {
