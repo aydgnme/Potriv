@@ -18,19 +18,20 @@ public interface SkillRepository extends JpaRepository<Skill, UUID> {
         UUID organizationId, UUID categoryId, String normalizedName);
 
     // Tenant-scoped search with optional active filter, category filter and a
-    // case-insensitive name "contains" query. Category and author are fetch-joined
-    // to avoid N+1 when building responses.
+    // case-insensitive name "contains" query. The caller passes a non-null
+    // lowercase LIKE pattern ("%" matches everything) so no nullable parameter is
+    // fed to a SQL function. Category and author are fetch-joined to avoid N+1.
     @Query("select s from Skill s "
         + "join fetch s.category c "
         + "join fetch s.author a "
         + "where s.organization.id = :organizationId "
         + "and (:includeInactive = true or s.active = true) "
         + "and (:categoryId is null or c.id = :categoryId) "
-        + "and (:q is null or lower(s.name) like lower(concat('%', :q, '%'))) "
+        + "and lower(s.name) like :namePattern "
         + "order by c.name asc, s.name asc")
     List<Skill> search(
         @Param("organizationId") UUID organizationId,
         @Param("includeInactive") boolean includeInactive,
         @Param("categoryId") UUID categoryId,
-        @Param("q") String q);
+        @Param("namePattern") String namePattern);
 }
