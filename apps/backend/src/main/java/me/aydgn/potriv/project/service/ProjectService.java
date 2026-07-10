@@ -60,6 +60,7 @@ public class ProjectService {
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final CurrentOrganizationResolver currentOrganizationResolver;
+    private final List<ProjectDeletionContributor> deletionContributors;
 
     public ProjectService(
         ProjectRepository projectRepository,
@@ -70,7 +71,8 @@ public class ProjectService {
         OrganizationRepository organizationRepository,
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
-        CurrentOrganizationResolver currentOrganizationResolver
+        CurrentOrganizationResolver currentOrganizationResolver,
+        List<ProjectDeletionContributor> deletionContributors
     ) {
         this.projectRepository = projectRepository;
         this.technologyRepository = technologyRepository;
@@ -81,6 +83,7 @@ public class ProjectService {
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.currentOrganizationResolver = currentOrganizationResolver;
+        this.deletionContributors = deletionContributors;
     }
 
     @Transactional
@@ -217,11 +220,24 @@ public class ProjectService {
                 "This project has progressed beyond planning and can no longer be deleted.");
         }
 
+        // Let other modules clean up their project-scoped data first (for example
+        // assignment proposals), without the project module depending on them.
+        deletionContributors.forEach(contributor -> contributor.beforeProjectDelete(project.getId()));
+
         // Explicit, bounded deletion: never a broad cascade onto users/allocations.
         technologyRepository.deleteByProject_Id(project.getId());
         requirementRepository.deleteByProject_Id(project.getId());
         statusHistoryRepository.deleteByProject_Id(project.getId());
         projectRepository.delete(project);
+    }
+
+    /**
+     * Resolves a project the current user owns, reusing the single ownership
+     * architecture. Cross-org or non-owning access resolves to 404.
+     */
+    @Transactional(readOnly = true)
+    public Project requireManagedProject(AuthenticatedUser currentUser, UUID projectId) {
+        return requireOwnedProject(currentUser, projectId);
     }
 
     // ---- validation / building ----
