@@ -32,5 +32,6 @@ public class AssignmentProposalProjectDeletionContributor implements ProjectDele
         proposalRoleRepository.deleteByProjectId(projectId);
         proposalRoleRepository.flush();
         proposalRepository.deleteAll(proposalRepository.findByProject_Id(projectId));
+        proposalRepository.flush();
     }
 }
