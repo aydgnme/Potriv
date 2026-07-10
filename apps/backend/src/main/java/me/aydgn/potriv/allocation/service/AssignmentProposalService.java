@@ -135,7 +135,7 @@ public class AssignmentProposalService {
             throw new BadRequestException("workHoursPerDay must be at least 1.");
         }
         if (workHoursPerDay > EmployeeCapacityService.MAX_HOURS_PER_DAY) {
-            throw new ConflictException("workHoursPerDay exceeds the 8 hour daily maximum.");
+            throw new ConflictException("workHoursPerDay exceeds the 8-hour daily maximum.");
         }
 
         int availableHours = employeeCapacityService.availableHours(employeeId);
