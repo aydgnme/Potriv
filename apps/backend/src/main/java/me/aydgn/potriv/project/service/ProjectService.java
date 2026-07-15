@@ -61,6 +61,7 @@ public class ProjectService {
     private final UserRoleRepository userRoleRepository;
     private final CurrentOrganizationResolver currentOrganizationResolver;
     private final List<ProjectDeletionContributor> deletionContributors;
+    private final List<ProjectStatusChangeGuard> statusChangeGuards;
 
     public ProjectService(
         ProjectRepository projectRepository,
@@ -72,7 +73,8 @@ public class ProjectService {
         UserRepository userRepository,
         UserRoleRepository userRoleRepository,
         CurrentOrganizationResolver currentOrganizationResolver,
-        List<ProjectDeletionContributor> deletionContributors
+        List<ProjectDeletionContributor> deletionContributors,
+        List<ProjectStatusChangeGuard> statusChangeGuards
     ) {
         this.projectRepository = projectRepository;
         this.technologyRepository = technologyRepository;
@@ -84,6 +86,7 @@ public class ProjectService {
         this.userRoleRepository = userRoleRepository;
         this.currentOrganizationResolver = currentOrganizationResolver;
         this.deletionContributors = deletionContributors;
+        this.statusChangeGuards = statusChangeGuards;
     }
 
     @Transactional
@@ -183,6 +186,12 @@ public class ProjectService {
 
         // Status change (and its history) only when the value actually differs.
         if (request.status() != null && request.status() != project.getStatus()) {
+            // Other modules may veto the transition (for example activation that
+            // would over-allocate an employee). A veto throws before any change,
+            // so status and history stay untouched.
+            statusChangeGuards.forEach(
+                guard -> guard.beforeStatusChange(project, request.status()));
+
             User actor = userRepository.findById(currentUser.userId())
                 .orElseThrow(() -> new NotFoundException("Authenticated user was not found."));
             ProjectStatus previous = project.getStatus();
