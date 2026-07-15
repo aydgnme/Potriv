@@ -127,4 +127,20 @@ public class ProjectAssignmentProposal extends BaseEntity {
     public OffsetDateTime getReviewedAt() {
         return reviewedAt;
     }
+
+    public boolean isPending() {
+        return status == AssignmentProposalStatus.PENDING;
+    }
+
+    public void approve(User reviewedBy, OffsetDateTime reviewedAt) {
+        this.status = AssignmentProposalStatus.APPROVED;
+        this.reviewedBy = reviewedBy;
+        this.reviewedAt = reviewedAt;
+    }
+
+    public void reject(User reviewedBy, OffsetDateTime reviewedAt) {
+        this.status = AssignmentProposalStatus.REJECTED;
+        this.reviewedBy = reviewedBy;
+        this.reviewedAt = reviewedAt;
+    }
 }

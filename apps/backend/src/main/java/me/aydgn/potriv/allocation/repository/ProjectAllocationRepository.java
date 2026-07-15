@@ -1,0 +1,53 @@
+package me.aydgn.potriv.allocation.repository;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import me.aydgn.potriv.allocation.entity.ProjectAllocation;
+import me.aydgn.potriv.project.entity.ProjectStatus;
+
+public interface ProjectAllocationRepository extends JpaRepository<ProjectAllocation, UUID> {
+
+    boolean existsByProject_IdAndEmployee_IdAndDeallocatedAtIsNull(UUID projectId, UUID employeeId);
+
+    @Query("select a from ProjectAllocation a "
+        + "where a.project.id = :projectId and a.employee.id = :employeeId "
+        + "and a.deallocatedAt is null")
+    List<ProjectAllocation> findActiveByProjectAndEmployee(
+        @Param("projectId") UUID projectId, @Param("employeeId") UUID employeeId);
+
+    @Query("select a from ProjectAllocation a "
+        + "join fetch a.employee "
+        + "where a.project.id = :projectId and a.deallocatedAt is null")
+    List<ProjectAllocation> findActiveByProject(@Param("projectId") UUID projectId);
+
+    // Sum of an employee's active, capacity-consuming allocation hours.
+    @Query("select coalesce(sum(a.workHoursPerDay), 0) from ProjectAllocation a "
+        + "where a.employee.id = :employeeId "
+        + "and a.deallocatedAt is null "
+        + "and a.project.status in :statuses")
+    int sumActiveCapacityHours(
+        @Param("employeeId") UUID employeeId,
+        @Param("statuses") Collection<ProjectStatus> statuses);
+
+    // Same as above but excluding a given project (used by the activation guard).
+    @Query("select coalesce(sum(a.workHoursPerDay), 0) from ProjectAllocation a "
+        + "where a.employee.id = :employeeId "
+        + "and a.deallocatedAt is null "
+        + "and a.project.id <> :excludedProjectId "
+        + "and a.project.status in :statuses")
+    int sumActiveCapacityHoursExcludingProject(
+        @Param("employeeId") UUID employeeId,
+        @Param("excludedProjectId") UUID excludedProjectId,
+        @Param("statuses") Collection<ProjectStatus> statuses);
+
+    @Modifying
+    @Query("delete from ProjectAllocation a where a.project.id = :projectId")
+    void deleteByProjectId(@Param("projectId") UUID projectId);
+}
