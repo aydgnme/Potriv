@@ -1,5 +1,6 @@
 package me.aydgn.potriv.allocation.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -18,6 +19,20 @@ public interface ProjectDeallocationProposalRepository
     extends JpaRepository<ProjectDeallocationProposal, UUID> {
 
     boolean existsByAllocation_IdAndStatus(UUID allocationId, DeallocationProposalStatus status);
+
+    // Department involvement check for the team view (any proposal status).
+    boolean existsByAllocation_Project_IdAndReviewDepartment_Id(
+        UUID projectId, UUID reviewDepartmentId);
+
+    // Team view: approved deallocation proposals for a set of allocations, with
+    // reviewer summaries fetch-joined, in one batch query.
+    @Query("select distinct p from ProjectDeallocationProposal p "
+        + "join fetch p.proposedBy "
+        + "left join fetch p.reviewedBy "
+        + "where p.allocation.id in :allocationIds and p.status = :status")
+    List<ProjectDeallocationProposal> findByAllocationIdsAndStatusWithDetails(
+        @Param("allocationIds") Collection<UUID> allocationIds,
+        @Param("status") DeallocationProposalStatus status);
 
     // Locks the proposal row for the accept/reject review transaction.
     @Lock(LockModeType.PESSIMISTIC_WRITE)

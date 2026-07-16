@@ -19,6 +19,30 @@ public interface ProjectAllocationRepository extends JpaRepository<ProjectAlloca
 
     boolean existsByProject_IdAndEmployee_IdAndDeallocatedAtIsNull(UUID projectId, UUID employeeId);
 
+    // Team-view visibility: the employee has (or had) any allocation episode.
+    boolean existsByProject_IdAndEmployee_Id(UUID projectId, UUID employeeId);
+
+    // Team view: active allocations of one project with all mapped summaries
+    // fetch-joined (reviewedBy is a left join because legacy rows could lack it).
+    @Query("select distinct a from ProjectAllocation a "
+        + "join fetch a.employee "
+        + "join fetch a.assignmentProposal ap "
+        + "join fetch ap.reviewDepartment "
+        + "join fetch ap.proposedBy "
+        + "left join fetch ap.reviewedBy "
+        + "where a.project.id = :projectId and a.deallocatedAt is null")
+    List<ProjectAllocation> findActiveByProjectIdWithDetails(@Param("projectId") UUID projectId);
+
+    // Team view: ended allocations of one project, same fetch shape.
+    @Query("select distinct a from ProjectAllocation a "
+        + "join fetch a.employee "
+        + "join fetch a.assignmentProposal ap "
+        + "join fetch ap.reviewDepartment "
+        + "join fetch ap.proposedBy "
+        + "left join fetch ap.reviewedBy "
+        + "where a.project.id = :projectId and a.deallocatedAt is not null")
+    List<ProjectAllocation> findPastByProjectIdWithDetails(@Param("projectId") UUID projectId);
+
     // Locks the allocation row for deallocation proposal creation and review.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from ProjectAllocation a where a.id = :allocationId")

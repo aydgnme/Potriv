@@ -27,6 +27,20 @@ public interface ProjectAssignmentProposalRepository
     List<UUID> findEmployeeIdsByProjectAndStatus(
         @Param("projectId") UUID projectId, @Param("status") AssignmentProposalStatus status);
 
+    // Team view: proposals of one project in a given status, with the summaries
+    // fetch-joined to avoid N+1, oldest first.
+    @Query("select distinct p from ProjectAssignmentProposal p "
+        + "join fetch p.employee "
+        + "join fetch p.reviewDepartment "
+        + "join fetch p.proposedBy "
+        + "where p.project.id = :projectId and p.status = :status "
+        + "order by p.createdAt asc")
+    List<ProjectAssignmentProposal> findByProjectIdAndStatusWithDetails(
+        @Param("projectId") UUID projectId, @Param("status") AssignmentProposalStatus status);
+
+    // Department involvement check for the team view (any proposal status).
+    boolean existsByProject_IdAndReviewDepartment_Id(UUID projectId, UUID reviewDepartmentId);
+
     // Locks the proposal row for the accept/reject review transaction.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from ProjectAssignmentProposal p where p.id = :proposalId")
