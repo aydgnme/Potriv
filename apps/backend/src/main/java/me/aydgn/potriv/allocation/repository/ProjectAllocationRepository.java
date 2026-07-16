@@ -58,4 +58,23 @@ public interface ProjectAllocationRepository extends JpaRepository<ProjectAlloca
     @Modifying
     @Query("delete from ProjectAllocation a where a.project.id = :projectId")
     void deleteByProjectId(@Param("projectId") UUID projectId);
+
+    // Batch load: active allocations (with project) for a set of employees.
+    @Query("select a from ProjectAllocation a "
+        + "join fetch a.project "
+        + "where a.employee.id in :employeeIds and a.deallocatedAt is null")
+    List<ProjectAllocation> findActiveByEmployeeIdsWithProject(
+        @Param("employeeIds") Collection<UUID> employeeIds);
+
+    // Batch load: ended (deallocated) same-organization allocations for a set of
+    // employees, with project and assignment proposal for similarity matching.
+    @Query("select a from ProjectAllocation a "
+        + "join fetch a.project "
+        + "join fetch a.assignmentProposal "
+        + "where a.employee.id in :employeeIds "
+        + "and a.deallocatedAt is not null "
+        + "and a.project.organization.id = :organizationId")
+    List<ProjectAllocation> findPastByEmployeeIdsWithProject(
+        @Param("employeeIds") Collection<UUID> employeeIds,
+        @Param("organizationId") UUID organizationId);
 }

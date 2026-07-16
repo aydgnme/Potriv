@@ -21,6 +21,12 @@ public interface ProjectAssignmentProposalRepository
 
     List<ProjectAssignmentProposal> findByProject_Id(UUID projectId);
 
+    // Employees with a proposal of the given status on a project, in one query.
+    @Query("select p.employee.id from ProjectAssignmentProposal p "
+        + "where p.project.id = :projectId and p.status = :status")
+    List<UUID> findEmployeeIdsByProjectAndStatus(
+        @Param("projectId") UUID projectId, @Param("status") AssignmentProposalStatus status);
+
     // Locks the proposal row for the accept/reject review transaction.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from ProjectAssignmentProposal p where p.id = :proposalId")
