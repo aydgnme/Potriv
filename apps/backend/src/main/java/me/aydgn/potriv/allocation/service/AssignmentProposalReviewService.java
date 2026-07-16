@@ -2,6 +2,8 @@ package me.aydgn.potriv.allocation.service;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,11 +14,12 @@ import me.aydgn.potriv.allocation.dto.AssignmentProposalResponse.UserSummary;
 import me.aydgn.potriv.allocation.dto.AssignmentReviewResponse;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse;
 import me.aydgn.potriv.allocation.dto.ProjectAllocationResponse;
-import me.aydgn.potriv.allocation.entity.AssignmentProposalStatus;
+import me.aydgn.potriv.allocation.dto.ProjectProposalStatusFilter;
 import me.aydgn.potriv.allocation.entity.ProjectAllocation;
 import me.aydgn.potriv.allocation.entity.ProjectAssignmentProposal;
 import me.aydgn.potriv.allocation.repository.ProjectAllocationRepository;
 import me.aydgn.potriv.allocation.repository.ProjectAssignmentProposalRepository;
+import me.aydgn.potriv.allocation.repository.ProjectDeallocationProposalRepository;
 import me.aydgn.potriv.common.exception.ConflictException;
 import me.aydgn.potriv.common.exception.ForbiddenException;
 import me.aydgn.potriv.common.exception.NotFoundException;
@@ -33,47 +36,64 @@ import me.aydgn.potriv.project.entity.Project;
 public class AssignmentProposalReviewService {
 
     private final ProjectAssignmentProposalRepository proposalRepository;
+    private final ProjectDeallocationProposalRepository deallocationProposalRepository;
     private final ProjectAllocationRepository allocationRepository;
     private final DepartmentManagerAssignmentRepository managerAssignmentRepository;
     private final UserRepository userRepository;
     private final EmployeeCapacityService employeeCapacityService;
     private final CurrentOrganizationResolver currentOrganizationResolver;
     private final AssignmentProposalMapper mapper;
+    private final DeallocationProposalMapper deallocationMapper;
     private final Clock clock;
 
     public AssignmentProposalReviewService(
         ProjectAssignmentProposalRepository proposalRepository,
+        ProjectDeallocationProposalRepository deallocationProposalRepository,
         ProjectAllocationRepository allocationRepository,
         DepartmentManagerAssignmentRepository managerAssignmentRepository,
         UserRepository userRepository,
         EmployeeCapacityService employeeCapacityService,
         CurrentOrganizationResolver currentOrganizationResolver,
         AssignmentProposalMapper mapper,
+        DeallocationProposalMapper deallocationMapper,
         Clock clock
     ) {
         this.proposalRepository = proposalRepository;
+        this.deallocationProposalRepository = deallocationProposalRepository;
         this.allocationRepository = allocationRepository;
         this.managerAssignmentRepository = managerAssignmentRepository;
         this.userRepository = userRepository;
         this.employeeCapacityService = employeeCapacityService;
         this.currentOrganizationResolver = currentOrganizationResolver;
         this.mapper = mapper;
+        this.deallocationMapper = deallocationMapper;
         this.clock = clock;
     }
 
     @Transactional(readOnly = true)
     public List<DepartmentProjectProposalResponse> listForManagedDepartment(
         AuthenticatedUser currentUser,
-        AssignmentProposalStatus statusFilter
+        ProjectProposalStatusFilter statusFilter
     ) {
         currentOrganizationResolver.requireOrganizationId(currentUser);
         Department managedDepartment = requireManagedAssignment(currentUser).getDepartment();
 
-        AssignmentProposalStatus status =
-            statusFilter != null ? statusFilter : AssignmentProposalStatus.PENDING;
+        ProjectProposalStatusFilter status =
+            statusFilter != null ? statusFilter : ProjectProposalStatusFilter.PENDING;
 
-        return mapper.toDepartmentResponses(
-            proposalRepository.findForReview(managedDepartment.getId(), status));
+        // Combined queue: assignment and deallocation rows, oldest first, with a
+        // stable tie-breaker on proposal type then ID.
+        List<DepartmentProjectProposalResponse> combined = new ArrayList<>();
+        combined.addAll(mapper.toDepartmentResponses(proposalRepository.findForReview(
+            managedDepartment.getId(), status.toAssignmentStatus())));
+        combined.addAll(deallocationMapper.toDepartmentResponses(
+            deallocationProposalRepository.findForReview(
+                managedDepartment.getId(), status.toDeallocationStatus())));
+        combined.sort(Comparator
+            .comparing(DepartmentProjectProposalResponse::createdAt)
+            .thenComparing(DepartmentProjectProposalResponse::proposalType)
+            .thenComparing(response -> response.proposalId().toString()));
+        return combined;
     }
 
     @Transactional

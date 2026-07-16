@@ -13,6 +13,7 @@ import me.aydgn.potriv.allocation.dto.AssignmentProposalResponse.TeamRoleSummary
 import me.aydgn.potriv.allocation.dto.AssignmentProposalResponse.UserSummary;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse.ProjectSummary;
+import me.aydgn.potriv.allocation.dto.ProjectProposalStatusFilter;
 import me.aydgn.potriv.allocation.entity.ProjectAssignmentProposal;
 import me.aydgn.potriv.allocation.entity.ProjectAssignmentProposalRole;
 import me.aydgn.potriv.allocation.repository.ProjectAssignmentProposalRoleRepository;
@@ -94,7 +95,9 @@ public class AssignmentProposalMapper {
             proposal.getWorkHoursPerDay(),
             teamRoles,
             proposal.getComments(),
-            proposal.getStatus(),
+            null,
+            null,
+            ProjectProposalStatusFilter.of(proposal.getStatus()),
             userSummary(proposal.getProposedBy()),
             proposal.getCreatedAt(),
             userSummary(proposal.getReviewedBy()),

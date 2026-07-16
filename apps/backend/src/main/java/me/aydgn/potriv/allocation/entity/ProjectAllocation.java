@@ -106,4 +106,8 @@ public class ProjectAllocation extends BaseEntity {
     public boolean isActive() {
         return deallocatedAt == null;
     }
+
+    public void deallocate(OffsetDateTime deallocatedAt) {
+        this.deallocatedAt = deallocatedAt;
+    }
 }
