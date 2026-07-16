@@ -15,7 +15,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import me.aydgn.potriv.allocation.dto.AssignmentReviewResponse;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse;
-import me.aydgn.potriv.allocation.entity.AssignmentProposalStatus;
+import me.aydgn.potriv.allocation.dto.ProjectProposalStatusFilter;
 import me.aydgn.potriv.allocation.service.AssignmentProposalReviewService;
 import me.aydgn.potriv.common.config.OpenApiConfig;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
@@ -44,7 +44,7 @@ public class AssignmentProposalReviewController {
     @GetMapping
     public List<DepartmentProjectProposalResponse> list(
         @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-        @RequestParam(name = "status", required = false) AssignmentProposalStatus status
+        @RequestParam(name = "status", required = false) ProjectProposalStatusFilter status
     ) {
         return reviewService.listForManagedDepartment(authenticatedUser, status);
     }

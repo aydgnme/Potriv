@@ -2,19 +2,27 @@ package me.aydgn.potriv.allocation.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import me.aydgn.potriv.allocation.entity.ProjectAllocation;
 import me.aydgn.potriv.project.entity.ProjectStatus;
 
 public interface ProjectAllocationRepository extends JpaRepository<ProjectAllocation, UUID> {
 
     boolean existsByProject_IdAndEmployee_IdAndDeallocatedAtIsNull(UUID projectId, UUID employeeId);
+
+    // Locks the allocation row for deallocation proposal creation and review.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select a from ProjectAllocation a where a.id = :allocationId")
+    Optional<ProjectAllocation> findByIdForUpdate(@Param("allocationId") UUID allocationId);
 
     @Query("select a from ProjectAllocation a "
         + "where a.project.id = :projectId and a.employee.id = :employeeId "
