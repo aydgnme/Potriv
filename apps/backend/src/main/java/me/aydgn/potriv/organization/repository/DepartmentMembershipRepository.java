@@ -1,5 +1,6 @@
 package me.aydgn.potriv.organization.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -15,6 +16,13 @@ import me.aydgn.potriv.organization.entity.DepartmentMembership;
 public interface DepartmentMembershipRepository extends JpaRepository<DepartmentMembership, UUID> {
 
     Optional<DepartmentMembership> findByMember_Id(UUID memberUserId);
+
+    // Batch load memberships (with department) for a set of users, avoiding N+1.
+    @Query("select m from DepartmentMembership m "
+        + "join fetch m.department "
+        + "where m.member.id in :memberIds")
+    List<DepartmentMembership> findByMemberIdsWithDepartment(
+        @Param("memberIds") Collection<UUID> memberIds);
 
     boolean existsByDepartment_Id(UUID departmentId);
 

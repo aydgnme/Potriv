@@ -1,5 +1,6 @@
 package me.aydgn.potriv.skill.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,4 +25,16 @@ public interface EmployeeSkillRepository extends JpaRepository<EmployeeSkill, UU
         + "where es.user.id = :userId "
         + "order by c.name asc, s.name asc")
     List<EmployeeSkill> findOwnedWithSkill(@Param("userId") UUID userId);
+
+    // Batch load: active, organization-scoped skill assignments for a set of
+    // users, with skill and category fetch-joined to avoid N+1.
+    @Query("select es from EmployeeSkill es "
+        + "join fetch es.skill s "
+        + "join fetch s.category "
+        + "where es.user.id in :userIds "
+        + "and s.active = true "
+        + "and s.organization.id = :organizationId")
+    List<EmployeeSkill> findActiveByUserIdsAndOrganization(
+        @Param("userIds") Collection<UUID> userIds,
+        @Param("organizationId") UUID organizationId);
 }
