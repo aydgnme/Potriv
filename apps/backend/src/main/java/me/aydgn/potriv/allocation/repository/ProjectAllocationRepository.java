@@ -22,6 +22,27 @@ public interface ProjectAllocationRepository extends JpaRepository<ProjectAlloca
     // Team-view visibility: the employee has (or had) any allocation episode.
     boolean existsByProject_IdAndEmployee_Id(UUID projectId, UUID employeeId);
 
+    // Employee self-view: one user's active allocation episodes in the current
+    // organization, with project and proposal fetch-joined to avoid N+1.
+    @Query("select distinct a from ProjectAllocation a "
+        + "join fetch a.project "
+        + "join fetch a.assignmentProposal "
+        + "where a.employee.id = :employeeId "
+        + "and a.project.organization.id = :organizationId "
+        + "and a.deallocatedAt is null")
+    List<ProjectAllocation> findCurrentByEmployeeIdAndOrganizationIdWithDetails(
+        @Param("employeeId") UUID employeeId, @Param("organizationId") UUID organizationId);
+
+    // Employee self-view: one user's ended allocation episodes, same fetch shape.
+    @Query("select distinct a from ProjectAllocation a "
+        + "join fetch a.project "
+        + "join fetch a.assignmentProposal "
+        + "where a.employee.id = :employeeId "
+        + "and a.project.organization.id = :organizationId "
+        + "and a.deallocatedAt is not null")
+    List<ProjectAllocation> findPastByEmployeeIdAndOrganizationIdWithDetails(
+        @Param("employeeId") UUID employeeId, @Param("organizationId") UUID organizationId);
+
     // Team view: active allocations of one project with all mapped summaries
     // fetch-joined (reviewedBy is a left join because legacy rows could lack it).
     @Query("select distinct a from ProjectAllocation a "
