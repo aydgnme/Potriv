@@ -20,9 +20,10 @@ import me.aydgn.potriv.project.AbstractProjectLifecycleIntegrationTest;
 
 /**
  * Shared HTTP helpers for allocation-workflow integration tests: departments,
- * memberships, assignment/deallocation proposals, and the review queue.
+ * memberships, assignment/deallocation proposals, and the review queue. Also
+ * extended by the Team Finder tests.
  */
-abstract class AbstractProjectAllocationIntegrationTest
+public abstract class AbstractProjectAllocationIntegrationTest
     extends AbstractProjectLifecycleIntegrationTest {
 
     /**
