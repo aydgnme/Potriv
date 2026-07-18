@@ -26,7 +26,9 @@ Run through this list for every production deployment of `apps/backend`.
 ## Deploy
 
 - [ ] Build the artifact: `./mvnw -DskipTests package` (tests already ran in
-      the verify step).
+      the verify step) — or build the container image:
+      `docker build -t potriv-backend apps/backend` (multi-stage, non-root
+      runtime; see `docker-compose.prod.yml` for the expected environment).
 - [ ] Start the new version; Flyway applies pending migrations on boot.
 - [ ] Boot succeeded — a guard failure (`ProductionConfigGuard`,
       `JwtProperties`) or a Flyway/Hibernate validation error aborts startup

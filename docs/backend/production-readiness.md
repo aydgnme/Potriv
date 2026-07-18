@@ -76,10 +76,28 @@ These rules are covered by unit tests in `ProductionConfigGuardTest`.
   to `health` only. `/actuator/health` and `/actuator/info` are permitted
   without authentication by the security chain (under the `/api` context path).
 
+## Container runtime
+
+- `apps/backend/Dockerfile` builds a multi-stage image: Maven + JDK 21 compile
+  the jar, a JRE 21 runtime layer runs it as the non-root `potriv` user with
+  container-aware JVM flags through `JAVA_OPTS`. No secrets are baked in.
+- `docker-compose.prod.yml` (repository root) runs the production-like stack:
+  `potriv-db` (PostgreSQL 16, named volume, internal-only — no published port)
+  and `potriv-backend` (prod profile, port `8080`, starts only after the DB
+  healthcheck passes, own healthcheck on `/api/actuator/health`).
+- Configuration comes from `.env.prod` (copy of `.env.prod.example`;
+  git-ignored). `scripts/backend-prod-smoke.sh` validates the compose config,
+  starts the stack, and waits for the health endpoint.
+- See `docs/backend/environment.md` for the exact commands.
+
 ## Known gaps (tracked, not hidden)
 
 - Real Flyway migrations must be written before the first production deploy.
-- No Dockerfile/container image is defined yet for the backend; the documented
-  run path is the packaged jar. The repository compose file provisions local
-  PostgreSQL and Mailpit for development only.
+  On an empty database the prod profile applies the (empty) Flyway baseline and
+  then intentionally fails Hibernate schema validation — the compose stack
+  therefore does not reach a healthy state until migrations exist.
+- The development compose file (`docker-compose.yml`) provisions local
+  PostgreSQL and Mailpit only and is unchanged.
 - Rate limiting beyond the existing login lockout is not implemented.
+- No reverse proxy / TLS termination is included; the production compose file
+  publishes plain HTTP on 8080 for local smoke testing.

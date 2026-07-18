@@ -1,0 +1,69 @@
+# Production-like backend stack: PostgreSQL + the backend image with the prod
+# profile. Intended for local production smoke testing and as a deployment
+# reference — real secrets never live in this file.
+#
+#   cp .env.prod.example .env.prod   # then edit .env.prod
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up --build
+#
+# This file is independent of the development docker-compose.yml (postgres +
+# mailpit on host ports); both stacks can coexist.
+
+services:
+  potriv-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-potriv}
+      POSTGRES_USER: ${POSTGRES_USER:-potriv}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    # Deliberately no published port: in the production stack only the backend
+    # talks to PostgreSQL over the internal compose network.
+    volumes:
+      - potriv-prod-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-potriv} -d ${POSTGRES_DB:-potriv}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  potriv-backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      # Property names match application-prod.yml (PR #44).
+      DATABASE_URL: jdbc:postgresql://potriv-db:5432/${POSTGRES_DB:-potriv}
+      DATABASE_USERNAME: ${POSTGRES_USER:-potriv}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ISSUER: ${JWT_ISSUER:-https://api.potriv.aydgn.me/api}
+      ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://potriv.aydgn.me}
+      FRONTEND_URL: ${FRONTEND_URL:-https://potriv.aydgn.me}
+      APP_BASE_URL: ${APP_BASE_URL:-https://api.potriv.aydgn.me/api}
+      SMTP_HOST: ${SMTP_HOST:?SMTP_HOST is required}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:?MAIL_FROM is required}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      SYSTEM_ADMIN_EMAIL: ${SYSTEM_ADMIN_EMAIL:?SYSTEM_ADMIN_EMAIL is required}
+      SYSTEM_ADMIN_PASSWORD: ${SYSTEM_ADMIN_PASSWORD:?SYSTEM_ADMIN_PASSWORD is required}
+      JAVA_OPTS: ${JAVA_OPTS:--XX:MaxRAMPercentage=75}
+    depends_on:
+      potriv-db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    healthcheck:
+      # The API serves under the /api context path.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+volumes:
+  potriv-prod-db-data:

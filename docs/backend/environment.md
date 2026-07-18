@@ -78,3 +78,45 @@ java -jar target/potriv-backend-*.jar
 
 The API serves under the `/api` context path; the health probe is
 `GET /api/actuator/health`.
+
+## Production-like Docker run
+
+The backend ships a multi-stage production image (`apps/backend/Dockerfile`,
+non-root runtime, JRE 21) and a production-like compose stack
+(`docker-compose.prod.yml` at the repository root) with PostgreSQL on an
+internal-only network (the DB port is deliberately not published — only the
+backend reaches it) and healthchecks on `pg_isready` and
+`/api/actuator/health`.
+
+```bash
+# One-time setup: create the local env file (git-ignored) and edit the values.
+cp .env.prod.example .env.prod
+
+# Build and start (or use scripts/backend-prod-smoke.sh which also waits for health):
+docker compose --env-file .env.prod -f docker-compose.prod.yml up --build
+
+# Status and health:
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
+curl http://localhost:8080/api/actuator/health
+
+# Logs:
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f potriv-backend
+
+# Stop WITHOUT deleting the database volume:
+docker compose --env-file .env.prod -f docker-compose.prod.yml down
+
+# Stop AND deliberately delete the database volume:
+docker compose --env-file .env.prod -f docker-compose.prod.yml down --volumes
+```
+
+Build the image on its own with:
+
+```bash
+docker build -t potriv-backend apps/backend
+```
+
+Current limitation: because the prod profile validates the schema against
+Flyway-managed migrations and only an empty baseline exists, the backend will
+fail schema validation on a fresh database until real migrations are authored
+(see `docs/backend/production-readiness.md`). This is the intended fail-fast
+posture.
