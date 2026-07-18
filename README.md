@@ -27,3 +27,23 @@ Core modules:
 - Project
 - Allocation
 - Notification
+
+## Running the Backend
+
+Local development (PostgreSQL + Mailpit via the dev compose file):
+
+```bash
+docker compose up -d
+cd apps/backend
+./mvnw spring-boot:run
+```
+
+Production-like Docker stack (prod profile, internal-only PostgreSQL):
+
+```bash
+cp .env.prod.example .env.prod   # edit the placeholder values
+./scripts/backend-prod-smoke.sh
+```
+
+See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
+`docs/backend/deployment-checklist.md` for the full production documentation.
