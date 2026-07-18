@@ -64,6 +64,36 @@ public interface ProjectAllocationRepository extends JpaRepository<ProjectAlloca
         + "where a.project.id = :projectId and a.deallocatedAt is not null")
     List<ProjectAllocation> findPastByProjectIdWithDetails(@Param("projectId") UUID projectId);
 
+    // Department portfolio: a managed department's active allocations in the
+    // current organization, matched by the review-department snapshot on the
+    // approved proposal (not current membership), fully fetch-joined.
+    @Query("select distinct a from ProjectAllocation a "
+        + "join fetch a.project "
+        + "join fetch a.employee "
+        + "join fetch a.assignmentProposal ap "
+        + "join fetch ap.reviewDepartment "
+        + "where ap.reviewDepartment.id = :reviewDepartmentId "
+        + "and a.project.organization.id = :organizationId "
+        + "and a.deallocatedAt is null")
+    List<ProjectAllocation> findActiveByReviewDepartmentIdAndOrganizationIdWithDetails(
+        @Param("reviewDepartmentId") UUID reviewDepartmentId,
+        @Param("organizationId") UUID organizationId);
+
+    // Department portfolio: same shape, narrowed to one project status.
+    @Query("select distinct a from ProjectAllocation a "
+        + "join fetch a.project "
+        + "join fetch a.employee "
+        + "join fetch a.assignmentProposal ap "
+        + "join fetch ap.reviewDepartment "
+        + "where ap.reviewDepartment.id = :reviewDepartmentId "
+        + "and a.project.organization.id = :organizationId "
+        + "and a.project.status = :status "
+        + "and a.deallocatedAt is null")
+    List<ProjectAllocation> findActiveByReviewDepartmentIdAndOrganizationIdAndProjectStatusWithDetails(
+        @Param("reviewDepartmentId") UUID reviewDepartmentId,
+        @Param("organizationId") UUID organizationId,
+        @Param("status") ProjectStatus status);
+
     // Locks the allocation row for deallocation proposal creation and review.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from ProjectAllocation a where a.id = :allocationId")
