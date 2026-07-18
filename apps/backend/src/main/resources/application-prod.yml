@@ -7,6 +7,8 @@ spring:
 
   jpa:
     hibernate:
+      # Schema is managed by Flyway only; Hibernate must never mutate it.
+      # ProductionConfigGuard refuses create/create-drop/update at boot.
       ddl-auto: validate
     open-in-view: false
     show-sql: false
@@ -32,16 +34,32 @@ spring:
             enable: true
 
 app:
-  frontend-url: https://potriv.aydgn.me
-  api-url: https://api.potriv.aydgn.me/api
+  frontend-url: ${FRONTEND_URL:https://potriv.aydgn.me}
+  api-url: ${APP_BASE_URL:https://api.potriv.aydgn.me/api}
   jwt:
-    issuer: https://api.potriv.aydgn.me/api
+    issuer: ${JWT_ISSUER:https://api.potriv.aydgn.me/api}
+    # No default on purpose: production must fail fast without a real secret.
     secret: ${JWT_SECRET}
-    access-token-minutes: 15
-    refresh-token-days: 7
+    access-token-minutes: ${ACCESS_TOKEN_TTL_MINUTES:15}
+    refresh-token-days: ${REFRESH_TOKEN_TTL_DAYS:7}
   mail:
     from: ${MAIL_FROM}
 
 cors:
-  allowed-origins:
-    - https://potriv.aydgn.me
+  # Comma-separated list of exact origins. Wildcards are refused at boot
+  # because CORS responses carry credentials.
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:https://potriv.aydgn.me}
+
+# OpenAPI/Swagger stays off in production unless explicitly re-enabled.
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Production exposes the health probe only.
+        include: health
