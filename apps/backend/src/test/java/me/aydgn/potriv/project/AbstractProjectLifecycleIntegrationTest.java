@@ -20,9 +20,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
 
 /**
- * Shared HTTP helpers for project-lifecycle integration tests.
+ * Shared HTTP helpers for project-lifecycle integration tests, also extended by
+ * the allocation-workflow tests.
  */
-abstract class AbstractProjectLifecycleIntegrationTest extends AbstractMockMvcIntegrationTest {
+public abstract class AbstractProjectLifecycleIntegrationTest
+    extends AbstractMockMvcIntegrationTest {
 
     protected record Org(UUID orgId, UUID adminId, String adminToken, String inviteToken) {
     }
