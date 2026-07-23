@@ -29,16 +29,23 @@ public class ProductionConfigGuard {
         @Value("${app.jwt.secret}") String jwtSecret,
         @Value("${cors.allowed-origins}") List<String> corsAllowedOrigins,
         @Value("${spring.datasource.url}") String datasourceUrl,
-        @Value("${spring.jpa.hibernate.ddl-auto:validate}") String hibernateDdlAuto
+        @Value("${spring.jpa.hibernate.ddl-auto:validate}") String hibernateDdlAuto,
+        @Value("${potriv.backend-console.enabled:false}") boolean backendConsoleEnabled,
+        @Value("${potriv.backend-console.username:}") String backendConsoleUsername,
+        @Value("${potriv.backend-console.password:}") String backendConsolePassword
     ) {
-        validate(jwtSecret, corsAllowedOrigins, datasourceUrl, hibernateDdlAuto);
+        validate(jwtSecret, corsAllowedOrigins, datasourceUrl, hibernateDdlAuto,
+            backendConsoleEnabled, backendConsoleUsername, backendConsolePassword);
     }
 
     static void validate(
         String jwtSecret,
         List<String> corsAllowedOrigins,
         String datasourceUrl,
-        String hibernateDdlAuto
+        String hibernateDdlAuto,
+        boolean backendConsoleEnabled,
+        String backendConsoleUsername,
+        String backendConsolePassword
     ) {
         if (jwtSecret == null
             || jwtSecret.toLowerCase(Locale.ROOT).contains(PLACEHOLDER_SECRET_MARKER)) {
@@ -67,6 +74,25 @@ public class ProductionConfigGuard {
             throw new IllegalStateException(
                 "Production refuses Hibernate ddl-auto mode '" + hibernateDdlAuto
                     + "'. Use 'validate' (or 'none') and manage schema through Flyway.");
+        }
+
+        // The embedded monitor console must never run in production with
+        // missing or placeholder HTTP Basic credentials.
+        if (backendConsoleEnabled) {
+            if (backendConsoleUsername == null || backendConsoleUsername.isBlank()
+                || backendConsolePassword == null || backendConsolePassword.isBlank()) {
+                throw new IllegalStateException(
+                    "Production refuses the backend monitor console without explicit "
+                        + "credentials. Set BACKEND_CONSOLE_USERNAME and "
+                        + "BACKEND_CONSOLE_PASSWORD, or disable the console.");
+            }
+            String password = backendConsolePassword.toLowerCase(Locale.ROOT);
+            if (password.contains("replace-me") || password.contains("change-me")
+                || backendConsolePassword.length() < 12) {
+                throw new IllegalStateException(
+                    "Production refuses a placeholder or short backend console password. "
+                        + "Use a strong BACKEND_CONSOLE_PASSWORD of at least 12 characters.");
+            }
         }
     }
 }

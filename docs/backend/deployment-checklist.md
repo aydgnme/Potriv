@@ -21,6 +21,9 @@ Run through this list for every production deployment of `apps/backend`.
 - [ ] `SYSTEM_ADMIN_EMAIL` / `SYSTEM_ADMIN_PASSWORD` are overridden from their
       repository defaults before the first boot against a fresh database.
 - [ ] `SWAGGER_ENABLED` is unset or `false`.
+- [ ] `BACKEND_CONSOLE_ENABLED` is unset or `false` — or, if the embedded
+      monitor console is deliberately enabled, `BACKEND_CONSOLE_USERNAME` and
+      a strong `BACKEND_CONSOLE_PASSWORD` (≥ 12 chars, no placeholder) are set.
 - [ ] Database backup / snapshot taken before applying new migrations.
 
 ## Deploy
