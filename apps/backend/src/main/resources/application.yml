@@ -38,7 +38,9 @@ potriv:
     name: ${SYSTEM_ADMIN_NAME:Potriv System Admin}
 
 cors:
-  allowed-origins: http://localhost:5173
+  # Local frontend dev servers (Vite and the Next.js control console).
+  # Production overrides this with env-driven explicit origins.
+  allowed-origins: http://localhost:5173,http://localhost:3000
 
 management:
   endpoints:
