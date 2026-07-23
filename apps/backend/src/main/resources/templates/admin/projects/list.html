@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1>Projects</h1></div>
+
+    <form class="admin-filters" method="get" th:action="@{/admin/projects}">
+        <input type="search" name="q" th:value="${list.query}"
+               placeholder="Search name…" aria-label="Search">
+        <select name="status" aria-label="Status">
+            <option value="">All statuses</option>
+            <option th:each="status : ${statuses}" th:value="${status}"
+                    th:text="${status}" th:selected="${status.name() == selectedStatus}">STATUS</option>
+        </select>
+        <button type="submit" class="admin-btn">Filter</button>
+        <a class="admin-btn admin-btn--ghost" th:href="@{/admin/projects}">Clear</a>
+    </form>
+
+    <div th:if="${list.items.isEmpty()}"
+         th:replace="~{admin/fragments/empty-state :: empty('No projects found.')}"></div>
+
+    <table th:unless="${list.items.isEmpty()}" class="admin-table">
+        <thead>
+        <tr><th>Name</th><th>Status</th><th>Period</th><th>Project Manager</th>
+            <th class="num">Tech</th><th class="num">Active</th><th>Deadline</th><th>Updated</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="project : ${list.items}">
+            <td><a th:href="@{'/admin/projects/' + ${project.id}}" th:text="${project.name}">Project</a></td>
+            <td><span th:replace="~{admin/fragments/badges :: badge(${project.status})}"></span></td>
+            <td th:text="${project.period}">FIXED</td>
+            <td th:text="${project.projectManagerName}">PM</td>
+            <td class="num" th:text="${project.technologyCount}">0</td>
+            <td class="num" th:text="${project.activeAllocationCount}">0</td>
+            <td th:text="${project.deadlineDate} ?: '—'">deadline</td>
+            <td th:text="${@adminFormat.dateTime(project.updatedAt)}">date</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
+</div>
+</body>
+</html>

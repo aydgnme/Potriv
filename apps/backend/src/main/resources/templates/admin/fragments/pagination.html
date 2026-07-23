@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Pagination retains search/filter/sort via list.baseQuery. Links are
+     relative (?...) so they resolve against the current admin path. -->
+<div th:fragment="pagination(list)" class="admin-pagination" th:if="${list.totalElements > 0}">
+    <span class="admin-pagination-info"
+          th:text="|Showing ${list.firstItemNumber()}–${list.lastItemNumber()} of ${list.totalElements}|">
+        Showing 1–25 of 0
+    </span>
+    <div class="admin-pagination-controls">
+        <a th:if="${list.hasPrevious()}" class="admin-btn admin-btn--ghost"
+           th:href="${list.baseQuery == '' ? '?page=' + (list.page - 1)
+                     : '?' + list.baseQuery + '&page=' + (list.page - 1)}">Previous</a>
+        <span class="admin-pagination-page"
+              th:text="|Page ${list.page + 1} of ${#numbers.formatInteger(list.totalPages == 0 ? 1 : list.totalPages, 1)}|">
+            Page 1 of 1
+        </span>
+        <a th:if="${list.hasNext()}" class="admin-btn admin-btn--ghost"
+           th:href="${list.baseQuery == '' ? '?page=' + (list.page + 1)
+                     : '?' + list.baseQuery + '&page=' + (list.page + 1)}">Next</a>
+    </div>
+</div>
+</body>
+</html>

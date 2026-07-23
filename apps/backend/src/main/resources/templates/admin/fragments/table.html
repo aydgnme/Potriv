@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Card wrapper used to frame list tables and detail sections consistently. -->
+<section th:fragment="card(title)" class="admin-card">
+    <h2 class="admin-card-title" th:if="${title}" th:text="${title}">Card</h2>
+    <div th:remove="tag">
+        <p>Card body</p>
+    </div>
+</section>
+</body>
+</html>

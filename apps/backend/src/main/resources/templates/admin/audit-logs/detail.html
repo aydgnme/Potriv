@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1 th:text="${event.eventType}">Audit Event</h1></div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Event</h2>
+        <dl class="admin-dl">
+            <dt>Event type</dt><dd><code th:text="${event.eventType}">EVENT</code></dd>
+            <dt>Timestamp</dt><dd th:text="${@adminFormat.dateTime(event.createdAt)}">date</dd>
+            <dt>Actor</dt><dd th:text="${event.actor}">actor</dd>
+            <dt>IP address</dt><dd th:text="${event.ipAddress} ?: '—'">ip</dd>
+            <dt>User agent</dt><dd th:text="${event.userAgent} ?: '—'">ua</dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">References</h2>
+        <dl class="admin-dl">
+            <dt>Actor user</dt>
+            <dd><code th:text="${event.actorUserId} ?: '—'">uuid</code></dd>
+            <dt>Subject user</dt>
+            <dd><code th:text="${event.userId} ?: '—'">uuid</code></dd>
+            <dt>Organization</dt>
+            <dd><code th:text="${event.organizationId} ?: '—'">uuid</code></dd>
+            <dt>Session</dt>
+            <dd><code th:text="${event.sessionId} ?: '—'">uuid</code></dd>
+            <dt>ID</dt><dd><code th:text="${event.id}">uuid</code></dd>
+        </dl>
+    </section>
+</div>
+</body>
+</html>

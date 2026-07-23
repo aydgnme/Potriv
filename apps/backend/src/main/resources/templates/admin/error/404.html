@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-error">
+        <h1>404</h1>
+        <p>The requested admin resource was not found.</p>
+        <a class="admin-btn" th:href="@{/admin}">Back to dashboard</a>
+    </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" th:fragment="page(content)" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="(${pageTitle} ?: 'Admin') + ' · Potriv Admin'">Potriv Admin</title>
+    <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
+    <link rel="stylesheet" th:href="@{/admin/css/components.css}">
+    <link rel="stylesheet" th:href="@{/admin/css/tables.css}">
+</head>
+<body>
+<header th:replace="~{admin/layout/topbar :: topbar}"></header>
+<div class="admin-shell">
+    <aside class="admin-sidebar" th:replace="~{admin/layout/sidebar :: sidebar}"></aside>
+    <main class="admin-main">
+        <nav th:replace="~{admin/layout/breadcrumbs :: breadcrumbs}"></nav>
+        <div th:replace="~{admin/layout/messages :: messages}"></div>
+        <section th:replace="${content}">Page content</section>
+    </main>
+</div>
+<script th:src="@{/admin/js/admin.js}" defer></script>
+</body>
+</html>

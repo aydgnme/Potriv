@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<nav class="admin-breadcrumbs" th:fragment="breadcrumbs" aria-label="Breadcrumb">
+    <a th:href="@{/admin}">Dashboard</a>
+    <span th:if="${sectionLabel}" class="sep">/</span>
+    <a th:if="${sectionLabel}" th:href="@{${sectionHref}}" th:text="${sectionLabel}">Section</a>
+    <span th:if="${detailLabel}" class="sep">/</span>
+    <span th:if="${detailLabel}" class="current" th:text="${detailLabel}">Detail</span>
+</nav>
+</body>
+</html>

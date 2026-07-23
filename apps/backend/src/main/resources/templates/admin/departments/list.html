@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1>Departments</h1></div>
+    <div th:replace="~{admin/fragments/filters :: search('/admin/departments', ${list.query}, 'Search name…')}"></div>
+
+    <div th:if="${list.items.isEmpty()}"
+         th:replace="~{admin/fragments/empty-state :: empty('No departments found.')}"></div>
+
+    <table th:unless="${list.items.isEmpty()}" class="admin-table">
+        <thead>
+        <tr><th>Name</th><th>Organization</th><th>Manager</th>
+            <th class="num">Members</th><th>Created</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="dept : ${list.items}">
+            <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
+            <td th:text="${dept.organizationName}">Org</td>
+            <td th:text="${dept.managerName}">Manager</td>
+            <td class="num" th:text="${dept.membersCount}">0</td>
+            <td th:text="${@adminFormat.dateTime(dept.createdAt)}">date</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
+</div>
+</body>
+</html>
