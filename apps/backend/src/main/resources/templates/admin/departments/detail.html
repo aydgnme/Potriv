@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1 th:text="${department.name}">Department</h1></div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">General</h2>
+        <dl class="admin-dl">
+            <dt>Name</dt><dd th:text="${department.name}">Name</dd>
+            <dt>Organization</dt>
+            <dd><a th:href="@{'/admin/organizations/' + ${department.organizationId}}"
+                   th:text="${department.organizationName}">Org</a></dd>
+            <dt>Manager</dt>
+            <dd>
+                <a th:if="${department.managerId}"
+                   th:href="@{'/admin/users/' + ${department.managerId}}"
+                   th:text="${department.managerName}">Manager</a>
+                <span th:unless="${department.managerId}" class="muted">—</span>
+            </dd>
+            <dt>Members</dt><dd th:text="${department.membersCount}">0</dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Members</h2>
+        <div th:if="${department.members.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No members.')}"></div>
+        <table th:unless="${department.members.isEmpty()}" class="admin-table">
+            <thead><tr><th>Name</th><th>Email</th></tr></thead>
+            <tbody>
+            <tr th:each="member : ${department.members}">
+                <td><a th:href="@{'/admin/users/' + ${member.id}}" th:text="${member.name}">Name</a></td>
+                <td th:text="${member.email}">email</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Metadata</h2>
+        <dl class="admin-dl">
+            <dt>ID</dt><dd><code th:text="${department.id}">uuid</code></dd>
+            <dt>Created</dt><dd th:text="${@adminFormat.dateTime(department.createdAt)}">date</dd>
+            <dt>Updated</dt><dd th:text="${@adminFormat.dateTime(department.updatedAt)}">date</dd>
+        </dl>
+    </section>
+</div>
+</body>
+</html>

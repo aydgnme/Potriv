@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1 th:text="${project.name}">Project</h1></div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">General</h2>
+        <dl class="admin-dl">
+            <dt>Status</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${project.status})}"></span></dd>
+            <dt>Period</dt><dd th:text="${project.period}">FIXED</dd>
+            <dt>Start date</dt><dd th:text="${project.startDate} ?: '—'">date</dd>
+            <dt>Deadline</dt><dd th:text="${project.deadlineDate} ?: '—'">date</dd>
+            <dt>Project Manager</dt>
+            <dd>
+                <a th:if="${project.projectManagerId}"
+                   th:href="@{'/admin/users/' + ${project.projectManagerId}}"
+                   th:text="${project.projectManagerName}">PM</a>
+                <span th:unless="${project.projectManagerId}" class="muted">—</span>
+            </dd>
+            <dt>Organization</dt><dd th:text="${project.organizationName}">Org</dd>
+            <dt>Description</dt>
+            <dd th:text="${project.generalDescription} ?: '—'">description</dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Technology Stack</h2>
+        <p>
+            <span class="tag" th:each="tech : ${project.technologyStack}" th:text="${tech}">tech</span>
+            <span th:if="${project.technologyStack.isEmpty()}" class="muted">None</span>
+        </p>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Team Role Requirements</h2>
+        <div th:if="${project.teamRoleRequirements.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No role requirements.')}"></div>
+        <table th:unless="${project.teamRoleRequirements.isEmpty()}" class="admin-table">
+            <thead><tr><th>Role</th><th class="num">Required</th><th>Active</th></tr></thead>
+            <tbody>
+            <tr th:each="req : ${project.teamRoleRequirements}">
+                <td th:text="${req.roleName}">Role</td>
+                <td class="num" th:text="${req.requiredMembers}">1</td>
+                <td th:text="${req.active} ? 'Yes' : 'No'">Yes</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Active Members</h2>
+        <div th:if="${project.activeMembers.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No active members.')}"></div>
+        <table th:unless="${project.activeMembers.isEmpty()}" class="admin-table">
+            <thead><tr><th>Employee</th><th>Review Department</th>
+                <th class="num">Hours/day</th><th>Allocated</th></tr></thead>
+            <tbody>
+            <tr th:each="member : ${project.activeMembers}">
+                <td><a th:href="@{'/admin/allocations/' + ${member.allocationId}}"
+                       th:text="${member.employeeName}">Employee</a></td>
+                <td th:text="${member.reviewDepartmentName}">Dept</td>
+                <td class="num" th:text="${member.workHoursPerDay}">0</td>
+                <td th:text="${@adminFormat.dateTime(member.allocatedAt)}">date</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Past Members</h2>
+        <div th:if="${project.pastMembers.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No past members.')}"></div>
+        <table th:unless="${project.pastMembers.isEmpty()}" class="admin-table">
+            <thead><tr><th>Employee</th><th>Review Department</th>
+                <th class="num">Hours/day</th><th>Deallocated</th></tr></thead>
+            <tbody>
+            <tr th:each="member : ${project.pastMembers}">
+                <td><a th:href="@{'/admin/allocations/' + ${member.allocationId}}"
+                       th:text="${member.employeeName}">Employee</a></td>
+                <td th:text="${member.reviewDepartmentName}">Dept</td>
+                <td class="num" th:text="${member.workHoursPerDay}">0</td>
+                <td th:text="${@adminFormat.dateTime(member.deallocatedAt)}">date</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Proposals &amp; Metadata</h2>
+        <dl class="admin-dl">
+            <dt>Pending assignment proposals</dt>
+            <dd th:text="${project.pendingAssignmentProposals}">0</dd>
+            <dt>Pending deallocation proposals</dt>
+            <dd th:text="${project.pendingDeallocationProposals}">0</dd>
+            <dt>ID</dt><dd><code th:text="${project.id}">uuid</code></dd>
+            <dt>Created</dt><dd th:text="${@adminFormat.dateTime(project.createdAt)}">date</dd>
+            <dt>Updated</dt><dd th:text="${@adminFormat.dateTime(project.updatedAt)}">date</dd>
+        </dl>
+    </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-error">
+        <h1>500</h1>
+        <p>An unexpected error occurred while rendering this admin page.</p>
+        <a class="admin-btn" th:href="@{/admin}">Back to dashboard</a>
+    </div>
+</div>
+</body>
+</html>

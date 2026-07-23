@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Simple search form for list pages without extra filters. -->
+<form th:fragment="search(action, query, placeholder)" class="admin-filters"
+      method="get" th:action="@{${action}}">
+    <input type="search" name="q" th:value="${query}"
+           th:placeholder="${placeholder} ?: 'Search…'" aria-label="Search">
+    <button type="submit" class="admin-btn">Search</button>
+    <a th:if="${query}" class="admin-btn admin-btn--ghost" th:href="@{${action}}">Clear</a>
+</form>
+</body>
+</html>

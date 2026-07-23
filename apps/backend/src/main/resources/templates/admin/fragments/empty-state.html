@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="empty(message)" class="admin-empty">
+    <p th:text="${message} ?: 'Nothing to show.'">Nothing to show.</p>
+</div>
+</body>
+</html>

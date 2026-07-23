@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1 th:text="'Invitation · ' + ${invitation.organizationName}">Invitation</h1></div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">General</h2>
+        <dl class="admin-dl">
+            <dt>Organization</dt>
+            <dd><a th:href="@{'/admin/organizations/' + ${invitation.organizationId}}"
+                   th:text="${invitation.organizationName}">Org</a></dd>
+            <dt>Token</dt><dd><code th:text="${invitation.tokenHint}">hidden</code></dd>
+            <dt>Status</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${invitation.status})}"></span></dd>
+            <dt>Active</dt><dd th:text="${invitation.active} ? 'Yes' : 'No'">Yes</dd>
+            <dt>Expired</dt><dd th:text="${invitation.expired} ? 'Yes' : 'No'">No</dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Metadata</h2>
+        <dl class="admin-dl">
+            <dt>ID</dt><dd><code th:text="${invitation.id}">uuid</code></dd>
+            <dt>Created</dt><dd th:text="${@adminFormat.dateTime(invitation.createdAt)}">date</dd>
+            <dt>Expires</dt>
+            <dd th:text="${invitation.expiresAt != null
+                          ? @adminFormat.dateTime(invitation.expiresAt) : '—'}">—</dd>
+            <dt>Updated</dt><dd th:text="${@adminFormat.dateTime(invitation.updatedAt)}">date</dd>
+        </dl>
+    </section>
+</div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1>Users</h1></div>
+    <div th:replace="~{admin/fragments/filters :: search('/admin/users', ${list.query}, 'Search name or email…')}"></div>
+
+    <div th:if="${list.items.isEmpty()}"
+         th:replace="~{admin/fragments/empty-state :: empty('No users found.')}"></div>
+
+    <table th:unless="${list.items.isEmpty()}" class="admin-table">
+        <thead>
+        <tr>
+            <th>Name</th><th>Email</th><th>Organization</th><th>Roles</th>
+            <th>Status</th><th>Created</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="user : ${list.items}">
+            <td><a th:href="@{'/admin/users/' + ${user.id}}" th:text="${user.name}">Name</a></td>
+            <td th:text="${user.email}">email</td>
+            <td th:text="${user.organizationName}">Org</td>
+            <td>
+                <span class="tag" th:each="role : ${user.roles}" th:text="${role}">ROLE</span>
+                <span th:if="${user.roles.isEmpty()}" class="muted">—</span>
+            </td>
+            <td><span th:replace="~{admin/fragments/badges :: badge(${user.status})}"></span></td>
+            <td th:text="${@adminFormat.dateTime(user.createdAt)}">date</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
+</div>
+</body>
+</html>
