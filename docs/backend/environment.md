@@ -39,6 +39,9 @@ datasource, or a destructive Hibernate DDL mode.
 | `ACCESS_TOKEN_TTL_MINUTES` | no (default `15`) | Access token lifetime. |
 | `REFRESH_TOKEN_TTL_DAYS` | no (default `7`) | Refresh token lifetime. |
 | `SWAGGER_ENABLED` | no (default `false`) | Set `true` to expose OpenAPI/Swagger UI in production (not recommended). |
+| `BACKEND_CONSOLE_ENABLED` | no (default `false`) | Enables the embedded read-only monitor console at `/api/admin/monitor`. |
+| `BACKEND_CONSOLE_USERNAME` | when console enabled | HTTP Basic username for the monitor console. |
+| `BACKEND_CONSOLE_PASSWORD` | when console enabled | HTTP Basic password; the prod guard refuses placeholder or <12-character values. |
 | `SYSTEM_ADMIN_EMAIL` | recommended | Seeded platform system-admin login. Defaults exist but should be overridden. |
 | `SYSTEM_ADMIN_PASSWORD` | recommended | Seeded platform system-admin password. Override the default before first boot. |
 | `SYSTEM_ADMIN_NAME` | no | Display name of the seeded system admin. |
@@ -78,6 +81,34 @@ java -jar target/potriv-backend-*.jar
 
 The API serves under the `/api` context path; the health probe is
 `GET /api/actuator/health`.
+
+## Embedded monitor console
+
+A read-only, server-rendered monitoring page ships inside the backend at
+`/api/admin/monitor` (the whole app lives under the `/api` context path). It
+shows health, runtime, database, Flyway, security configuration, and a
+production-readiness checklist — never secrets or business data, and it has
+no mutation actions.
+
+Enable it locally:
+
+```bash
+cd apps/backend
+BACKEND_CONSOLE_ENABLED=true \
+BACKEND_CONSOLE_USERNAME=admin \
+BACKEND_CONSOLE_PASSWORD='local-strong-password' \
+./mvnw spring-boot:run
+# then open http://localhost:8080/api/admin/monitor (HTTP Basic prompt)
+```
+
+The console uses HTTP Basic on a dedicated security chain, deliberately
+separate from the JWT/Bearer API auth: it must work without any organization
+user or product login, and its credentials grant nothing on the API. When
+disabled (the default, including production) the route answers 404. In
+production, enabling it requires explicit strong credentials — the boot guard
+refuses missing, placeholder, or short passwords. Do not use it as a product
+admin panel, an API client, or a data browser; it is a monitoring surface
+only.
 
 ## Production-like Docker run
 

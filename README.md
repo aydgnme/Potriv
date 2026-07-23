@@ -45,5 +45,10 @@ cp .env.prod.example .env.prod   # edit the placeholder values
 ./scripts/backend-prod-smoke.sh
 ```
 
+An embedded read-only monitoring page is available at
+`http://localhost:8080/api/admin/monitor` when enabled with
+`BACKEND_CONSOLE_ENABLED=true` plus explicit HTTP Basic credentials
+(see `docs/backend/environment.md`).
+
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 `docs/backend/deployment-checklist.md` for the full production documentation.

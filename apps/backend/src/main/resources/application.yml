@@ -26,6 +26,12 @@ app:
     from: no-reply@potriv.local
 
 potriv:
+  # Embedded read-only monitor console (/api/admin/monitor). Disabled by
+  # default; when enabled, explicit HTTP Basic credentials are mandatory.
+  backend-console:
+    enabled: ${BACKEND_CONSOLE_ENABLED:false}
+    username: ${BACKEND_CONSOLE_USERNAME:}
+    password: ${BACKEND_CONSOLE_PASSWORD:}
   system-admin:
     email: ${SYSTEM_ADMIN_EMAIL:admin@aydgn.me}
     password: ${SYSTEM_ADMIN_PASSWORD:ChangeMe123!}

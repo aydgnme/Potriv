@@ -20,7 +20,22 @@ to start the application when:
 - `spring.jpa.hibernate.ddl-auto` is anything other than `validate` or `none`
   (blocks `create`, `create-drop`, and `update` in production).
 
+- The embedded monitor console (`potriv.backend-console.*`) is enabled while
+  its username or password is missing, a placeholder (`replace-me…`,
+  `change-me…`), or shorter than 12 characters. Disabled (the default) always
+  boots.
+
 These rules are covered by unit tests in `ProductionConfigGuardTest`.
+
+## Embedded monitor console
+
+`/api/admin/monitor` is a read-only Thymeleaf page served by the backend
+itself (package `me.aydgn.potriv.ops.monitor`) showing health, runtime,
+database, Flyway, safe security configuration, and a PASS/WARN/FAIL readiness
+checklist. It is protected by HTTP Basic on its own high-precedence security
+chain — fully independent from JWT API auth — is disabled by default in every
+profile, answers 404 when disabled, and renders no secrets, no business data,
+and no mutation actions. See `docs/backend/environment.md` for usage.
 
 ## CORS policy
 

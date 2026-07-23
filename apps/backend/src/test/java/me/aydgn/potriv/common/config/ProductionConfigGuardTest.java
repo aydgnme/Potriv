@@ -19,60 +19,103 @@ class ProductionConfigGuardTest {
     private static final List<String> EXPLICIT_ORIGINS = List.of("https://potriv.aydgn.me");
     private static final String POSTGRES_URL = "jdbc:postgresql://db.internal:5432/potriv";
 
+    private static void validate(String jwtSecret, List<String> corsOrigins,
+        String datasourceUrl, String ddlAuto) {
+        ProductionConfigGuard.validate(jwtSecret, corsOrigins, datasourceUrl, ddlAuto,
+            false, "", "");
+    }
+
     @Test
     void acceptsSafeProductionConfiguration() {
-        assertThatCode(() -> ProductionConfigGuard.validate(
-                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate"))
+        assertThatCode(() -> validate(STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate"))
             .doesNotThrowAnyException();
-        assertThatCode(() -> ProductionConfigGuard.validate(
-                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "none"))
+        assertThatCode(() -> validate(STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "none"))
             .doesNotThrowAnyException();
     }
 
     @Test
     void rejectsPlaceholderJwtSecret() {
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+        assertThatThrownBy(() -> validate(
                 "change-this-secret-in-production-change-this-secret",
                 EXPLICIT_ORIGINS, POSTGRES_URL, "validate"))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("JWT secret");
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
-                null, EXPLICIT_ORIGINS, POSTGRES_URL, "validate"))
+        assertThatThrownBy(() -> validate(null, EXPLICIT_ORIGINS, POSTGRES_URL, "validate"))
             .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void rejectsWildcardOrMissingCorsOrigins() {
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+        assertThatThrownBy(() -> validate(
                 STRONG_SECRET, List.of("*"), POSTGRES_URL, "validate"))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("CORS");
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+        assertThatThrownBy(() -> validate(
                 STRONG_SECRET, List.of("https://*.aydgn.me"), POSTGRES_URL, "validate"))
             .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
-                STRONG_SECRET, List.of(), POSTGRES_URL, "validate"))
+        assertThatThrownBy(() -> validate(STRONG_SECRET, List.of(), POSTGRES_URL, "validate"))
             .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void rejectsNonPostgresDatasource() {
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+        assertThatThrownBy(() -> validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, "jdbc:h2:mem:potriv", "validate"))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("PostgreSQL");
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
-                STRONG_SECRET, EXPLICIT_ORIGINS, null, "validate"))
+        assertThatThrownBy(() -> validate(STRONG_SECRET, EXPLICIT_ORIGINS, null, "validate"))
             .isInstanceOf(IllegalStateException.class);
     }
 
     @Test
     void rejectsDestructiveHibernateDdlModes() {
         for (String mode : List.of("create", "create-drop", "update")) {
-            assertThatThrownBy(() -> ProductionConfigGuard.validate(
-                    STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, mode))
+            assertThatThrownBy(() -> validate(STRONG_SECRET, EXPLICIT_ORIGINS,
+                    POSTGRES_URL, mode))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Flyway");
         }
+    }
+
+    @Test
+    void backendConsoleDisabledIsAlwaysAllowed() {
+        assertThatCode(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", ""))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    void backendConsoleEnabledRequiresExplicitCredentials() {
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                true, "", ""))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("credentials");
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                true, "admin", ""))
+            .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                true, "", "a-strong-console-password"))
+            .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void backendConsoleEnabledRejectsPlaceholderOrShortPassword() {
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                true, "admin", "replace-me-with-strong-password"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("placeholder");
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                true, "admin", "short"))
+            .isInstanceOf(IllegalStateException.class);
+        assertThatCode(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                true, "admin", "a-strong-console-password"))
+            .doesNotThrowAnyException();
     }
 }

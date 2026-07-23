@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Potriv Backend Monitor</title>
+    <link rel="stylesheet" th:href="@{/admin/monitor.css}">
+</head>
+<body>
+<header class="topbar">
+    <h1>Potriv Backend Monitor</h1>
+    <span class="badge env" th:classappend="'env-' + ${monitor.environment}"
+          th:text="${monitor.environment}">env</span>
+    <span class="muted">Generated at
+        <span th:text="${monitor.generatedAt}">generatedAt</span></span>
+</header>
+
+<main class="grid">
+
+    <section class="card">
+        <h2>Health</h2>
+        <table>
+            <tr>
+                <th>Application status</th>
+                <td><span class="badge"
+                          th:classappend="${monitor.health.applicationStatus == 'UP'} ? 'ok' : 'fail'"
+                          th:text="${monitor.health.applicationStatus}">UNKNOWN</span></td>
+            </tr>
+            <tr>
+                <th>Actuator health endpoint</th>
+                <td><code th:text="${monitor.health.actuatorHealthPath}">/api/actuator/health</code></td>
+            </tr>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Runtime</h2>
+        <table>
+            <tr><th>Java version</th>
+                <td><code th:text="${monitor.runtime.javaVersion}">21</code></td></tr>
+            <tr><th>Active profiles</th>
+                <td><code th:text="${#strings.listJoin(monitor.runtime.activeProfiles, ', ')}">dev</code></td></tr>
+            <tr><th>Processors</th>
+                <td th:text="${monitor.runtime.availableProcessors}">8</td></tr>
+            <tr><th>Memory used / max</th>
+                <td th:text="${monitor.runtime.memoryUsed} + ' / ' + ${monitor.runtime.memoryMax}">0 / 0</td></tr>
+            <tr><th>Uptime</th>
+                <td th:text="${monitor.runtime.uptime}">0s</td></tr>
+            <tr><th>Application</th>
+                <td><code th:text="${monitor.runtime.applicationVersion}">potriv-backend</code></td></tr>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Database</h2>
+        <table>
+            <tr>
+                <th>Connectivity</th>
+                <td><span class="badge"
+                          th:classappend="${monitor.database.connectivity == 'OK'} ? 'ok' : 'fail'"
+                          th:text="${monitor.database.connectivity}">OK</span></td>
+            </tr>
+            <tr><th>Product</th>
+                <td th:text="${monitor.database.productName}">PostgreSQL</td></tr>
+            <tr><th>JDBC URL (sanitized)</th>
+                <td><code th:text="${monitor.database.sanitizedJdbcUrl}">jdbc:postgresql://…</code></td></tr>
+            <tr><th>Hibernate ddl-auto</th>
+                <td><code th:text="${monitor.database.hibernateDdlAuto}">validate</code></td></tr>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Flyway</h2>
+        <table>
+            <tr><th>Enabled</th>
+                <td th:text="${monitor.flyway.enabled}">false</td></tr>
+            <tr><th>Current version</th>
+                <td><code th:text="${monitor.flyway.currentVersion}">none</code></td></tr>
+            <tr><th>Applied migrations</th>
+                <td th:text="${monitor.flyway.appliedCount}">0</td></tr>
+            <tr><th>Pending migrations</th>
+                <td th:text="${monitor.flyway.pendingCount}">0</td></tr>
+            <tr><th>Failed migrations</th>
+                <td th:text="${monitor.flyway.failedCount}">0</td></tr>
+            <tr><th>State</th>
+                <td><span class="badge"
+                          th:classappend="${monitor.flyway.state == 'OK'} ? 'ok' : (${monitor.flyway.state == 'FAILED'} ? 'fail' : 'warn')"
+                          th:text="${monitor.flyway.state}">DISABLED</span></td>
+            </tr>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Security configuration</h2>
+        <table>
+            <tr><th>JWT secret configured</th>
+                <td th:text="${monitor.security.jwtSecretConfigured}">true</td></tr>
+            <tr><th>JWT issuer</th>
+                <td><code th:text="${monitor.security.jwtIssuer}">issuer</code></td></tr>
+            <tr><th>Access token TTL</th>
+                <td th:text="${monitor.security.accessTokenTtl}">15 minutes</td></tr>
+            <tr><th>Refresh token TTL</th>
+                <td th:text="${monitor.security.refreshTokenTtl}">7 days</td></tr>
+            <tr><th>CORS allowed origins</th>
+                <td><code th:text="${#strings.listJoin(monitor.security.corsAllowedOrigins, ', ')}">origins</code></td></tr>
+            <tr><th>Swagger enabled</th>
+                <td th:text="${monitor.security.swaggerEnabled}">false</td></tr>
+            <tr><th>Actuator exposure</th>
+                <td><code th:text="${monitor.security.actuatorExposure}">health</code></td></tr>
+            <tr><th>Backend console enabled</th>
+                <td th:text="${monitor.security.backendConsoleEnabled}">true</td></tr>
+        </table>
+    </section>
+
+    <section class="card wide">
+        <h2>Readiness checklist</h2>
+        <table class="readiness">
+            <tr th:each="item : ${monitor.readiness}">
+                <td><span class="badge"
+                          th:classappend="${item.status == 'PASS'} ? 'ok' : (${item.status == 'FAIL'} ? 'fail' : 'warn')"
+                          th:text="${item.status}">PASS</span></td>
+                <th th:text="${item.label}">label</th>
+                <td class="muted" th:text="${item.explanation}">explanation</td>
+            </tr>
+        </table>
+    </section>
+
+</main>
+
+<footer class="muted">
+    Read-only monitoring surface. No business data, no secrets, no mutations.
+</footer>
+</body>
+</html>
