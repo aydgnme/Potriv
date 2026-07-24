@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Status badge. CSS colours are keyed off a lower-cased status modifier so
+     every page renders badges consistently without per-page styling. -->
+<span th:fragment="badge(status)" class="badge"
+      th:classappend="'badge--' + ${#strings.toLowerCase(status)}"
+      th:text="${status}">STATUS</span>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1 th:text="${organization.name}">Organization</h1></div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">General</h2>
+        <dl class="admin-dl">
+            <dt>Name</dt><dd th:text="${organization.name}">Name</dd>
+            <dt>Headquarter</dt><dd th:text="${organization.headquarterAddress}">Address</dd>
+            <dt>Users</dt><dd th:text="${organization.usersCount}">0</dd>
+            <dt>Departments</dt><dd th:text="${organization.departmentsCount}">0</dd>
+            <dt>Projects</dt><dd th:text="${organization.projectsCount}">0</dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Departments</h2>
+        <div th:if="${organization.departments.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No departments.')}"></div>
+        <table th:unless="${organization.departments.isEmpty()}" class="admin-table">
+            <thead><tr><th>Name</th></tr></thead>
+            <tbody>
+            <tr th:each="dept : ${organization.departments}">
+                <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Metadata</h2>
+        <dl class="admin-dl">
+            <dt>ID</dt><dd><code th:text="${organization.id}">uuid</code></dd>
+            <dt>Created</dt><dd th:text="${@adminFormat.dateTime(organization.createdAt)}">date</dd>
+            <dt>Updated</dt><dd th:text="${@adminFormat.dateTime(organization.updatedAt)}">date</dd>
+        </dl>
+    </section>
+</div>
+</body>
+</html>

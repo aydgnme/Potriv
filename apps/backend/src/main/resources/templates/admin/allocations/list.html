@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1>Allocations</h1></div>
+
+    <form class="admin-filters" method="get" th:action="@{/admin/allocations}">
+        <input type="search" name="q" th:value="${list.query}"
+               placeholder="Search employee or project…" aria-label="Search">
+        <select name="status" aria-label="Status">
+            <option value="" th:selected="${!activeOnly}">All</option>
+            <option value="ACTIVE" th:selected="${activeOnly}">Active only</option>
+        </select>
+        <button type="submit" class="admin-btn">Filter</button>
+        <a class="admin-btn admin-btn--ghost" th:href="@{/admin/allocations}">Clear</a>
+    </form>
+
+    <div th:if="${list.items.isEmpty()}"
+         th:replace="~{admin/fragments/empty-state :: empty('No allocations found.')}"></div>
+
+    <table th:unless="${list.items.isEmpty()}" class="admin-table">
+        <thead>
+        <tr><th>Employee</th><th>Project</th><th>Review Department</th>
+            <th class="num">Hours/day</th><th>Status</th><th>Allocated</th><th>Deallocated</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="allocation : ${list.items}">
+            <td><a th:href="@{'/admin/allocations/' + ${allocation.id}}"
+                   th:text="${allocation.employeeName}">Employee</a></td>
+            <td th:text="${allocation.projectName}">Project</td>
+            <td th:text="${allocation.reviewDepartmentName}">Dept</td>
+            <td class="num" th:text="${allocation.workHoursPerDay}">0</td>
+            <td><span th:replace="~{admin/fragments/badges :: badge(${allocation.status})}"></span></td>
+            <td th:text="${@adminFormat.dateTime(allocation.allocatedAt)}">date</td>
+            <td th:text="${allocation.deallocatedAt != null
+                          ? @adminFormat.dateTime(allocation.deallocatedAt) : '—'}">—</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
+</div>
+</body>
+</html>

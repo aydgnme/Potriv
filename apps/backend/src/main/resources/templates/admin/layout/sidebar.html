@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<aside class="admin-sidebar" th:fragment="sidebar">
+    <nav>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'dashboard'} ? 'active'"
+           th:href="@{/admin}">Dashboard</a>
+
+        <div class="admin-nav-group">Identity</div>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'users'} ? 'active'"
+           th:href="@{/admin/users}">Users</a>
+
+        <div class="admin-nav-group">Organization</div>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'organizations'} ? 'active'"
+           th:href="@{/admin/organizations}">Organizations</a>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'departments'} ? 'active'"
+           th:href="@{/admin/departments}">Departments</a>
+
+        <div class="admin-nav-group">Project Management</div>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'projects'} ? 'active'"
+           th:href="@{/admin/projects}">Projects</a>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'allocations'} ? 'active'"
+           th:href="@{/admin/allocations}">Allocations</a>
+
+        <div class="admin-nav-group">Access</div>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'invitations'} ? 'active'"
+           th:href="@{/admin/invitations}">Invitations</a>
+
+        <div class="admin-nav-group">System</div>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'audit-logs'} ? 'active'"
+           th:href="@{/admin/audit-logs}">Audit Logs</a>
+        <a class="admin-nav-item" th:href="@{/admin/monitor}">Backend Monitor</a>
+    </nav>
+</aside>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head"><h1>Audit Logs</h1></div>
+
+    <div th:if="${list.items.isEmpty()}"
+         th:replace="~{admin/fragments/empty-state :: empty('No audit events.')}"></div>
+
+    <table th:unless="${list.items.isEmpty()}" class="admin-table">
+        <thead>
+        <tr><th>Timestamp</th><th>Event</th><th>Actor</th><th>IP</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="event : ${list.items}">
+            <td><a th:href="@{'/admin/audit-logs/' + ${event.id}}"
+                   th:text="${@adminFormat.dateTime(event.createdAt)}">date</a></td>
+            <td><code th:text="${event.eventType}">EVENT</code></td>
+            <td th:text="${event.actor}">actor</td>
+            <td th:text="${event.ipAddress} ?: '—'">ip</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
+</div>
+</body>
+</html>

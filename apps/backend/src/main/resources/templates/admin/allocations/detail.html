@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1 th:text="${allocation.employeeName} + ' → ' + ${allocation.projectName}">Allocation</h1>
+    </div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">General</h2>
+        <dl class="admin-dl">
+            <dt>Employee</dt>
+            <dd><a th:href="@{'/admin/users/' + ${allocation.employeeId}}"
+                   th:text="${allocation.employeeName}">Employee</a></dd>
+            <dt>Project</dt>
+            <dd><a th:href="@{'/admin/projects/' + ${allocation.projectId}}"
+                   th:text="${allocation.projectName}">Project</a></dd>
+            <dt>Review Department</dt><dd th:text="${allocation.reviewDepartmentName}">Dept</dd>
+            <dt>Work hours/day</dt><dd th:text="${allocation.workHoursPerDay}">0</dd>
+            <dt>Status</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${allocation.status})}"></span></dd>
+            <dt>Roles</dt>
+            <dd>
+                <span class="tag" th:each="role : ${allocation.roles}" th:text="${role}">role</span>
+                <span th:if="${allocation.roles.isEmpty()}" class="muted">—</span>
+            </dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Timeline &amp; Metadata</h2>
+        <dl class="admin-dl">
+            <dt>Allocated at</dt><dd th:text="${@adminFormat.dateTime(allocation.allocatedAt)}">date</dd>
+            <dt>Deallocated at</dt>
+            <dd th:text="${allocation.deallocatedAt != null
+                          ? @adminFormat.dateTime(allocation.deallocatedAt) : '—'}">—</dd>
+            <dt>Assignment proposal</dt>
+            <dd><code th:text="${allocation.assignmentProposalId}">uuid</code></dd>
+            <dt>ID</dt><dd><code th:text="${allocation.id}">uuid</code></dd>
+            <dt>Created</dt><dd th:text="${@adminFormat.dateTime(allocation.createdAt)}">date</dd>
+            <dt>Updated</dt><dd th:text="${@adminFormat.dateTime(allocation.updatedAt)}">date</dd>
+        </dl>
+    </section>
+</div>
+</body>
+</html>

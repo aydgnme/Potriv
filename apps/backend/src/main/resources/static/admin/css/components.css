@@ -1,0 +1,179 @@
+/* Potriv admin — cards, metrics, buttons, badges, tags, filters. */
+
+.admin-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+
+.admin-card-title {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin: 0 0 10px;
+}
+
+.admin-dl {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 6px 16px;
+    margin: 0;
+}
+
+.admin-dl dt {
+    color: var(--muted);
+}
+
+.admin-dl dd {
+    margin: 0;
+}
+
+/* Dashboard metrics */
+.admin-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.admin-metric {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    color: var(--ink);
+}
+
+.admin-metric:hover {
+    border-color: var(--border-strong);
+    text-decoration: none;
+}
+
+.admin-metric-count {
+    font-size: 26px;
+    font-weight: 600;
+}
+
+.admin-metric-label {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Buttons */
+.admin-btn {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    cursor: pointer;
+}
+
+.admin-btn:hover {
+    text-decoration: none;
+    filter: brightness(0.96);
+}
+
+.admin-btn--ghost {
+    background: var(--panel);
+    color: var(--ink);
+    border-color: var(--border-strong);
+}
+
+/* Filters */
+.admin-filters {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.admin-filters input[type="search"],
+.admin-filters select {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12.5px;
+    min-width: 180px;
+}
+
+.admin-filters input:focus,
+.admin-filters select:focus,
+.admin-btn:focus,
+.admin-nav-item:focus,
+a:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    border-radius: 10px;
+    padding: 1px 9px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #eef0f3;
+    color: #4b5563;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.badge--active,
+.badge--approved,
+.badge--in_progress {
+    background: #e6f4ea;
+    color: #1c7a3f;
+}
+
+.badge--pending,
+.badge--starting {
+    background: #fff3d6;
+    color: #8a5a00;
+}
+
+.badge--rejected,
+.badge--disabled,
+.badge--expired {
+    background: #fdeaea;
+    color: #a12626;
+}
+
+.badge--not_started,
+.badge--past,
+.badge--suspended,
+.badge--closing,
+.badge--closed {
+    background: #eceef1;
+    color: #55606e;
+}
+
+/* Tags (roles, technologies) */
+.tag {
+    display: inline-block;
+    background: #eef2fb;
+    color: #2b4a86;
+    border: 1px solid #dbe4f6;
+    border-radius: 4px;
+    padding: 0 6px;
+    font-size: 11px;
+    margin: 0 3px 3px 0;
+}
+
+.admin-empty {
+    border: 1px dashed var(--border-strong);
+    border-radius: 8px;
+    padding: 28px;
+    text-align: center;
+    color: var(--muted);
+    background: var(--panel);
+}

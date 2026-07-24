@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="messages">
+    <div class="admin-message admin-message--warn" th:if="${filterError}"
+         th:text="${filterError}">Filter warning</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1>Dashboard</h1>
+        <p class="admin-page-sub">Operational overview of the Potriv backend.</p>
+    </div>
+    <div class="admin-metrics">
+        <a class="admin-metric" th:each="metric : ${dashboard.metrics}" th:href="@{${metric.href}}">
+            <span class="admin-metric-count" th:text="${metric.count}">0</span>
+            <span class="admin-metric-label" th:text="${metric.label}">Metric</span>
+        </a>
+    </div>
+</div>
+</body>
+</html>

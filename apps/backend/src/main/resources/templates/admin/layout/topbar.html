@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<header class="admin-topbar" th:fragment="topbar">
+    <a class="admin-brand" th:href="@{/admin}">Potriv Admin</a>
+    <span class="admin-topbar-tag">internal operations console · read-only</span>
+    <a class="admin-topbar-link" th:href="@{/admin/monitor}">Backend Monitor</a>
+</header>
+</body>
+</html>

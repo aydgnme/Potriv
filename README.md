@@ -50,5 +50,10 @@ An embedded read-only monitoring page is available at
 `BACKEND_CONSOLE_ENABLED=true` plus explicit HTTP Basic credentials
 (see `docs/backend/environment.md`).
 
+An embedded read-only **administration UI** (Django-style backoffice for users,
+organizations, departments, projects, allocations, invitations, and audit logs)
+is served under `http://localhost:8080/api/admin`, gated by the same
+`BACKEND_CONSOLE_*` credentials. See [docs/admin/ADMIN_UI.md](docs/admin/ADMIN_UI.md).
+
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 `docs/backend/deployment-checklist.md` for the full production documentation.
