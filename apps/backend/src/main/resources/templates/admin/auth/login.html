@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign in · Potriv Admin</title>
+    <link rel="stylesheet" th:href="@{/admin/css/admin.css}">
+    <link rel="stylesheet" th:href="@{/admin/css/components.css}">
+</head>
+<body>
+<div class="admin-login">
+    <div class="admin-login-panel">
+        <h1>Potriv Administration</h1>
+        <p class="admin-page-sub">
+            Internal administration access for authorized system administrators.
+        </p>
+
+        <div class="admin-message admin-message--warn" th:if="${loginError}"
+             th:text="${loginError}">Invalid email or password.</div>
+        <div class="admin-message admin-message--ok" th:if="${logoutMessage}"
+             th:text="${logoutMessage}">You have been signed out.</div>
+
+        <form method="post" th:action="@{/admin/login}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <label for="username">Email</label>
+            <input id="username" name="username" type="email" autocomplete="username"
+                   required autofocus placeholder="admin@aydgn.me">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password"
+                   autocomplete="current-password" required placeholder="••••••••">
+            <button type="submit" class="admin-btn admin-login-submit">Sign in</button>
+        </form>
+    </div>
+</div>
+</body>
+</html>

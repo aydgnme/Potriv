@@ -78,7 +78,7 @@ class ProductionConfigGuardTest {
     }
 
     @Test
-    void backendConsoleDisabledIsAlwaysAllowed() {
+    void adminConsoleDisabledIsAlwaysAllowed() {
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
                 false, "", ""))
@@ -86,36 +86,37 @@ class ProductionConfigGuardTest {
     }
 
     @Test
-    void backendConsoleEnabledRequiresExplicitCredentials() {
+    void adminConsoleEnabledRequiresSystemAdminEmailAndPassword() {
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "", ""))
+                true, "", "a-strong-admin-password"))
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("credentials");
+            .hasMessageContaining("email");
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin", ""))
-            .isInstanceOf(IllegalStateException.class);
-        assertThatThrownBy(() -> ProductionConfigGuard.validate(
-                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "", "a-strong-console-password"))
-            .isInstanceOf(IllegalStateException.class);
+                true, "admin@potriv.aydgn.me", ""))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("password");
     }
 
     @Test
-    void backendConsoleEnabledRejectsPlaceholderOrShortPassword() {
+    void adminConsoleEnabledRejectsPlaceholderOrShortSystemAdminPassword() {
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin", "replace-me-with-strong-password"))
+                true, "admin@potriv.aydgn.me", "ChangeMe123!"))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("placeholder");
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin", "short"))
+                true, "admin@potriv.aydgn.me", "replace-me"))
+            .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                true, "admin@potriv.aydgn.me", "short"))
             .isInstanceOf(IllegalStateException.class);
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin", "a-strong-console-password"))
+                true, "admin@potriv.aydgn.me", "a-strong-admin-password"))
             .doesNotThrowAnyException();
     }
 }

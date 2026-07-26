@@ -45,15 +45,15 @@ cp .env.prod.example .env.prod   # edit the placeholder values
 ./scripts/backend-prod-smoke.sh
 ```
 
-An embedded read-only monitoring page is available at
-`http://localhost:8080/api/admin/monitor` when enabled with
-`BACKEND_CONSOLE_ENABLED=true` plus explicit HTTP Basic credentials
-(see `docs/backend/environment.md`).
-
-An embedded read-only **administration UI** (Django-style backoffice for users,
-organizations, departments, projects, allocations, invitations, and audit logs)
-is served under `http://localhost:8080/api/admin`, gated by the same
-`BACKEND_CONSOLE_*` credentials. See [docs/admin/ADMIN_UI.md](docs/admin/ADMIN_UI.md).
+An embedded read-only **administration console** (monitor plus a Django-style
+backoffice for users, organizations, departments, projects, allocations,
+invitations, and audit logs) is served under `http://localhost:8080/api/admin`
+when enabled with `BACKEND_CONSOLE_ENABLED=true`. It is protected by a
+server-side session form login: sign in at `/api/admin/login` with a
+`SYSTEM_ADMIN` account (`SYSTEM_ADMIN_EMAIL` / `SYSTEM_ADMIN_PASSWORD`) — the
+session is isolated from the JWT API. See
+[docs/admin/ADMIN_UI.md](docs/admin/ADMIN_UI.md) and
+`docs/backend/environment.md`.
 
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 `docs/backend/deployment-checklist.md` for the full production documentation.

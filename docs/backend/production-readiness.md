@@ -20,22 +20,28 @@ to start the application when:
 - `spring.jpa.hibernate.ddl-auto` is anything other than `validate` or `none`
   (blocks `create`, `create-drop`, and `update` in production).
 
-- The embedded monitor console (`potriv.backend-console.*`) is enabled while
-  its username or password is missing, a placeholder (`replace-me…`,
-  `change-me…`), or shorter than 12 characters. Disabled (the default) always
-  boots.
+- The embedded administration console (`potriv.backend-console.*`) is enabled
+  while `SYSTEM_ADMIN_EMAIL` is missing, or `SYSTEM_ADMIN_PASSWORD` is missing,
+  a placeholder (`replace-me…`, `change-me…`), or shorter than 12 characters.
+  Disabled (the default) always boots.
 
 These rules are covered by unit tests in `ProductionConfigGuardTest`.
 
-## Embedded monitor console
+## Embedded administration console
 
-`/api/admin/monitor` is a read-only Thymeleaf page served by the backend
-itself (package `me.aydgn.potriv.ops.monitor`) showing health, runtime,
-database, Flyway, safe security configuration, and a PASS/WARN/FAIL readiness
-checklist. It is protected by HTTP Basic on its own high-precedence security
-chain — fully independent from JWT API auth — is disabled by default in every
-profile, answers 404 when disabled, and renders no secrets, no business data,
-and no mutation actions. See `docs/backend/environment.md` for usage.
+`/api/admin/**` is a read-only, server-rendered Thymeleaf console (packages
+`me.aydgn.potriv.admin` and `me.aydgn.potriv.ops.monitor`) with a login page,
+the monitor (health, runtime, database, Flyway, safe security configuration,
+and a PASS/WARN/FAIL readiness checklist), and read-only users/projects
+browsers. It is protected by a server-side **session form login** on its own
+high-precedence security chain (`securityMatcher("/admin/**")`) — fully
+independent from JWT API auth, with CSRF enabled. Only a platform user holding
+`SYSTEM_ADMIN` may sign in (verified against the stored BCrypt hash with the
+product login's account-status, lockout, and audit rules); everyone else is
+rejected with a generic error. The session grants nothing on the JWT API and a
+Bearer token grants nothing on the console. It is disabled by default in every
+profile, answers 404 when disabled, and renders no secrets and no mutation
+actions. See `docs/backend/environment.md` for usage.
 
 ## CORS policy
 

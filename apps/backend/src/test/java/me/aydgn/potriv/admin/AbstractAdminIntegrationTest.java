@@ -1,42 +1,52 @@
 package me.aydgn.potriv.admin;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestBuilders.formLogin;
+import static org.springframework.security.test.web.servlet.response.SecurityMockMvcResultMatchers.authenticated;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-
-import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
 
 /**
- * Base for admin-UI integration tests. Enables the backend console (which also
- * gates the admin UI) with fixed HTTP Basic credentials from test properties —
- * no machine environment involved.
+ * Base for admin-UI integration tests. Enables the admin console and signs in
+ * through the real form-login flow as the seeded {@code SYSTEM_ADMIN}, reusing
+ * the resulting HTTP session for subsequent requests. No HTTP Basic, no machine
+ * environment.
  */
-@TestPropertySource(properties = {
-    "potriv.backend-console.enabled=true",
-    "potriv.backend-console.username=admin",
-    "potriv.backend-console.password=admin-console-password"
-})
+@TestPropertySource(properties = "potriv.backend-console.enabled=true")
 public abstract class AbstractAdminIntegrationTest extends AbstractMockMvcIntegrationTest {
 
-    protected static final String ADMIN_USER = "admin";
-    protected static final String ADMIN_PASSWORD = "admin-console-password";
+    private MockHttpSession adminSession;
 
-    protected static String basic(String username, String password) {
-        return "Basic " + Base64.getEncoder().encodeToString(
-            (username + ":" + password).getBytes(StandardCharsets.UTF_8));
+    /** Performs a fresh form login as the seeded system admin. */
+    protected MockHttpSession loginAsSystemAdmin() throws Exception {
+        MvcResult result = mockMvc.perform(formLogin("/admin/login")
+                .user(SYSTEM_ADMIN_EMAIL).password(SYSTEM_ADMIN_PASSWORD))
+            .andExpect(authenticated())
+            .andReturn();
+        return (MockHttpSession) result.getRequest().getSession(false);
+    }
+
+    /** A cached authenticated admin session for the current test. */
+    protected MockHttpSession adminSession() throws Exception {
+        if (adminSession == null) {
+            adminSession = loginAsSystemAdmin();
+        }
+        return adminSession;
     }
 
     protected ResultActions adminGet(String path) throws Exception {
         return mockMvc.perform(authorized(get(path)));
     }
 
-    protected MockHttpServletRequestBuilder authorized(MockHttpServletRequestBuilder builder) {
-        return builder.header(HttpHeaders.AUTHORIZATION, basic(ADMIN_USER, ADMIN_PASSWORD));
+    /** Attaches the authenticated admin session to a request builder. */
+    protected MockHttpServletRequestBuilder authorized(MockHttpServletRequestBuilder builder)
+        throws Exception {
+        return builder.session(adminSession());
     }
 }

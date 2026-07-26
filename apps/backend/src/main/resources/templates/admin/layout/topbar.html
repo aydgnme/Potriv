@@ -3,8 +3,17 @@
 <body>
 <header class="admin-topbar" th:fragment="topbar">
     <a class="admin-brand" th:href="@{/admin}">Potriv Admin</a>
-    <span class="admin-topbar-tag">internal operations console · read-only</span>
-    <a class="admin-topbar-link" th:href="@{/admin/monitor}">Backend Monitor</a>
+    <span class="admin-topbar-tag">internal administration · read-only</span>
+    <div class="admin-topbar-right" th:if="${adminPrincipal}">
+        <span class="admin-topbar-user">
+            <span th:text="${adminPrincipal.name}">Name</span>
+            <span class="admin-topbar-role">SYSTEM_ADMIN</span>
+        </span>
+        <form method="post" th:action="@{/admin/logout}" class="admin-topbar-logout">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="admin-btn admin-btn--ghost">Logout</button>
+        </form>
+    </div>
 </header>
 </body>
 </html>

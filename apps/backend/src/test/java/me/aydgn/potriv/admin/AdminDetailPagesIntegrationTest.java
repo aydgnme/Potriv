@@ -78,8 +78,7 @@ class AdminDetailPagesIntegrationTest extends AbstractAdminIntegrationTest {
 
     @Test
     void unknownIdRendersAdminStyledNotFound() throws Exception {
-        String html = mockMvc.perform(get("/admin/users/" + UUID.randomUUID())
-                .header(HttpHeaders.AUTHORIZATION, basic(ADMIN_USER, ADMIN_PASSWORD)))
+        String html = adminGet("/admin/users/" + UUID.randomUUID())
             .andExpect(status().isNotFound())
             .andReturn().getResponse().getContentAsString();
         assertThat(html).contains("404", "Potriv Admin");
