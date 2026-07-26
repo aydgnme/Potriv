@@ -1,134 +1,126 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Potriv Backend Monitor</title>
-    <link rel="stylesheet" th:href="@{/admin/monitor.css}">
-</head>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
 <body>
-<header class="topbar">
-    <h1>Potriv Backend Monitor</h1>
-    <span class="badge env" th:classappend="'env-' + ${monitor.environment}"
-          th:text="${monitor.environment}">env</span>
-    <span class="muted">Generated at
-        <span th:text="${monitor.generatedAt}">generatedAt</span></span>
-</header>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1>Backend Monitor</h1>
+        <span class="signal"
+              th:classappend="${monitor.environment == 'prod'} ? 'signal--fail' : 'signal--info'"
+              th:text="${monitor.environment}">env</span>
+        <p class="admin-page-sub">
+            Read-only operational snapshot ·
+            generated at <code th:text="${monitor.generatedAt}">generatedAt</code>
+        </p>
+    </div>
 
-<main class="grid">
+    <div class="admin-card-grid">
 
-    <section class="card">
-        <h2>Health</h2>
-        <table>
-            <tr>
-                <th>Application status</th>
-                <td><span class="badge"
-                          th:classappend="${monitor.health.applicationStatus == 'UP'} ? 'ok' : 'fail'"
-                          th:text="${monitor.health.applicationStatus}">UNKNOWN</span></td>
-            </tr>
-            <tr>
-                <th>Actuator health endpoint</th>
-                <td><code th:text="${monitor.health.actuatorHealthPath}">/api/actuator/health</code></td>
-            </tr>
-        </table>
-    </section>
+        <section class="admin-card">
+            <h2 class="admin-card-title">Health</h2>
+            <dl class="admin-dl">
+                <dt>Application status</dt>
+                <dd><span class="signal"
+                          th:classappend="${monitor.health.applicationStatus == 'UP'} ? 'signal--ok' : 'signal--fail'"
+                          th:text="${monitor.health.applicationStatus}">UNKNOWN</span></dd>
+                <dt>Health endpoint</dt>
+                <dd><code th:text="${monitor.health.actuatorHealthPath}">/api/actuator/health</code></dd>
+            </dl>
+        </section>
 
-    <section class="card">
-        <h2>Runtime</h2>
-        <table>
-            <tr><th>Java version</th>
-                <td><code th:text="${monitor.runtime.javaVersion}">21</code></td></tr>
-            <tr><th>Active profiles</th>
-                <td><code th:text="${#strings.listJoin(monitor.runtime.activeProfiles, ', ')}">dev</code></td></tr>
-            <tr><th>Processors</th>
-                <td th:text="${monitor.runtime.availableProcessors}">8</td></tr>
-            <tr><th>Memory used / max</th>
-                <td th:text="${monitor.runtime.memoryUsed} + ' / ' + ${monitor.runtime.memoryMax}">0 / 0</td></tr>
-            <tr><th>Uptime</th>
-                <td th:text="${monitor.runtime.uptime}">0s</td></tr>
-            <tr><th>Application</th>
-                <td><code th:text="${monitor.runtime.applicationVersion}">potriv-backend</code></td></tr>
-        </table>
-    </section>
+        <section class="admin-card">
+            <h2 class="admin-card-title">Runtime</h2>
+            <dl class="admin-dl">
+                <dt>Java version</dt>
+                <dd><code th:text="${monitor.runtime.javaVersion}">21</code></dd>
+                <dt>Active profiles</dt>
+                <dd><code th:text="${#strings.listJoin(monitor.runtime.activeProfiles, ', ')}">dev</code></dd>
+                <dt>Processors</dt>
+                <dd class="mono" th:text="${monitor.runtime.availableProcessors}">8</dd>
+                <dt>Memory used / max</dt>
+                <dd class="mono" th:text="${monitor.runtime.memoryUsed} + ' / ' + ${monitor.runtime.memoryMax}">0 / 0</dd>
+                <dt>Uptime</dt>
+                <dd class="mono" th:text="${monitor.runtime.uptime}">0s</dd>
+                <dt>Application</dt>
+                <dd><code th:text="${monitor.runtime.applicationVersion}">potriv-backend</code></dd>
+            </dl>
+        </section>
 
-    <section class="card">
-        <h2>Database</h2>
-        <table>
-            <tr>
-                <th>Connectivity</th>
-                <td><span class="badge"
-                          th:classappend="${monitor.database.connectivity == 'OK'} ? 'ok' : 'fail'"
-                          th:text="${monitor.database.connectivity}">OK</span></td>
-            </tr>
-            <tr><th>Product</th>
-                <td th:text="${monitor.database.productName}">PostgreSQL</td></tr>
-            <tr><th>JDBC URL (sanitized)</th>
-                <td><code th:text="${monitor.database.sanitizedJdbcUrl}">jdbc:postgresql://…</code></td></tr>
-            <tr><th>Hibernate ddl-auto</th>
-                <td><code th:text="${monitor.database.hibernateDdlAuto}">validate</code></td></tr>
-        </table>
-    </section>
+        <section class="admin-card">
+            <h2 class="admin-card-title">Database</h2>
+            <dl class="admin-dl">
+                <dt>Connectivity</dt>
+                <dd><span class="signal"
+                          th:classappend="${monitor.database.connectivity == 'OK'} ? 'signal--ok' : 'signal--fail'"
+                          th:text="${monitor.database.connectivity}">OK</span></dd>
+                <dt>Product</dt>
+                <dd th:text="${monitor.database.productName}">PostgreSQL</dd>
+                <dt>JDBC URL (sanitized)</dt>
+                <dd><code th:text="${monitor.database.sanitizedJdbcUrl}">jdbc:postgresql://…</code></dd>
+                <dt>Hibernate ddl-auto</dt>
+                <dd><code th:text="${monitor.database.hibernateDdlAuto}">validate</code></dd>
+            </dl>
+        </section>
 
-    <section class="card">
-        <h2>Flyway</h2>
-        <table>
-            <tr><th>Enabled</th>
-                <td th:text="${monitor.flyway.enabled}">false</td></tr>
-            <tr><th>Current version</th>
-                <td><code th:text="${monitor.flyway.currentVersion}">none</code></td></tr>
-            <tr><th>Applied migrations</th>
-                <td th:text="${monitor.flyway.appliedCount}">0</td></tr>
-            <tr><th>Pending migrations</th>
-                <td th:text="${monitor.flyway.pendingCount}">0</td></tr>
-            <tr><th>Failed migrations</th>
-                <td th:text="${monitor.flyway.failedCount}">0</td></tr>
-            <tr><th>State</th>
-                <td><span class="badge"
-                          th:classappend="${monitor.flyway.state == 'OK'} ? 'ok' : (${monitor.flyway.state == 'FAILED'} ? 'fail' : 'warn')"
-                          th:text="${monitor.flyway.state}">DISABLED</span></td>
-            </tr>
-        </table>
-    </section>
+        <section class="admin-card">
+            <h2 class="admin-card-title">Flyway</h2>
+            <dl class="admin-dl">
+                <dt>Enabled</dt>
+                <dd class="mono" th:text="${monitor.flyway.enabled}">false</dd>
+                <dt>Current version</dt>
+                <dd><code th:text="${monitor.flyway.currentVersion}">none</code></dd>
+                <dt>Applied migrations</dt>
+                <dd class="mono" th:text="${monitor.flyway.appliedCount}">0</dd>
+                <dt>Pending migrations</dt>
+                <dd class="mono" th:text="${monitor.flyway.pendingCount}">0</dd>
+                <dt>Failed migrations</dt>
+                <dd class="mono" th:text="${monitor.flyway.failedCount}">0</dd>
+                <dt>State</dt>
+                <dd><span class="signal"
+                          th:classappend="${monitor.flyway.state == 'OK'} ? 'signal--ok' : (${monitor.flyway.state == 'FAILED'} ? 'signal--fail' : 'signal--warn')"
+                          th:text="${monitor.flyway.state}">DISABLED</span></dd>
+            </dl>
+        </section>
 
-    <section class="card">
-        <h2>Security configuration</h2>
-        <table>
-            <tr><th>JWT secret configured</th>
-                <td th:text="${monitor.security.jwtSecretConfigured}">true</td></tr>
-            <tr><th>JWT issuer</th>
-                <td><code th:text="${monitor.security.jwtIssuer}">issuer</code></td></tr>
-            <tr><th>Access token TTL</th>
-                <td th:text="${monitor.security.accessTokenTtl}">15 minutes</td></tr>
-            <tr><th>Refresh token TTL</th>
-                <td th:text="${monitor.security.refreshTokenTtl}">7 days</td></tr>
-            <tr><th>CORS allowed origins</th>
-                <td><code th:text="${#strings.listJoin(monitor.security.corsAllowedOrigins, ', ')}">origins</code></td></tr>
-            <tr><th>Swagger enabled</th>
-                <td th:text="${monitor.security.swaggerEnabled}">false</td></tr>
-            <tr><th>Actuator exposure</th>
-                <td><code th:text="${monitor.security.actuatorExposure}">health</code></td></tr>
-            <tr><th>Backend console enabled</th>
-                <td th:text="${monitor.security.backendConsoleEnabled}">true</td></tr>
-        </table>
-    </section>
+        <section class="admin-card admin-card--wide">
+            <h2 class="admin-card-title">Security configuration</h2>
+            <dl class="admin-dl">
+                <dt>JWT secret configured</dt>
+                <dd class="mono" th:text="${monitor.security.jwtSecretConfigured}">true</dd>
+                <dt>JWT issuer</dt>
+                <dd><code th:text="${monitor.security.jwtIssuer}">issuer</code></dd>
+                <dt>Access token TTL</dt>
+                <dd th:text="${monitor.security.accessTokenTtl}">15 minutes</dd>
+                <dt>Refresh token TTL</dt>
+                <dd th:text="${monitor.security.refreshTokenTtl}">7 days</dd>
+                <dt>CORS allowed origins</dt>
+                <dd><code th:text="${#strings.listJoin(monitor.security.corsAllowedOrigins, ', ')}">origins</code></dd>
+                <dt>Swagger enabled</dt>
+                <dd class="mono" th:text="${monitor.security.swaggerEnabled}">false</dd>
+                <dt>Actuator exposure</dt>
+                <dd><code th:text="${monitor.security.actuatorExposure}">health</code></dd>
+                <dt>Backend console enabled</dt>
+                <dd class="mono" th:text="${monitor.security.backendConsoleEnabled}">true</dd>
+            </dl>
+        </section>
 
-    <section class="card wide">
-        <h2>Readiness checklist</h2>
-        <table class="readiness">
-            <tr th:each="item : ${monitor.readiness}">
-                <td><span class="badge"
-                          th:classappend="${item.status == 'PASS'} ? 'ok' : (${item.status == 'FAIL'} ? 'fail' : 'warn')"
-                          th:text="${item.status}">PASS</span></td>
-                <th th:text="${item.label}">label</th>
-                <td class="muted" th:text="${item.explanation}">explanation</td>
-            </tr>
-        </table>
-    </section>
+        <section class="admin-card admin-card--wide">
+            <h2 class="admin-card-title">Readiness checklist</h2>
+            <table class="admin-readiness">
+                <tr th:each="item : ${monitor.readiness}">
+                    <td><span class="signal"
+                              th:classappend="${item.status == 'PASS'} ? 'signal--ok' : (${item.status == 'FAIL'} ? 'signal--fail' : 'signal--warn')"
+                              th:text="${item.status}">PASS</span></td>
+                    <th th:text="${item.label}">label</th>
+                    <td class="admin-readiness-note" th:text="${item.explanation}">explanation</td>
+                </tr>
+            </table>
+        </section>
 
-</main>
+    </div>
 
-<footer class="muted">
-    Read-only monitoring surface. No business data, no secrets, no mutations.
-</footer>
+    <p class="muted" style="margin-top:4px">
+        Read-only monitoring surface. No business data, no secrets, no mutations.
+    </p>
+</div>
 </body>
 </html>

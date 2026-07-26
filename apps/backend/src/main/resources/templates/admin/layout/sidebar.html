@@ -29,7 +29,8 @@
         <div class="admin-nav-group">System</div>
         <a class="admin-nav-item" th:classappend="${activeNav == 'audit-logs'} ? 'active'"
            th:href="@{/admin/audit-logs}">Audit Logs</a>
-        <a class="admin-nav-item" th:href="@{/admin/monitor}">Backend Monitor</a>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'monitor'} ? 'active'"
+           th:href="@{/admin/monitor}">Backend Monitor</a>
     </nav>
 </aside>
 </body>

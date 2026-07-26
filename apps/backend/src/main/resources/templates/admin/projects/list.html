@@ -16,8 +16,9 @@
         <a class="admin-btn admin-btn--ghost" th:href="@{/admin/projects}">Clear</a>
     </form>
 
-    <div th:if="${list.items.isEmpty()}"
-         th:replace="~{admin/fragments/empty-state :: empty('No projects found.')}"></div>
+    <div th:if="${list.items.isEmpty()}">
+        <div th:replace="~{admin/fragments/empty-state :: empty('No projects found.')}"></div>
+    </div>
 
     <table th:unless="${list.items.isEmpty()}" class="admin-table">
         <thead>

@@ -5,8 +5,9 @@
     <div class="admin-page-head"><h1>Users</h1></div>
     <div th:replace="~{admin/fragments/filters :: search('/admin/users', ${list.query}, 'Search name or email…')}"></div>
 
-    <div th:if="${list.items.isEmpty()}"
-         th:replace="~{admin/fragments/empty-state :: empty('No users found.')}"></div>
+    <div th:if="${list.items.isEmpty()}">
+        <div th:replace="~{admin/fragments/empty-state :: empty('No users found.')}"></div>
+    </div>
 
     <table th:unless="${list.items.isEmpty()}" class="admin-table">
         <thead>

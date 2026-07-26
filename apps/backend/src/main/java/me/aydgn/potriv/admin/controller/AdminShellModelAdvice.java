@@ -11,9 +11,13 @@ import me.aydgn.potriv.admin.security.AdminPrincipal;
 /**
  * Exposes the authenticated admin principal to every admin page so the shell
  * topbar can show the signed-in identity and a logout form. Scoped to the admin
- * controller package; never touches the REST API.
+ * controller and backend-monitor packages (both render inside the admin shell);
+ * never touches the REST API.
  */
-@ControllerAdvice(basePackages = "me.aydgn.potriv.admin.controller")
+@ControllerAdvice(basePackages = {
+    "me.aydgn.potriv.admin.controller",
+    "me.aydgn.potriv.ops.monitor"
+})
 public class AdminShellModelAdvice {
 
     @ModelAttribute

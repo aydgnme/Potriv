@@ -1,18 +1,59 @@
-/* Potriv admin — shell layout and base typography. Neutral, dense, no framework. */
+/* ============================================================================
+   Potriv Admin — precise light operations console.
+   One design language across every page: dashboard, data browsers, and the
+   backend monitor. Tokens, reset, shell (topbar / sidebar / main), and the
+   standalone surfaces (login, error). Components live in components.css,
+   data tables in tables.css. No framework.
+   ========================================================================== */
+
 :root {
-    --bg: #f6f7f9;
-    --panel: #ffffff;
-    --ink: #1c2330;
-    --muted: #6b7280;
-    --border: #e3e6ea;
-    --border-strong: #d3d8de;
-    --accent: #2f6fed;
+    color-scheme: light;
+
+    /* Surfaces — canvas sits behind white cards so structure reads by contrast. */
+    --canvas: #f3f5f8;
+    --surface: #ffffff;
+    --surface-sunken: #f6f8fb;
+    --sidebar: #f8fafc;
+
+    /* Ink */
+    --ink: #14171d;
+    --ink-2: #545c69;
+    --ink-3: #8b93a1;
+
+    /* Hairlines */
+    --line: #e6e9ef;
+    --line-2: #d2d8e1;
+
+    /* Accent — a single cobalt, spent only on state and action. */
+    --accent: #2f57e6;
+    --accent-strong: #1e40c9;
+    --accent-tint: #e9eeff;
     --accent-ink: #ffffff;
-    --sidebar-bg: #1a2130;
-    --sidebar-ink: #c4ccd8;
-    --sidebar-active: #2f6fed;
-    --topbar-h: 48px;
-    --sidebar-w: 232px;
+
+    /* Signal palette — the console's shared language for state. */
+    --ok: #10794a;
+    --ok-tint: #e4f3ea;
+    --warn: #8f5e00;
+    --warn-tint: #faf0d6;
+    --fail: #bd3328;
+    --fail-tint: #fbe7e4;
+    --idle: #626b7a;
+    --idle-tint: #eceff3;
+
+    /* Geometry */
+    --r-xs: 4px;
+    --r-sm: 6px;
+    --r-md: 9px;
+    --r-lg: 13px;
+    --shadow-1: 0 1px 2px rgba(15, 23, 42, .05), 0 1px 3px rgba(15, 23, 42, .04);
+    --shadow-2: 0 4px 16px rgba(15, 23, 42, .10);
+    --ring: 0 0 0 3px rgba(47, 87, 230, .26);
+
+    --topbar-h: 52px;
+    --sidebar-w: 234px;
+
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
 }
 
 * {
@@ -25,11 +66,13 @@ html, body {
 }
 
 body {
-    background: var(--bg);
+    background: var(--canvas);
     color: var(--ink);
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--sans);
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
 }
 
 a {
@@ -38,88 +81,118 @@ a {
 }
 
 a:hover {
+    color: var(--accent-strong);
     text-decoration: underline;
 }
 
-code {
-    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+/* Every machine value — ids, counts, versions, urls, timestamps — is monospace
+   with tabular figures. This is the console's typographic signature. */
+code, .mono {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
     font-size: 12px;
-    background: #f0f2f5;
-    border: 1px solid var(--border);
-    border-radius: 4px;
+}
+
+code {
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xs);
     padding: 1px 5px;
+    color: var(--ink);
     word-break: break-all;
 }
 
 .muted {
-    color: var(--muted);
+    color: var(--ink-2);
 }
 
-/* Topbar */
+.num {
+    font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+    border-radius: var(--r-xs);
+}
+
+/* ------------------------------------------------------------------ Topbar */
 .admin-topbar {
     position: sticky;
     top: 0;
-    z-index: 10;
+    z-index: 20;
     height: var(--topbar-h);
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 0 18px;
-    background: var(--sidebar-bg);
-    color: #eef1f5;
-    border-bottom: 1px solid #0e1420;
+    gap: 14px;
+    padding: 0 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
 }
 
 .admin-brand {
-    font-weight: 600;
-    color: #ffffff;
+    font-weight: 650;
+    font-size: 14px;
+    letter-spacing: -.01em;
+    color: var(--ink);
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.admin-brand::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
 .admin-brand:hover {
+    color: var(--ink);
     text-decoration: none;
 }
 
 .admin-topbar-tag {
-    color: #8a94a6;
+    color: var(--ink-3);
     font-size: 12px;
-}
-
-.admin-topbar-link {
-    margin-left: auto;
-    color: #c4ccd8;
-    font-size: 12px;
+    padding-left: 14px;
+    border-left: 1px solid var(--line);
 }
 
 .admin-topbar-right {
     margin-left: auto;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
 }
 
 .admin-topbar-user {
-    color: #dfe4ec;
+    color: var(--ink);
     font-size: 12.5px;
+    font-weight: 550;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 9px;
 }
 
 .admin-topbar-role {
-    background: rgba(79, 140, 255, 0.22);
-    color: #cbd9f6;
-    border-radius: 10px;
-    padding: 1px 8px;
+    font-family: var(--mono);
+    background: var(--accent-tint);
+    color: var(--accent-strong);
+    border-radius: 20px;
+    padding: 2px 9px;
     font-size: 10.5px;
     font-weight: 600;
-    letter-spacing: 0.03em;
+    letter-spacing: .02em;
 }
 
 .admin-topbar-logout {
     margin: 0;
 }
 
-/* Shell */
+/* ------------------------------------------------------------------- Shell */
 .admin-shell {
     display: grid;
     grid-template-columns: var(--sidebar-w) 1fr;
@@ -127,146 +200,280 @@ code {
 }
 
 .admin-sidebar {
-    background: var(--sidebar-bg);
-    padding: 12px 10px 32px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+    padding: 14px 12px 40px;
+    position: sticky;
+    top: var(--topbar-h);
+    align-self: start;
+    height: calc(100vh - var(--topbar-h));
+    overflow-y: auto;
 }
 
 .admin-nav-group {
-    color: #6f7b8f;
-    font-size: 10.5px;
+    color: var(--ink-3);
+    font-size: 10px;
+    font-weight: 650;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin: 16px 8px 4px;
+    letter-spacing: .09em;
+    margin: 18px 10px 5px;
 }
 
 .admin-nav-item {
     display: block;
-    color: var(--sidebar-ink);
-    padding: 6px 10px;
-    border-radius: 6px;
+    position: relative;
+    color: var(--ink-2);
+    padding: 6px 11px;
+    border-radius: var(--r-sm);
     font-size: 13px;
+    line-height: 1.4;
 }
 
 .admin-nav-item:hover {
-    background: #232c3d;
-    color: #ffffff;
+    background: var(--surface-sunken);
+    color: var(--ink);
     text-decoration: none;
 }
 
 .admin-nav-item.active {
-    background: var(--sidebar-active);
-    color: #ffffff;
+    background: var(--accent-tint);
+    color: var(--accent-strong);
+    font-weight: 550;
 }
 
-/* Main */
+.admin-nav-item.active::before {
+    content: "";
+    position: absolute;
+    left: -12px;
+    top: 6px;
+    bottom: 6px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--accent);
+}
+
+/* -------------------------------------------------------------------- Main */
 .admin-main {
-    padding: 18px 24px 48px;
+    padding: 22px 28px 56px;
     min-width: 0;
+    max-width: 1240px;
 }
 
 .admin-breadcrumbs {
     font-size: 12px;
-    color: var(--muted);
-    margin-bottom: 14px;
+    color: var(--ink-3);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
 }
 
 .admin-breadcrumbs .sep {
-    margin: 0 6px;
-    color: var(--border-strong);
+    color: var(--line-2);
 }
 
 .admin-breadcrumbs .current {
-    color: var(--ink);
+    color: var(--ink-2);
 }
 
 .admin-page-head {
-    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
 }
 
 .admin-page-head h1 {
-    font-size: 20px;
+    font-size: 21px;
+    font-weight: 650;
+    letter-spacing: -.02em;
     margin: 0;
 }
 
 .admin-page-sub {
-    color: var(--muted);
-    margin: 4px 0 0;
+    color: var(--ink-2);
+    margin: 5px 0 0;
+    flex-basis: 100%;
 }
 
+/* Inline messages (filter warnings, sign-out notice). */
 .admin-message {
-    border-radius: 6px;
-    padding: 8px 12px;
-    margin-bottom: 14px;
+    border-radius: var(--r-sm);
+    padding: 9px 13px;
+    margin-bottom: 16px;
     font-size: 12.5px;
-    border: 1px solid var(--border);
+    border: 1px solid transparent;
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.admin-message::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    transform: translateY(-1px);
 }
 
 .admin-message--warn {
-    background: #fff8e6;
-    border-color: #f2dfa6;
-    color: #7a5b12;
+    background: var(--warn-tint);
+    border-color: #ecd9a3;
+    color: #7a5310;
+}
+
+.admin-message--warn::before {
+    background: var(--warn);
 }
 
 .admin-message--ok {
-    background: #e9f6ee;
-    border-color: #bfe2cc;
-    color: #1c7a3f;
+    background: var(--ok-tint);
+    border-color: #b9dcc6;
+    color: #0f6b41;
 }
 
-/* Login page */
+.admin-message--ok::before {
+    background: var(--ok);
+}
+
+/* --------------------------------------------------- Standalone: login page */
 .admin-login {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
+    background:
+        radial-gradient(1100px 460px at 50% -8%, var(--accent-tint), transparent 70%),
+        var(--canvas);
 }
 
 .admin-login-panel {
     width: 100%;
-    max-width: 380px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 24px;
+    max-width: 372px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-2);
+    padding: 26px 26px 28px;
+}
+
+.admin-login-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    font-weight: 650;
+    font-size: 13px;
+    letter-spacing: -.01em;
+    color: var(--ink);
+    margin-bottom: 18px;
+}
+
+.admin-login-brand::before {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-tint);
 }
 
 .admin-login-panel h1 {
-    font-size: 18px;
-    margin: 0 0 4px;
+    font-size: 19px;
+    font-weight: 650;
+    letter-spacing: -.02em;
+    margin: 0 0 5px;
 }
 
 .admin-login-panel label {
     display: block;
-    font-size: 12px;
-    color: var(--muted);
-    margin: 12px 0 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-3);
+    margin: 15px 0 5px;
 }
 
 .admin-login-panel input[type="email"],
 .admin-login-panel input[type="password"] {
     width: 100%;
-    background: #0b0e13;
+    background: var(--surface);
     color: var(--ink);
-    background: #fff;
-    border: 1px solid var(--border-strong);
-    border-radius: 6px;
-    padding: 8px 10px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    padding: 9px 11px;
     font-size: 13px;
+    font-family: inherit;
+}
+
+.admin-login-panel input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--ring);
 }
 
 .admin-login-submit {
     width: 100%;
-    margin-top: 16px;
-    padding: 9px;
+    margin-top: 18px;
+    padding: 10px;
+    font-size: 13px;
+    justify-content: center;
 }
 
+/* --------------------------------------------------- Standalone: error page */
 .admin-error {
     text-align: center;
-    padding: 64px 24px;
+    padding: 72px 24px;
 }
 
-.admin-error h1 {
-    font-size: 48px;
-    margin: 0 0 8px;
+.admin-error-code {
+    font-family: var(--mono);
+    font-size: 52px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+    color: var(--ink);
+    margin: 0 0 6px;
+}
+
+.admin-error p {
+    color: var(--ink-2);
+    margin: 0 0 22px;
+}
+
+/* --------------------------------------------------------------- Responsive */
+@media (max-width: 860px) {
+    .admin-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-sidebar {
+        position: static;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 6px;
+        padding: 10px 14px;
+    }
+
+    .admin-nav-group {
+        flex-basis: 100%;
+        margin: 8px 2px 2px;
+    }
+
+    .admin-nav-item.active::before {
+        display: none;
+    }
+
+    .admin-main {
+        padding: 18px 16px 48px;
+    }
+
+    .admin-topbar-tag {
+        display: none;
+    }
 }
