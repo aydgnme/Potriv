@@ -26,7 +26,7 @@ class AdminSessionLoginIntegrationTest extends AbstractAdminIntegrationTest {
         mockMvc.perform(get("/admin/login"))
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith("text/html"))
-            .andExpect(content().string(org.hamcrest.Matchers.containsString("Potriv Administration")));
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Sign in")));
     }
 
     @Test
@@ -48,7 +48,7 @@ class AdminSessionLoginIntegrationTest extends AbstractAdminIntegrationTest {
             .andExpect(status().isOk())
             .andExpect(content().contentTypeCompatibleWith("text/html"))
             .andReturn().getResponse().getContentAsString();
-        assertThat(monitor).contains("Potriv Backend Monitor");
+        assertThat(monitor).contains("Backend Monitor");
     }
 
     @Test

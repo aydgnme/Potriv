@@ -34,7 +34,7 @@ class BackendMonitorConsoleIntegrationTest extends AbstractAdminIntegrationTest 
             .andReturn().getResponse().getContentAsString();
 
         assertThat(html).contains(
-            "Potriv Backend Monitor", "Generated at", "Health", "Runtime", "Database",
+            "Backend Monitor", "generated at", "Health", "Runtime", "Database",
             "Flyway", "Security configuration", "Readiness checklist",
             "/api/actuator/health");
         assertThat(html).doesNotContain(

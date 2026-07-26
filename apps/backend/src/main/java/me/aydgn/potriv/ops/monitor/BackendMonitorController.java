@@ -32,6 +32,10 @@ public class BackendMonitorController {
             throw new NotFoundException("Not found.");
         }
         model.addAttribute("monitor", backendMonitorService.snapshot());
+        model.addAttribute("pageTitle", "Backend Monitor");
+        model.addAttribute("activeNav", "monitor");
+        model.addAttribute("sectionLabel", "Backend Monitor");
+        model.addAttribute("sectionHref", "/admin/monitor");
         return "admin/monitor";
     }
 }

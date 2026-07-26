@@ -5,8 +5,9 @@
     <div class="admin-page-head"><h1>Invitations</h1></div>
     <div th:replace="~{admin/fragments/filters :: search('/admin/invitations', ${list.query}, 'Search organization…')}"></div>
 
-    <div th:if="${list.items.isEmpty()}"
-         th:replace="~{admin/fragments/empty-state :: empty('No invitations found.')}"></div>
+    <div th:if="${list.items.isEmpty()}">
+        <div th:replace="~{admin/fragments/empty-state :: empty('No invitations found.')}"></div>
+    </div>
 
     <table th:unless="${list.items.isEmpty()}" class="admin-table">
         <thead>

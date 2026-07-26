@@ -1,32 +1,36 @@
-/* Potriv admin — dense tables and pagination. */
+/* ============================================================================
+   Potriv Admin — data tables, the readiness list, and pagination.
+   Depends on tokens in admin.css.
+   ========================================================================== */
 
 .admin-table {
     width: 100%;
     border-collapse: collapse;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    box-shadow: var(--shadow-1);
     overflow: hidden;
     font-size: 12.5px;
 }
 
 .admin-table thead th {
     text-align: left;
-    background: #f3f5f7;
-    color: var(--muted);
-    font-weight: 600;
+    background: var(--surface-sunken);
+    color: var(--ink-3);
+    font-weight: 650;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-    font-size: 11px;
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
+    letter-spacing: .05em;
+    font-size: 10px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
     white-space: nowrap;
 }
 
 .admin-table tbody td {
-    padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
 }
 
 .admin-table tbody tr:last-child td {
@@ -34,7 +38,14 @@
 }
 
 .admin-table tbody tr:hover {
-    background: #fafbfc;
+    background: var(--surface-sunken);
+}
+
+/* Machine values in tables read as machine values. */
+.admin-table td.mono,
+.admin-table td code {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
 }
 
 .admin-table th.num,
@@ -43,27 +54,69 @@
     font-variant-numeric: tabular-nums;
 }
 
+/* ------------------------------------------------------- Readiness checklist */
+.admin-readiness {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.admin-readiness tr {
+    border-bottom: 1px solid var(--line);
+}
+
+.admin-readiness tr:last-child {
+    border-bottom: none;
+}
+
+.admin-readiness td {
+    padding: 9px 0;
+    vertical-align: baseline;
+}
+
+.admin-readiness td:first-child {
+    width: 92px;
+    white-space: nowrap;
+}
+
+.admin-readiness th {
+    text-align: left;
+    font-weight: 550;
+    color: var(--ink);
+    padding: 9px 16px 9px 0;
+    white-space: nowrap;
+    vertical-align: baseline;
+    width: 30%;
+}
+
+.admin-readiness .admin-readiness-note {
+    color: var(--ink-2);
+}
+
+/* -------------------------------------------------------------- Pagination */
 .admin-pagination {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-top: 14px;
+    margin-top: 16px;
     flex-wrap: wrap;
 }
 
 .admin-pagination-info {
-    color: var(--muted);
+    color: var(--ink-3);
     font-size: 12px;
+    font-variant-numeric: tabular-nums;
 }
 
 .admin-pagination-controls {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
 .admin-pagination-page {
-    color: var(--muted);
+    color: var(--ink-2);
     font-size: 12px;
+    font-variant-numeric: tabular-nums;
 }

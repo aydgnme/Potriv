@@ -26,12 +26,15 @@ public class AdminAccessDeniedHandler implements AccessDeniedHandler {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("text/html;charset=UTF-8");
         String loginHref = request.getContextPath() + "/admin/login";
+        String ctx = request.getContextPath();
         response.getWriter().write(
             "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"UTF-8\">"
+                + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
                 + "<title>403 · Potriv Admin</title>"
-                + "<link rel=\"stylesheet\" href=\"" + request.getContextPath()
-                + "/admin/css/admin.css\"></head><body>"
-                + "<div class=\"admin-error\"><h1>403</h1>"
+                + "<link rel=\"stylesheet\" href=\"" + ctx + "/admin/css/admin.css\">"
+                + "<link rel=\"stylesheet\" href=\"" + ctx + "/admin/css/components.css\">"
+                + "</head><body>"
+                + "<div class=\"admin-error\"><div class=\"admin-error-code\">403</div>"
                 + "<p>Your account is not authorized for the Potriv administration console.</p>"
                 + "<a class=\"admin-btn\" href=\"" + loginHref + "\">Back to sign in</a>"
                 + "</div></body></html>");
