@@ -2,7 +2,15 @@
 <html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="content">
-    <div class="admin-page-head"><h1 th:text="${department.name}">Department</h1></div>
+    <div class="admin-page-head">
+        <h1 th:text="${department.name}">Department</h1>
+        <div class="admin-page-actions">
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/departments/' + ${department.id} + '/edit'}">Edit</a>
+            <a class="admin-btn admin-btn--danger"
+               th:href="@{'/admin/departments/' + ${department.id} + '/delete'}">Delete</a>
+        </div>
+    </div>
 
     <section class="admin-card">
         <h2 class="admin-card-title">General</h2>

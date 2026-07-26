@@ -24,6 +24,9 @@ public interface ProjectDeallocationProposalRepository
     boolean existsByAllocation_Project_IdAndReviewDepartment_Id(
         UUID projectId, UUID reviewDepartmentId);
 
+    // Admin department-deletion guard: any deallocation snapshot for this department.
+    boolean existsByReviewDepartment_Id(UUID reviewDepartmentId);
+
     // Team view: approved deallocation proposals for a set of allocations, with
     // reviewer summaries fetch-joined, in one batch query.
     @Query("select distinct p from ProjectDeallocationProposal p "

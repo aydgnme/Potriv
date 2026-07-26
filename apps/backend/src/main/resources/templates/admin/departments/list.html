@@ -2,7 +2,12 @@
 <html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="content">
-    <div class="admin-page-head"><h1>Departments</h1></div>
+    <div class="admin-page-head">
+        <h1>Departments</h1>
+        <div class="admin-page-actions">
+            <a class="admin-btn" th:href="@{/admin/departments/new}">Add department</a>
+        </div>
+    </div>
     <div th:replace="~{admin/fragments/filters :: search('/admin/departments', ${list.query}, 'Search name…')}"></div>
 
     <div th:if="${list.items.isEmpty()}">

@@ -41,6 +41,9 @@ public interface ProjectAssignmentProposalRepository
     // Department involvement check for the team view (any proposal status).
     boolean existsByProject_IdAndReviewDepartment_Id(UUID projectId, UUID reviewDepartmentId);
 
+    // Admin department-deletion guard: any proposal snapshot for this department.
+    boolean existsByReviewDepartment_Id(UUID reviewDepartmentId);
+
     // Locks the proposal row for the accept/reject review transaction.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from ProjectAssignmentProposal p where p.id = :proposalId")

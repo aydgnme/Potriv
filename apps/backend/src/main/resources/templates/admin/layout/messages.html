@@ -2,6 +2,10 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="messages">
+    <div class="admin-message admin-message--ok" th:if="${adminSuccess}"
+         th:text="${adminSuccess}" role="status">Saved.</div>
+    <div class="admin-message admin-message--error" th:if="${adminError}"
+         th:text="${adminError}" role="alert">Something went wrong.</div>
     <div class="admin-message admin-message--warn" th:if="${filterError}"
          th:text="${filterError}">Filter warning</div>
 </div>
