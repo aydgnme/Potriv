@@ -19,11 +19,14 @@ Run through this list for every production deployment of `apps/backend`.
 - [ ] `CORS_ALLOWED_ORIGINS` lists the exact frontend origins
       (e.g. `https://potriv.aydgn.me`) — no wildcards.
 - [ ] `SYSTEM_ADMIN_EMAIL` / `SYSTEM_ADMIN_PASSWORD` are overridden from their
-      repository defaults before the first boot against a fresh database.
+      repository defaults before the first boot against a fresh database. These
+      double as the admin-console browser login.
 - [ ] `SWAGGER_ENABLED` is unset or `false`.
 - [ ] `BACKEND_CONSOLE_ENABLED` is unset or `false` — or, if the embedded
-      monitor console is deliberately enabled, `BACKEND_CONSOLE_USERNAME` and
-      a strong `BACKEND_CONSOLE_PASSWORD` (≥ 12 chars, no placeholder) are set.
+      administration console is deliberately enabled, a strong
+      `SYSTEM_ADMIN_PASSWORD` (≥ 12 chars, no placeholder) is set (the console
+      login is a `SYSTEM_ADMIN` browser session; there are no separate console
+      credentials).
 - [ ] Database backup / snapshot taken before applying new migrations.
 
 ## Deploy

@@ -255,14 +255,11 @@ public class BackendMonitorService {
                     "exposed endpoints: " + exposure + " (dev/test default)")));
 
         if (!monitorProperties.enabled()) {
-            items.add(BackendMonitorReadinessItem.pass("Monitor console protection",
+            items.add(BackendMonitorReadinessItem.pass("Admin console protection",
                 "console is disabled"));
-        } else if (monitorProperties.hasCredentials()) {
-            items.add(BackendMonitorReadinessItem.pass("Monitor console protection",
-                "console requires explicit HTTP Basic credentials"));
         } else {
-            items.add(BackendMonitorReadinessItem.fail("Monitor console protection",
-                "console is enabled without explicit credentials"));
+            items.add(BackendMonitorReadinessItem.pass("Admin console protection",
+                "console requires a SYSTEM_ADMIN browser session"));
         }
 
         return items;

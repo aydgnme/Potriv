@@ -30,12 +30,12 @@ public class ProductionConfigGuard {
         @Value("${cors.allowed-origins}") List<String> corsAllowedOrigins,
         @Value("${spring.datasource.url}") String datasourceUrl,
         @Value("${spring.jpa.hibernate.ddl-auto:validate}") String hibernateDdlAuto,
-        @Value("${potriv.backend-console.enabled:false}") boolean backendConsoleEnabled,
-        @Value("${potriv.backend-console.username:}") String backendConsoleUsername,
-        @Value("${potriv.backend-console.password:}") String backendConsolePassword
+        @Value("${potriv.backend-console.enabled:false}") boolean adminConsoleEnabled,
+        @Value("${potriv.system-admin.email:}") String systemAdminEmail,
+        @Value("${potriv.system-admin.password:}") String systemAdminPassword
     ) {
         validate(jwtSecret, corsAllowedOrigins, datasourceUrl, hibernateDdlAuto,
-            backendConsoleEnabled, backendConsoleUsername, backendConsolePassword);
+            adminConsoleEnabled, systemAdminEmail, systemAdminPassword);
     }
 
     static void validate(
@@ -43,9 +43,9 @@ public class ProductionConfigGuard {
         List<String> corsAllowedOrigins,
         String datasourceUrl,
         String hibernateDdlAuto,
-        boolean backendConsoleEnabled,
-        String backendConsoleUsername,
-        String backendConsolePassword
+        boolean adminConsoleEnabled,
+        String systemAdminEmail,
+        String systemAdminPassword
     ) {
         if (jwtSecret == null
             || jwtSecret.toLowerCase(Locale.ROOT).contains(PLACEHOLDER_SECRET_MARKER)) {
@@ -76,22 +76,26 @@ public class ProductionConfigGuard {
                     + "'. Use 'validate' (or 'none') and manage schema through Flyway.");
         }
 
-        // The embedded monitor console must never run in production with
-        // missing or placeholder HTTP Basic credentials.
-        if (backendConsoleEnabled) {
-            if (backendConsoleUsername == null || backendConsoleUsername.isBlank()
-                || backendConsolePassword == null || backendConsolePassword.isBlank()) {
+        // The admin console now authenticates via a browser session as the
+        // seeded SYSTEM_ADMIN user (no HTTP Basic credentials). When it is
+        // enabled in production, that account must have a real strong password.
+        if (adminConsoleEnabled) {
+            if (systemAdminEmail == null || systemAdminEmail.isBlank()) {
                 throw new IllegalStateException(
-                    "Production refuses the backend monitor console without explicit "
-                        + "credentials. Set BACKEND_CONSOLE_USERNAME and "
-                        + "BACKEND_CONSOLE_PASSWORD, or disable the console.");
+                    "Production admin console requires a system-admin email. Set "
+                        + "SYSTEM_ADMIN_EMAIL, or disable the console.");
             }
-            String password = backendConsolePassword.toLowerCase(Locale.ROOT);
-            if (password.contains("replace-me") || password.contains("change-me")
-                || backendConsolePassword.length() < 12) {
+            if (systemAdminPassword == null || systemAdminPassword.isBlank()) {
                 throw new IllegalStateException(
-                    "Production refuses a placeholder or short backend console password. "
-                        + "Use a strong BACKEND_CONSOLE_PASSWORD of at least 12 characters.");
+                    "Production admin console requires a system-admin password. Set "
+                        + "SYSTEM_ADMIN_PASSWORD, or disable the console.");
+            }
+            String password = systemAdminPassword.toLowerCase(Locale.ROOT);
+            if (password.contains("replace-me") || password.contains("change-me")
+                || password.contains("changeme") || systemAdminPassword.length() < 12) {
+                throw new IllegalStateException(
+                    "Production refuses a placeholder or short SYSTEM_ADMIN_PASSWORD. "
+                        + "Use a strong password of at least 12 characters.");
             }
         }
     }

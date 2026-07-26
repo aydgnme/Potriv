@@ -40,40 +40,53 @@ are reached externally at `/api/admin/**`:
 | `GET /admin/allocations` , `/{id}` | `/api/admin/allocations…` |
 | `GET /admin/invitations` , `/{id}` | `/api/admin/invitations…` |
 | `GET /admin/audit-logs` , `/{id}` | `/api/admin/audit-logs…` |
-| `GET /admin/monitor` (PR #47, unchanged) | `/api/admin/monitor` |
+| `GET /admin/monitor` | `/api/admin/monitor` |
+| `GET /admin/login` , `POST /admin/login` | `/api/admin/login` |
+| `POST /admin/logout` | `/api/admin/logout` |
 
 ## Security model
 
-This PR does **not** redesign Potriv authentication. It reuses the existing
-`/admin/**` security boundary introduced for the monitor console
-(`BackendMonitorSecurityConfig`, `@Order(0)`, HTTP Basic on a self-contained
-`AuthenticationManager`, independent from the JWT/Bearer API chain):
+The console is protected by a **server-side session form login** on a
+self-contained `/admin/**` security chain (`AdminSecurityConfig`, `@Order(0)`,
+`securityMatcher("/admin/**")`), fully independent from the JWT/Bearer REST
+chain. This replaced the earlier HTTP Basic ops gate (ADMIN-AUTH-02).
 
-- `/admin/**` (pages, `/admin/monitor`, and `/admin/css|js/**` assets) require the
-  backend-console HTTP Basic credentials. The API (`/api/**` REST) keeps its JWT
-  behavior unchanged, and the console credentials grant nothing on the API.
-- Credentials are environment-driven (`potriv.backend-console.*` /
-  `BACKEND_CONSOLE_USERNAME` / `BACKEND_CONSOLE_PASSWORD`). The prod boot guard
-  (`ProductionConfigGuard`) still rejects missing/placeholder/short credentials.
-- **Disabled by default.** When the console is disabled, `AdminAccessGuard` makes
-  every admin route answer an anti-leak `404` (the route does not reveal itself),
-  exactly like the monitor.
-- No new admin-user table, no session login, no CSRF-sensitive mutations (the UI
-  is read-only, so CSRF is disabled on this chain).
+- **Identity is the platform `User`.** Sign in at `GET /api/admin/login`; the
+  form POSTs to `/api/admin/login`. `AdminAuthenticationService` verifies the
+  email/password against the stored BCrypt hash with the *same* account-status,
+  lockout (`app.auth.*`), and `SecurityAuditService` semantics as the product
+  JWT login. No new admin-user table.
+- **Only `SYSTEM_ADMIN` may sign in.** After the password check, the service
+  requires `AccessRole.SYSTEM_ADMIN`; a non-admin (or inactive/locked) account
+  is rejected at authentication time with a generic `Invalid email or
+  password.` — the console never discloses whether the email exists, the
+  password matched, or the role was missing.
+- **Session ⇄ API isolation.** The `JSESSIONID` (HttpOnly) session authorizes
+  only `/admin/**` and grants nothing on `/api/**` REST; a Bearer JWT grants
+  nothing on the console. The REST chain stays stateless and unchanged.
+- **CSRF enabled** on the admin chain. The login form, logout
+  (`POST /api/admin/logout`), and any future POST carry a `_csrf` token; the
+  REST chain remains CSRF-exempt because it is stateless/Bearer.
+- **Login and static assets are anonymous.** `/admin/login` and
+  `/admin/css|js/**` permit all; every other `/admin/**` route requires
+  `ROLE_SYSTEM_ADMIN` (an `AdminAccessDeniedHandler` renders a styled 403).
+- **Disabled by default.** When the console is disabled, `AdminAccessGuard`
+  makes every admin route (login included) answer an anti-leak `404`, and the
+  admin chain permits-all so controllers produce that 404.
 
-### Why ADMIN-UI-01 is read-only
+### Why the console stays read-only
 
-A DB-backed browser admin login and any write path materially change the risk
-surface. The safe first step is a read-only foundation that reuses the existing
-ops gate and preserves all REST/JWT behavior. Browser-session auth and safe
-writes come next (see Follow-up PRs).
+A write path materially changes the risk surface. ADMIN-AUTH-02 adds a real
+browser-session identity but keeps the console read-only: the only state-
+changing endpoints are login and logout. Safe writes, if ever needed, come
+later.
 
 ### Relationship to `/api/admin/monitor`
 
-The monitor console from PR #47 is untouched: same controller, Basic auth,
-secret masking, and prod-disabled-by-default behavior. The admin sidebar links
-to it under **System → Backend Monitor**; because both live under the same
-`/admin/**` Basic realm, the browser reuses credentials.
+The monitor from PR #47 is preserved: same controller and secret masking, now
+served under the SYSTEM_ADMIN session boundary instead of Basic auth. The admin
+sidebar links to it under **System → Backend Monitor**; the topbar shows the
+signed-in admin's name, a `SYSTEM_ADMIN` badge, and a logout button.
 
 ## Template structure (`src/main/resources/templates/admin/`)
 
@@ -134,15 +147,26 @@ short/abbreviated identifiers or link text.
 
 `AdminErrorAdvice` (scoped to `me.aydgn.potriv.admin.controller`, so it never
 touches the REST JSON error handler) renders admin-styled `404`
-(`AdminNotFoundException`) and `500` pages; a `403` template exists for future
-session auth. No stack traces are leaked.
+(`AdminNotFoundException`) and `500` pages; a styled `403` is rendered by
+`AdminAccessDeniedHandler`. No stack traces are leaked.
 
 ## Testing strategy
 
 Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
 
-- `AdminSecurityIntegrationTest` — auth required, monitor still protected, valid
-  creds reach pages, `/api` JWT behavior unchanged.
+- `AdminSessionLoginIntegrationTest` — login page renders, anonymous routes
+  redirect to login, a SYSTEM_ADMIN session reaches pages and the monitor, the
+  topbar shows identity (no secrets), logout invalidates the session.
+- `AdminSessionSecurityIntegrationTest` — wrong password / unknown email /
+  non-SYSTEM_ADMIN / inactive admin cannot authenticate; the seeded admin can;
+  login and static assets load anonymously.
+- `AdminCsrfIntegrationTest` — POST login/logout without a CSRF token ⇒ `403`;
+  with a token they succeed.
+- `AdminApiIsolationIntegrationTest` — an admin session never authenticates the
+  JWT API, and a Bearer JWT grants nothing on the console; health is unguarded.
+- `AdminAuthenticationServiceTest` — credential verification mirrors the JWT
+  login's failed-attempt increment, lockout, inactive rejection, reset-on-
+  success, and `LOGIN_SUCCEEDED` audit.
 - `AdminDisabledIntegrationTest` — console disabled ⇒ admin routes `404`.
 - `AdminDashboardIntegrationTest` — dashboard renders count labels, no secrets.
 - `AdminListPagesIntegrationTest` — all list pages `200 text/html`, no sensitive
@@ -155,8 +179,8 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 ## Known limitations
 
 - Read-only: no create/update/delete, no domain actions, no bulk operations.
-- No browser session login yet — access is the shared backend-console Basic
-  credential (a single operator gate, not per-user).
+- Access is a per-user SYSTEM_ADMIN browser session; there is no role UI to
+  grant SYSTEM_ADMIN from inside the console (roles are managed out of band).
 - Audit-log page paginates by newest-first without a search filter yet.
 - Organization detail lists departments by name/link only (member counts live on
   the Departments page) to avoid fabricating per-row counts.
@@ -164,7 +188,7 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 ## Follow-up PRs
 
 - **ADMIN-AUTH-02** — Browser Session Admin Authentication using existing Potriv
-  users and roles.
+  users and roles. ✅ Done (this PR).
 - **ADMIN-UI-03** — Safe Admin Forms for low-risk entities.
 - **ADMIN-UI-04** — Domain Actions through existing services.
 - **ADMIN-UI-05** — Audit Log improvements and admin action auditing.

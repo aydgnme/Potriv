@@ -39,11 +39,9 @@ datasource, or a destructive Hibernate DDL mode.
 | `ACCESS_TOKEN_TTL_MINUTES` | no (default `15`) | Access token lifetime. |
 | `REFRESH_TOKEN_TTL_DAYS` | no (default `7`) | Refresh token lifetime. |
 | `SWAGGER_ENABLED` | no (default `false`) | Set `true` to expose OpenAPI/Swagger UI in production (not recommended). |
-| `BACKEND_CONSOLE_ENABLED` | no (default `false`) | Enables the embedded read-only monitor console at `/api/admin/monitor`. |
-| `BACKEND_CONSOLE_USERNAME` | when console enabled | HTTP Basic username for the monitor console. |
-| `BACKEND_CONSOLE_PASSWORD` | when console enabled | HTTP Basic password; the prod guard refuses placeholder or <12-character values. |
-| `SYSTEM_ADMIN_EMAIL` | recommended | Seeded platform system-admin login. Defaults exist but should be overridden. |
-| `SYSTEM_ADMIN_PASSWORD` | recommended | Seeded platform system-admin password. Override the default before first boot. |
+| `BACKEND_CONSOLE_ENABLED` | no (default `false`) | Enables the embedded administration console under `/api/admin/**` (login, monitor, users, projects). |
+| `SYSTEM_ADMIN_EMAIL` | recommended (required when console enabled) | Seeded platform system-admin login — also the browser login for the admin console. Override before first boot. |
+| `SYSTEM_ADMIN_PASSWORD` | recommended (required when console enabled) | Seeded system-admin / admin-console password. When the console is enabled in prod, the guard refuses placeholder or <12-character values. |
 | `SYSTEM_ADMIN_NAME` | no | Display name of the seeded system admin. |
 
 ## Run commands
@@ -82,12 +80,13 @@ java -jar target/potriv-backend-*.jar
 The API serves under the `/api` context path; the health probe is
 `GET /api/actuator/health`.
 
-## Embedded monitor console
+## Embedded administration console
 
-A read-only, server-rendered monitoring page ships inside the backend at
-`/api/admin/monitor` (the whole app lives under the `/api` context path). It
-shows health, runtime, database, Flyway, security configuration, and a
-production-readiness checklist — never secrets or business data, and it has
+A read-only, server-rendered administration console ships inside the backend
+under `/api/admin/**` (the whole app lives under the `/api` context path): a
+login page, the monitor, and read-only users/projects browsers. It shows
+health, runtime, database, Flyway, security configuration, a
+production-readiness checklist, and platform data — never secrets, and it has
 no mutation actions.
 
 Enable it locally:
@@ -95,20 +94,33 @@ Enable it locally:
 ```bash
 cd apps/backend
 BACKEND_CONSOLE_ENABLED=true \
-BACKEND_CONSOLE_USERNAME=admin \
-BACKEND_CONSOLE_PASSWORD='local-strong-password' \
+SYSTEM_ADMIN_EMAIL=admin@example.com \
+SYSTEM_ADMIN_PASSWORD='local-strong-password' \
 ./mvnw spring-boot:run
-# then open http://localhost:8080/api/admin/monitor (HTTP Basic prompt)
+# then open http://localhost:8080/api/admin/login and sign in
 ```
 
-The console uses HTTP Basic on a dedicated security chain, deliberately
-separate from the JWT/Bearer API auth: it must work without any organization
-user or product login, and its credentials grant nothing on the API. When
-disabled (the default, including production) the route answers 404. In
-production, enabling it requires explicit strong credentials — the boot guard
-refuses missing, placeholder, or short passwords. Do not use it as a product
-admin panel, an API client, or a data browser; it is a monitoring surface
-only.
+The console is protected by a **server-side session form login** on a
+dedicated, high-precedence security chain (`securityMatcher("/admin/**")`),
+deliberately separate from the JWT/Bearer API chain:
+
+- Sign in at `GET /api/admin/login`; the form POSTs to `/api/admin/login`.
+  Credentials are the platform `User` identity — verified against the stored
+  BCrypt hash with the same account-status, lockout, and audit rules as the
+  product login. Only a user holding `SYSTEM_ADMIN` may sign in; anyone else
+  is rejected at authentication time with a generic "Invalid email or
+  password." Sign out with `POST /api/admin/logout`.
+- The session cookie (`JSESSIONID`, HttpOnly) authorizes only `/api/admin/**`;
+  it grants nothing on the JWT API. Conversely a Bearer token grants nothing
+  on the console. CSRF protection is enabled on the admin chain (the JWT chain
+  stays stateless and CSRF-exempt).
+- When disabled (the default, including production) every `/api/admin/**`
+  route answers 404. In production, enabling it requires a real
+  `SYSTEM_ADMIN_PASSWORD` — the boot guard refuses missing, placeholder, or
+  short passwords.
+
+Do not use it as a product admin panel, an API client, or a data-mutation
+surface; it is a read-only monitoring and browsing console only.
 
 ## Production-like Docker run
 
