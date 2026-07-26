@@ -290,3 +290,104 @@
     color: var(--ink-3);
     background: var(--surface);
 }
+
+/* ---------------------------------------------------- Page-head action slot */
+.admin-page-actions {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* -------------------------------------------------------- Danger action btn */
+.admin-btn--danger {
+    background: var(--surface);
+    color: var(--fail);
+    border-color: #e6bcb6;
+}
+
+.admin-btn--danger:hover {
+    background: var(--fail);
+    color: #ffffff;
+    border-color: var(--fail);
+}
+
+/* ------------------------------------------------------------------- Forms */
+.admin-card--form {
+    max-width: 560px;
+}
+
+.admin-form-field {
+    margin-bottom: 16px;
+}
+
+.admin-form-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-3);
+    margin-bottom: 5px;
+}
+
+.admin-form-field input[type="text"],
+.admin-form-field select {
+    width: 100%;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    padding: 9px 11px;
+    font-size: 13px;
+    font-family: inherit;
+}
+
+.admin-form-field input:focus,
+.admin-form-field select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--ring);
+}
+
+.admin-form-field input.has-error,
+.admin-form-field select.has-error {
+    border-color: var(--fail);
+}
+
+.admin-form-static {
+    margin: 0;
+    padding: 9px 11px;
+    background: var(--surface-sunken);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: 13px;
+}
+
+.admin-field-error {
+    margin: 6px 0 0;
+    color: var(--fail);
+    font-size: 12px;
+}
+
+.admin-form-errors {
+    background: var(--fail-tint);
+    border: 1px solid #e6bcb6;
+    border-radius: var(--r-sm);
+    padding: 9px 13px;
+    margin-bottom: 16px;
+}
+
+.admin-form-errors p {
+    margin: 0;
+    color: #a12b22;
+    font-size: 12.5px;
+}
+
+.admin-form-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 4px;
+}

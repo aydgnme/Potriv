@@ -338,6 +338,16 @@ code {
     background: var(--ok);
 }
 
+.admin-message--error {
+    background: var(--fail-tint);
+    border-color: #e6bcb6;
+    color: #a12b22;
+}
+
+.admin-message--error::before {
+    background: var(--fail);
+}
+
 /* --------------------------------------------------- Standalone: login page */
 .admin-login {
     min-height: 100vh;

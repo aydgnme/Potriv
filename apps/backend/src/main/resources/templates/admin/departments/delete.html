@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1>Delete department</h1>
+        <p class="admin-page-sub" th:text="${department.name}">Department</p>
+    </div>
+
+    <!-- Blocked: dependent domain data exists, so deletion is not offered. -->
+    <section class="admin-card" th:if="${dependencies.blocked()}">
+        <h2 class="admin-card-title">Cannot delete</h2>
+        <p>
+            <strong th:text="${department.name}">Department</strong> cannot be deleted because it
+            still has dependent data. Remove the dependencies first, then try again.
+            Nothing is deleted or changed by cancelling.
+        </p>
+        <dl class="admin-dl">
+            <dt>Members</dt><dd class="mono" th:text="${dependencies.members}">0</dd>
+            <dt>Manager assigned</dt>
+            <dd><span class="signal" th:classappend="${dependencies.hasManager} ? 'signal--warn' : 'signal--idle'"
+                      th:text="${dependencies.hasManager} ? 'Yes' : 'No'">No</span></dd>
+            <dt>Linked skills</dt><dd class="mono" th:text="${dependencies.skillLinks}">0</dd>
+            <dt>Assignment proposals</dt>
+            <dd><span class="signal" th:classappend="${dependencies.assignmentProposals} ? 'signal--warn' : 'signal--idle'"
+                      th:text="${dependencies.assignmentProposals} ? 'Yes' : 'No'">No</span></dd>
+            <dt>Deallocation proposals</dt>
+            <dd><span class="signal" th:classappend="${dependencies.deallocationProposals} ? 'signal--warn' : 'signal--idle'"
+                      th:text="${dependencies.deallocationProposals} ? 'Yes' : 'No'">No</span></dd>
+        </dl>
+        <div class="admin-form-actions">
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/departments/' + ${department.id}}">Back to department</a>
+        </div>
+    </section>
+
+    <!-- Safe: no dependents, deletion is permitted with an explicit confirmation. -->
+    <section class="admin-card" th:unless="${dependencies.blocked()}">
+        <h2 class="admin-card-title">Confirm deletion</h2>
+        <p>
+            You are about to permanently delete
+            <strong th:text="${department.name}">Department</strong> from
+            <span th:text="${department.organizationName}">Organization</span>.
+            This department has no members, managers, skills, proposals, or project
+            history. This action cannot be undone.
+        </p>
+        <form method="post" class="admin-form-actions"
+              th:action="@{'/admin/departments/' + ${department.id} + '/delete'}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="admin-btn admin-btn--danger">Delete department</button>
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/departments/' + ${department.id}}">Cancel</a>
+        </form>
+    </section>
+</div>
+</body>
+</html>

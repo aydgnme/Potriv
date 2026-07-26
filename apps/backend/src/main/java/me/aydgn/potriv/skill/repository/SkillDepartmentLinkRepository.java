@@ -17,6 +17,8 @@ public interface SkillDepartmentLinkRepository extends JpaRepository<SkillDepart
 
     boolean existsByDepartment_Id(UUID departmentId);
 
+    long countByDepartment_Id(UUID departmentId);
+
     @Query("select l from SkillDepartmentLink l "
         + "join fetch l.department "
         + "where l.skill.id = :skillId "

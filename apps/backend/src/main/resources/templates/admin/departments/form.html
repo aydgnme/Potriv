@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1 th:text="${formMode == 'create'} ? 'New department' : 'Edit department'">Department</h1>
+        <p class="admin-page-sub" th:if="${formMode == 'edit'}"
+           th:text="${department.name}">Department</p>
+    </div>
+
+    <section class="admin-card admin-card--form">
+        <form method="post" novalidate th:object="${form}"
+              th:action="${formMode == 'create'}
+                  ? @{/admin/departments}
+                  : @{'/admin/departments/' + ${department.id} + '/edit'}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+            <div class="admin-form-errors" th:if="${#fields.hasGlobalErrors()}">
+                <p th:each="err : ${#fields.globalErrors()}" th:text="${err}">Error</p>
+            </div>
+
+            <!-- Create: choose an organization from a human-readable dropdown. -->
+            <div class="admin-form-field" th:if="${formMode == 'create'}">
+                <label for="organizationId">Organization</label>
+                <select id="organizationId" th:field="*{organizationId}"
+                        th:classappend="${#fields.hasErrors('organizationId')} ? 'has-error'">
+                    <option value="">Select an organization…</option>
+                    <option th:each="opt : ${organizationOptions}"
+                            th:value="${opt.id}" th:text="${opt.name}">Org</option>
+                </select>
+                <p class="admin-field-error" th:if="${#fields.hasErrors('organizationId')}"
+                   th:errors="*{organizationId}">Organization error</p>
+            </div>
+
+            <!-- Edit: organization is fixed context, not editable. -->
+            <div class="admin-form-field" th:if="${formMode == 'edit'}">
+                <label>Organization</label>
+                <p class="admin-form-static" th:text="${department.organizationName}">Org</p>
+            </div>
+
+            <div class="admin-form-field">
+                <label for="name">Name</label>
+                <input id="name" type="text" th:field="*{name}" maxlength="160"
+                       autocomplete="off" autofocus
+                       th:classappend="${#fields.hasErrors('name')} ? 'has-error'">
+                <p class="admin-field-error" th:if="${#fields.hasErrors('name')}"
+                   th:errors="*{name}">Name error</p>
+            </div>
+
+            <div class="admin-form-actions">
+                <button type="submit" class="admin-btn"
+                        th:text="${formMode == 'create'} ? 'Create department' : 'Save changes'">
+                    Save
+                </button>
+                <a class="admin-btn admin-btn--ghost"
+                   th:href="${formMode == 'create'}
+                       ? @{/admin/departments}
+                       : @{'/admin/departments/' + ${department.id}}">Cancel</a>
+            </div>
+        </form>
+    </section>
+</div>
+</body>
+</html>

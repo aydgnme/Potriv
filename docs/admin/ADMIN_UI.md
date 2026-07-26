@@ -2,15 +2,17 @@
 
 ## Overview
 
-A server-rendered, **read-only** internal administration/backoffice layer embedded
-in the Spring Boot backend, inspired by Django Admin. It is **not** the product
+A server-rendered internal administration/backoffice layer embedded in the
+Spring Boot backend, inspired by Django Admin. It is **not** the product
 frontend and **not** the Next.js backend-control console (PR #46). It exists so
 operators can inspect Potriv domain data (users, organizations, departments,
 projects, allocations, invitations, audit logs) and system health from the
 backend runtime itself.
 
-This first PR delivers the secure read-only foundation only. Writes, browser
-session login, and domain actions are explicit follow-ups.
+The console started read-only (PR #49) and gained SYSTEM_ADMIN session login
+(PR #50) and a unified design language (PR #51). It is now **mostly read-only**:
+the only write surfaces are the safe organization/department forms added in
+ADMIN-UI-03 (see below). Everything else remains inspection-only.
 
 ## Architecture
 
@@ -43,6 +45,10 @@ are reached externally at `/api/admin/**`:
 | `GET /admin/monitor` | `/api/admin/monitor` |
 | `GET /admin/login` , `POST /admin/login` | `/api/admin/login` |
 | `POST /admin/logout` | `/api/admin/logout` |
+| `GET/POST /admin/organizations/{id}/edit` | `/api/admin/organizations/{id}/edit` |
+| `GET /admin/departments/new` , `POST /admin/departments` | `/api/admin/departments…` |
+| `GET/POST /admin/departments/{id}/edit` | `/api/admin/departments/{id}/edit` |
+| `GET/POST /admin/departments/{id}/delete` | `/api/admin/departments/{id}/delete` |
 
 ## Security model
 
@@ -74,12 +80,56 @@ chain. This replaced the earlier HTTP Basic ops gate (ADMIN-AUTH-02).
   makes every admin route (login included) answer an anti-leak `404`, and the
   admin chain permits-all so controllers produce that 404.
 
-### Why the console stays read-only
+## Safe admin write forms (ADMIN-UI-03)
 
-A write path materially changes the risk surface. ADMIN-AUTH-02 adds a real
-browser-session identity but keeps the console read-only: the only state-
-changing endpoints are login and logout. Safe writes, if ever needed, come
-later.
+The first write surface. Organization and department administration, added with
+a deliberately conservative, domain-respecting design.
+
+**Routes** (all under `/api/admin`):
+
+- `GET/POST /admin/organizations/{id}/edit` — rename an organization (name only).
+- `GET /admin/departments/new` + `POST /admin/departments` — create a department.
+- `GET/POST /admin/departments/{id}/edit` — rename a department (name only).
+- `GET /admin/departments/{id}/delete` — deletion confirmation (never mutates).
+- `POST /admin/departments/{id}/delete` — dependency-safe delete.
+
+**Rules:**
+
+- **Service layer only.** Controllers are thin: `@Valid` form bean →
+  `AdminOrganizationWriteService` / `AdminDepartmentWriteService` (`@Transactional`)
+  → repositories. No raw repository CRUD from controllers, no direct JPA-entity
+  form binding (dedicated form beans avoid mass assignment).
+- **Same invariants as the domain.** Department names are trimmed, lower-cased to
+  a normalized name, and unique per organization — mirroring `DepartmentService`.
+  The console is a cross-organization (platform) surface, so it uses its own
+  admin write services rather than the org-scoped domain service, but enforces
+  the identical field rules.
+- **CSRF required.** Every write is a `POST` with the session CSRF token;
+  redirect-after-POST with success/error flash messages; validation errors
+  re-render the form with field errors. Unknown ids render the admin `404`.
+- **Deletes are dependency-safe — never cascade.** A department is deleted only
+  when nothing references it. Deletion is blocked (with a clear flash error and
+  a confirmation page that lists the categories) when it still has members,
+  a manager assignment, linked skills, or assignment/deallocation proposal
+  snapshots. Cross-module dependents follow the same `DepartmentDeletionGuard`
+  philosophy; the admin service checks memberships, manager assignments, skill
+  links, and the two proposal tables directly via read-only queries.
+- **Audited.** Each write records a `SecurityAuditEvent` with the actor's user
+  id: `ADMIN_ORGANIZATION_UPDATED`, `ADMIN_DEPARTMENT_CREATED`,
+  `ADMIN_DEPARTMENT_UPDATED`, `ADMIN_DEPARTMENT_DELETED`, and
+  `ADMIN_DEPARTMENT_DELETE_BLOCKED`. Details never include secrets or raw
+  object snapshots.
+
+**Adding another safe form later:** add a form bean under
+`admin/viewmodel`, a `@Transactional` `Admin<Entity>WriteService` that enforces
+invariants through repositories, thin controller GET/POST handlers with
+`@Valid`/`BindingResult`/`RedirectAttributes`, a `form.html` (and `delete.html`
+for guarded deletes), and audit events. Reuse the `.admin-form-*` styles and the
+`layout/messages` flash fragment.
+
+**Out of scope (still):** organization delete, organization address/other fields,
+skills CRUD, project CRUD, allocation/deallocation actions, user role management,
+invitation actions, and bulk actions.
 
 ### Relationship to `/api/admin/monitor`
 
@@ -173,12 +223,21 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   values, search retained, invalid status ignored with a message.
 - `AdminDetailPagesIntegrationTest` — user/organization/project detail render
   (project via the real create flow); unknown UUID ⇒ admin-styled `404`.
+- `AdminOrganizationFormIntegrationTest` — organization edit: form renders, valid
+  rename redirects and persists, blank name re-renders with error, unknown id
+  `404`, POST without CSRF `403`, admin session does not authenticate the API.
+- `AdminDepartmentFormIntegrationTest` — department create/edit/delete: persist +
+  redirect, field/duplicate/invalid-organization errors, delete confirmation does
+  not mutate, CSRF-less delete `403`, safe delete removes, dependency-blocked
+  delete keeps the department, and the corresponding audit events.
 
 Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 
 ## Known limitations
 
-- Read-only: no create/update/delete, no domain actions, no bulk operations.
+- Writes are limited to organization rename and department create/edit/delete
+  (ADMIN-UI-03). Everything else is read-only: no other domain actions, no bulk
+  operations, no organization delete.
 - Access is a per-user SYSTEM_ADMIN browser session; there is no role UI to
   grant SYSTEM_ADMIN from inside the console (roles are managed out of band).
 - Audit-log page paginates by newest-first without a search filter yet.
@@ -188,8 +247,8 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 ## Follow-up PRs
 
 - **ADMIN-AUTH-02** — Browser Session Admin Authentication using existing Potriv
-  users and roles. ✅ Done (this PR).
-- **ADMIN-UI-03** — Safe Admin Forms for low-risk entities.
+  users and roles. ✅ Done.
+- **ADMIN-UI-03** — Safe Admin Forms for Organization + Department. ✅ Done (this PR).
 - **ADMIN-UI-04** — Domain Actions through existing services.
 - **ADMIN-UI-05** — Audit Log improvements and admin action auditing.
 - **ADMIN-UI-06** — Production polish, accessibility, and query performance pass.

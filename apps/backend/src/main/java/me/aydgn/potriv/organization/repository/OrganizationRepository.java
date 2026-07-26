@@ -17,4 +17,7 @@ public interface OrganizationRepository extends JpaRepository<Organization, UUID
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select o from Organization o where o.id = :id")
     Optional<Organization> findByIdForUpdate(@Param("id") UUID id);
+
+    // Human-readable organization picker for admin department forms.
+    java.util.List<Organization> findAllByOrderByNameAsc();
 }
