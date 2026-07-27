@@ -19,6 +19,9 @@ public interface DepartmentManagerAssignmentRepository
 
     boolean existsByDepartment_Id(UUID departmentId);
 
+    // Admin role guard: the user currently manages a department.
+    boolean existsByManager_Id(UUID managerUserId);
+
     // Fetch-joins the manager to avoid N+1 when building department listings.
     @Query("select a from DepartmentManagerAssignment a "
         + "join fetch a.manager "

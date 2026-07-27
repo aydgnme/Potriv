@@ -20,6 +20,9 @@ public interface ProjectDeallocationProposalRepository
 
     boolean existsByAllocation_IdAndStatus(UUID allocationId, DeallocationProposalStatus status);
 
+    // Admin role guard: the user has any deallocation proposal via an allocation.
+    boolean existsByAllocation_Employee_Id(UUID employeeId);
+
     // Department involvement check for the team view (any proposal status).
     boolean existsByAllocation_Project_IdAndReviewDepartment_Id(
         UUID projectId, UUID reviewDepartmentId);

@@ -19,6 +19,9 @@ public interface ProjectAllocationRepository extends JpaRepository<ProjectAlloca
 
     boolean existsByProject_IdAndEmployee_IdAndDeallocatedAtIsNull(UUID projectId, UUID employeeId);
 
+    // Admin role guard: the user has any project allocation (active or historical).
+    boolean existsByEmployee_Id(UUID employeeId);
+
     // Team-view visibility: the employee has (or had) any allocation episode.
     boolean existsByProject_IdAndEmployee_Id(UUID projectId, UUID employeeId);
 

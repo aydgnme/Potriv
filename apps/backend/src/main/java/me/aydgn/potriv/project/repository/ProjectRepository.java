@@ -17,4 +17,8 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
 
     List<Project> findByProjectManager_IdAndStatusOrderByCreatedAtDesc(
         UUID projectManagerUserId, ProjectStatus status);
+
+    // Admin role guard: the PM still owns a project in a non-terminal status.
+    boolean existsByProjectManager_IdAndStatusNot(
+        UUID projectManagerUserId, ProjectStatus status);
 }

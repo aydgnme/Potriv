@@ -38,6 +38,8 @@ are reached externally at `/api/admin/**`:
 | `GET /admin/users` , `/admin/users/{id}` | `/api/admin/users…` |
 | `GET/POST /admin/users/{id}/edit` | `/api/admin/users/{id}/edit` |
 | `POST /admin/users/{id}/activate` , `/suspend` , `/unlock` | `/api/admin/users/{id}/…` |
+| `GET /admin/users/{id}/roles` | `/api/admin/users/{id}/roles` |
+| `POST /admin/users/{id}/roles/grant` , `/roles/revoke` | `/api/admin/users/{id}/roles/…` |
 | `GET /admin/organizations` , `/{id}` | `/api/admin/organizations…` |
 | `GET /admin/departments` , `/{id}` | `/api/admin/departments…` |
 | `GET /admin/projects` , `/{id}` | `/api/admin/projects…` |
@@ -215,8 +217,45 @@ target user id included; no secrets in details).
 
 **Out of scope (ADMIN-UI-05):** password reset / admin-set password, email
 change, organization reassignment, role management, `SYSTEM_ADMIN` grant/revoke,
-user hard delete, bulk actions, and impersonation. Role management is a separate
-PR.
+user hard delete, bulk actions, and impersonation.
+
+## Safe user role management (ADMIN-UI-06)
+
+A high-risk authorization surface, kept narrow. A dedicated role page
+(`GET /admin/users/{id}/roles`) grants/revokes roles via
+`AdminUserRoleWriteService`.
+
+- **Manageable roles only:** `EMPLOYEE`, `ORGANIZATION_ADMIN`, `DEPARTMENT_MANAGER`,
+  `PROJECT_MANAGER`. `SYSTEM_ADMIN` is never grantable or revocable here — a
+  tampered form value is rejected server-side (parsed against the manageable set)
+  and audited as blocked.
+- **Grant rules:** the target must exist and be `ACTIVE`, and must belong to an
+  organization. A duplicate grant is idempotent (no duplicate `UserRole` row,
+  info flash). Granting a role only adds the authorization row — it never creates
+  a department-manager assignment, project ownership, employee profile,
+  department membership, or skills.
+- **Revoke rules:** the target must exist and be `ACTIVE`; the signed-in admin
+  cannot change their own roles; a missing-role revoke is idempotent.
+- **Dependency-based revoke guards** (`AdminUserRoleGuards`, shared by the page
+  and the write path so the UI shows why a revoke is disabled):
+  - `DEPARTMENT_MANAGER` — blocked while the user manages a department.
+  - `PROJECT_MANAGER` — blocked while the user owns any project not in `CLOSED`.
+  - `EMPLOYEE` — blocked while the user has any employee-domain dependency
+    (department membership, employee skills, allocations, or assignment/
+    deallocation proposals).
+  - `ORGANIZATION_ADMIN` — no dependency guard (still active-only, non-self,
+    non-SYSTEM_ADMIN).
+- Suspended users cannot have roles mutated. Every grant/revoke is a CSRF-guarded
+  `POST` with redirect-after-POST and a flash message; unknown users render the
+  admin 404. No sensitive values are rendered.
+
+Audited via `ADMIN_USER_ROLE_GRANTED`, `ADMIN_USER_ROLE_REVOKED`, and
+`ADMIN_USER_ROLE_ACTION_BLOCKED` (actor + target user id + role in details, no
+secrets).
+
+**Out of scope (ADMIN-UI-06):** `SYSTEM_ADMIN` grant/revoke, department-manager
+assignment UI, project ownership UI, employee skill assignment UI, bulk role
+editing, and impersonation.
 
 ### Relationship to `/api/admin/monitor`
 
@@ -332,19 +371,25 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   unknown id `404`, CSRF-less `403`, suspend/activate, self-suspend blocked,
   last active SYSTEM_ADMIN suspend blocked, unlock clears lock + failed attempts,
   API isolation, and no sensitive values.
+- `AdminUserRoleManagementIntegrationTest` — grant/revoke persist + audit, grant
+  does not create assignment/ownership, idempotent duplicate/missing, CSRF-less
+  `403`, tampered `SYSTEM_ADMIN` grant/revoke blocked, self-revoke blocked,
+  suspended-user mutation blocked, dependency-based revoke guards
+  (dept-manager/project-manager/employee), unknown id `404`, API isolation.
 
 Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 
 ## Known limitations
 
 - Writes cover organization rename, department create/edit/delete (ADMIN-UI-03),
-  skill-category + skill catalog management (ADMIN-UI-04), and a safe user
-  account-operations slice — name edit, activate/suspend, unlock (ADMIN-UI-05).
-  Everything else is read-only: no other domain actions, no bulk operations, no
-  organization delete, no category delete/deactivate, no user role management, no
+  skill-category + skill catalog management (ADMIN-UI-04), a safe user
+  account-operations slice — name edit, activate/suspend, unlock (ADMIN-UI-05) —
+  and manageable-role grant/revoke (ADMIN-UI-06). Everything else is read-only:
+  no other domain actions, no bulk operations, no organization delete, no
+  category delete/deactivate, no `SYSTEM_ADMIN` role management, no
   password/email changes, no user hard delete.
-- Access is a per-user SYSTEM_ADMIN browser session; there is no role UI to
-  grant SYSTEM_ADMIN from inside the console (roles are managed out of band).
+- Access is a per-user SYSTEM_ADMIN browser session; `SYSTEM_ADMIN` itself is not
+  grantable/revocable from the console (managed out of band).
 - Audit-log page paginates by newest-first without a search filter yet.
 - Organization detail lists departments by name/link only (member counts live on
   the Departments page) to avoid fabricating per-row counts.
@@ -355,6 +400,6 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
   users and roles. ✅ Done.
 - **ADMIN-UI-03** — Safe Admin Forms for Organization + Department. ✅ Done.
 - **ADMIN-UI-04** — Safe Skill Catalog Administration Forms. ✅ Done.
-- **ADMIN-UI-05** — Safe User Administration Forms (account operations). ✅ Done (this PR).
-- **ADMIN-UI-06** — User role management (SYSTEM_ADMIN grant/revoke).
-- **ADMIN-UI-06** — Production polish, accessibility, and query performance pass.
+- **ADMIN-UI-05** — Safe User Administration Forms (account operations). ✅ Done.
+- **ADMIN-UI-06** — Safe User Role Management. ✅ Done (this PR).
+- **ADMIN-UI-07** — Production polish, accessibility, and query performance pass.

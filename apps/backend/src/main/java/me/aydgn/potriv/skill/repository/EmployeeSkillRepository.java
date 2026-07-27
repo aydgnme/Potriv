@@ -17,6 +17,9 @@ public interface EmployeeSkillRepository extends JpaRepository<EmployeeSkill, UU
 
     boolean existsByUser_IdAndSkill_Id(UUID userId, UUID skillId);
 
+    // Admin role guard: the user holds any employee skill.
+    boolean existsByUser_Id(UUID userId);
+
     // Admin skill detail: how many employees hold this catalog skill.
     long countBySkill_Id(UUID skillId);
 

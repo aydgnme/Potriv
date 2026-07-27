@@ -16,6 +16,9 @@ import me.aydgn.potriv.allocation.entity.ProjectAssignmentProposal;
 public interface ProjectAssignmentProposalRepository
     extends JpaRepository<ProjectAssignmentProposal, UUID> {
 
+    // Admin role guard: the user has any assignment proposal.
+    boolean existsByEmployee_Id(UUID employeeId);
+
     boolean existsByProject_IdAndEmployee_IdAndStatus(
         UUID projectId, UUID employeeId, AssignmentProposalStatus status);
 
