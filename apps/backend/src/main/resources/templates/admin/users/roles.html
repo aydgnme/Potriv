@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1>Manage roles</h1>
+        <p class="admin-page-sub" th:text="${user.name} + ' · ' + ${user.email}">User</p>
+    </div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">User</h2>
+        <dl class="admin-dl">
+            <dt>Name</dt>
+            <dd><a th:href="@{'/admin/users/' + ${user.id}}" th:text="${user.name}">Name</a></dd>
+            <dt>Email</dt><dd th:text="${user.email}">email</dd>
+            <dt>Status</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${user.status})}"></span></dd>
+            <dt>Organization</dt>
+            <dd>
+                <a th:if="${user.organizationId}"
+                   th:href="@{'/admin/organizations/' + ${user.organizationId}}"
+                   th:text="${user.organizationName}">Org</a>
+                <span th:unless="${user.organizationId}" class="muted">Platform user (no organization)</span>
+            </dd>
+        </dl>
+    </section>
+
+    <div class="admin-message admin-message--warn">
+        Granting a role only adds the authorization. It does <strong>not</strong> assign
+        the user to manage a department, give ownership of projects, or create an
+        employee profile, department membership, or skills.
+    </div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Manageable roles</h2>
+        <table class="admin-table">
+            <thead><tr><th>Role</th><th>Held</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="row : ${roleRows}">
+                <td><span class="tag" th:text="${row.role}">ROLE</span></td>
+                <td><span class="signal" th:classappend="${row.held} ? 'signal--ok' : 'signal--idle'"
+                          th:text="${row.held} ? 'Yes' : 'No'">No</span></td>
+                <td class="num">
+                    <!-- Grant when not held (only for active users in an organization). -->
+                    <form th:if="${!row.held}" method="post" style="display:inline"
+                          th:action="@{'/admin/users/' + ${user.id} + '/roles/grant'}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <input type="hidden" name="role" th:value="${row.role}">
+                        <button type="submit" class="admin-btn"
+                                th:disabled="${user.status != 'ACTIVE'}">Grant</button>
+                    </form>
+                    <!-- Revoke when held, unless a domain dependency blocks it. -->
+                    <span th:if="${row.held and row.revokeBlocked}" class="admin-field-hint"
+                          th:title="${row.revokeBlockReason}">Locked by dependencies</span>
+                    <form th:if="${row.held and !row.revokeBlocked}" method="post" style="display:inline"
+                          th:action="@{'/admin/users/' + ${user.id} + '/roles/revoke'}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <input type="hidden" name="role" th:value="${row.role}">
+                        <button type="submit" class="admin-btn admin-btn--danger"
+                                th:disabled="${user.status != 'ACTIVE'}">Revoke</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+        <p th:if="${user.status != 'ACTIVE'}" class="admin-field-hint">
+            The user is not active, so roles cannot be changed. Activate the account first.
+        </p>
+    </section>
+
+    <section class="admin-card" th:if="${user.systemAdmin}">
+        <h2 class="admin-card-title">System administrator</h2>
+        <p class="muted" style="margin:0">
+            This user holds <span class="tag">SYSTEM_ADMIN</span>. The platform admin role is
+            intentionally <strong>not</strong> manageable from this console.
+        </p>
+    </section>
+
+    <div class="admin-form-actions">
+        <a class="admin-btn admin-btn--ghost" th:href="@{'/admin/users/' + ${user.id}}">Back to user</a>
+    </div>
+</div>
+</body>
+</html>

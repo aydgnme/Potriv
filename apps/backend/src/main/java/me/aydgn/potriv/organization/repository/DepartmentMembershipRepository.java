@@ -26,6 +26,9 @@ public interface DepartmentMembershipRepository extends JpaRepository<Department
 
     boolean existsByDepartment_Id(UUID departmentId);
 
+    // Admin role guard: the user is a member of some department.
+    boolean existsByMember_Id(UUID memberUserId);
+
     long countByDepartment_Id(UUID departmentId);
 
     // Fetch-joins the member so a member listing avoids N+1.

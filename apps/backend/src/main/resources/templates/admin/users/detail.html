@@ -73,6 +73,15 @@
             <span class="tag" th:each="role : ${user.roles}" th:text="${role}">ROLE</span>
             <span th:if="${user.roles.isEmpty()}" class="muted">No roles</span>
         </p>
+        <p class="admin-field-hint">
+            Manageable roles: EMPLOYEE, ORGANIZATION_ADMIN, DEPARTMENT_MANAGER, PROJECT_MANAGER.
+            SYSTEM_ADMIN is not manageable here. Role assignment does not create
+            department-manager assignments or project ownership.
+        </p>
+        <div class="admin-form-actions">
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/users/' + ${user.id} + '/roles'}">Manage roles</a>
+        </div>
     </section>
 
     <section class="admin-card">
