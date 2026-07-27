@@ -22,6 +22,12 @@
         <a class="admin-nav-item" th:classappend="${activeNav == 'allocations'} ? 'active'"
            th:href="@{/admin/allocations}">Allocations</a>
 
+        <div class="admin-nav-group">Skill Management</div>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'skill-categories'} ? 'active'"
+           th:href="@{/admin/skill-categories}">Skill categories</a>
+        <a class="admin-nav-item" th:classappend="${activeNav == 'skills'} ? 'active'"
+           th:href="@{/admin/skills}">Skills</a>
+
         <div class="admin-nav-group">Access</div>
         <a class="admin-nav-item" th:classappend="${activeNav == 'invitations'} ? 'active'"
            th:href="@{/admin/invitations}">Invitations</a>

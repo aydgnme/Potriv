@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1>Skills</h1>
+        <div class="admin-page-actions">
+            <a class="admin-btn" th:href="@{/admin/skills/new}">Add skill</a>
+        </div>
+    </div>
+
+    <form class="admin-filters" method="get" th:action="@{/admin/skills}">
+        <input type="search" name="q" th:value="${list.query}"
+               placeholder="Search name…" aria-label="Search">
+        <select name="organization" aria-label="Organization">
+            <option value="">All organizations</option>
+            <option th:each="opt : ${organizationOptions}" th:value="${opt.id}"
+                    th:text="${opt.name}" th:selected="${filterOrganization == opt.id.toString()}">Org</option>
+        </select>
+        <select name="category" aria-label="Category">
+            <option value="">All categories</option>
+            <optgroup th:each="org : ${organizationOptions}" th:label="${org.name}">
+                <option th:each="c : ${categoryOptions}" th:if="${c.organizationId == org.id}"
+                        th:value="${c.id}" th:text="${c.label}"
+                        th:selected="${filterCategory == c.id.toString()}">Cat</option>
+            </optgroup>
+        </select>
+        <select name="status" aria-label="Status">
+            <option value="" th:selected="${filterStatus == null or filterStatus == ''}">All statuses</option>
+            <option value="active" th:selected="${filterStatus == 'active'}">Active only</option>
+        </select>
+        <button type="submit" class="admin-btn">Search</button>
+        <a class="admin-btn admin-btn--ghost" th:href="@{/admin/skills}">Clear</a>
+    </form>
+
+    <div th:if="${list.items.isEmpty()}">
+        <div th:replace="~{admin/fragments/empty-state :: empty('No skills found.')}"></div>
+    </div>
+
+    <table th:unless="${list.items.isEmpty()}" class="admin-table">
+        <thead>
+        <tr><th>Name</th><th>Category</th><th>Organization</th><th>Author</th>
+            <th>Status</th><th class="num">Depts</th><th>Created</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="skill : ${list.items}">
+            <td><a th:href="@{'/admin/skills/' + ${skill.id}}" th:text="${skill.name}">Skill</a></td>
+            <td th:text="${skill.categoryName}">Category</td>
+            <td th:text="${skill.organizationName}">Org</td>
+            <td th:text="${skill.authorName}">Author</td>
+            <td><span class="signal" th:classappend="${skill.active} ? 'signal--ok' : 'signal--idle'"
+                      th:text="${skill.active} ? 'Active' : 'Inactive'">Active</span></td>
+            <td class="num" th:text="${skill.linkedDepartments}">0</td>
+            <td th:text="${@adminFormat.dateTime(skill.createdAt)}">date</td>
+        </tr>
+        </tbody>
+    </table>
+
+    <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
+</div>
+</body>
+</html>

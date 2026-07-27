@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1 th:text="${formMode == 'create'} ? 'New skill' : 'Edit skill'">Skill</h1>
+        <p class="admin-page-sub" th:if="${formMode == 'edit'}" th:text="${skill.name}">Skill</p>
+    </div>
+
+    <section class="admin-card admin-card--form">
+        <form method="post" novalidate th:object="${form}"
+              th:action="${formMode == 'create'}
+                  ? @{/admin/skills}
+                  : @{'/admin/skills/' + ${skill.id} + '/edit'}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+
+            <div class="admin-form-errors" th:if="${#fields.hasGlobalErrors()}">
+                <p th:each="err : ${#fields.globalErrors()}" th:text="${err}">Error</p>
+            </div>
+
+            <!-- Organization: selectable on create, fixed context on edit. -->
+            <div class="admin-form-field" th:if="${formMode == 'create'}">
+                <label for="organizationId">Organization</label>
+                <select id="organizationId" th:field="*{organizationId}"
+                        th:classappend="${#fields.hasErrors('organizationId')} ? 'has-error'">
+                    <option value="">Select an organization…</option>
+                    <option th:each="opt : ${organizationOptions}"
+                            th:value="${opt.id}" th:text="${opt.name}">Org</option>
+                </select>
+                <p class="admin-field-error" th:if="${#fields.hasErrors('organizationId')}"
+                   th:errors="*{organizationId}">Organization error</p>
+                <p class="admin-field-hint">Category, author and departments must belong to this organization.</p>
+            </div>
+            <div class="admin-form-field" th:if="${formMode == 'edit'}">
+                <label>Organization</label>
+                <p class="admin-form-static" th:text="${skill.organizationName}">Org</p>
+            </div>
+
+            <!-- Category: grouped by organization on create, org-scoped on edit. -->
+            <div class="admin-form-field">
+                <label for="categoryId">Category</label>
+                <select id="categoryId" th:field="*{categoryId}"
+                        th:classappend="${#fields.hasErrors('categoryId')} ? 'has-error'">
+                    <option value="">Select a category…</option>
+                    <th:block th:if="${formMode == 'create'}">
+                        <optgroup th:each="org : ${organizationOptions}" th:label="${org.name}">
+                            <option th:each="c : ${categoryOptions}" th:if="${c.organizationId == org.id}"
+                                    th:value="${c.id}" th:text="${c.label}">Cat</option>
+                        </optgroup>
+                    </th:block>
+                    <th:block th:if="${formMode == 'edit'}">
+                        <option th:each="c : ${categoryOptions}" th:value="${c.id}" th:text="${c.label}">Cat</option>
+                    </th:block>
+                </select>
+                <p class="admin-field-error" th:if="${#fields.hasErrors('categoryId')}"
+                   th:errors="*{categoryId}">Category error</p>
+            </div>
+
+            <div class="admin-form-field">
+                <label for="name">Name</label>
+                <input id="name" type="text" th:field="*{name}" maxlength="160" autocomplete="off"
+                       th:classappend="${#fields.hasErrors('name')} ? 'has-error'">
+                <p class="admin-field-error" th:if="${#fields.hasErrors('name')}"
+                   th:errors="*{name}">Name error</p>
+            </div>
+
+            <div class="admin-form-field">
+                <label for="description">Description</label>
+                <textarea id="description" th:field="*{description}" rows="4" maxlength="4000"
+                          th:classappend="${#fields.hasErrors('description')} ? 'has-error'"></textarea>
+                <p class="admin-field-error" th:if="${#fields.hasErrors('description')}"
+                   th:errors="*{description}">Description error</p>
+            </div>
+
+            <!-- Author: selectable dept-manager on create, immutable on edit. -->
+            <div class="admin-form-field" th:if="${formMode == 'create'}">
+                <label for="authorId">Author (Department Manager)</label>
+                <select id="authorId" th:field="*{authorId}"
+                        th:classappend="${#fields.hasErrors('authorId')} ? 'has-error'">
+                    <option value="">Select an author…</option>
+                    <optgroup th:each="org : ${organizationOptions}" th:label="${org.name}">
+                        <option th:each="a : ${authorOptions}" th:if="${a.organizationId == org.id}"
+                                th:value="${a.id}" th:text="${a.label}">Author</option>
+                    </optgroup>
+                </select>
+                <p class="admin-field-error" th:if="${#fields.hasErrors('authorId')}"
+                   th:errors="*{authorId}">Author error</p>
+            </div>
+            <div class="admin-form-field" th:if="${formMode == 'edit'}">
+                <label>Author</label>
+                <p class="admin-form-static" th:text="${skill.authorName}">Author</p>
+            </div>
+
+            <!-- Department links: catalog usage links, never employee assignments. -->
+            <div class="admin-form-field">
+                <label for="departmentIds">Department links</label>
+                <select id="departmentIds" th:field="*{departmentIds}" multiple size="6">
+                    <th:block th:if="${formMode == 'create'}">
+                        <optgroup th:each="org : ${organizationOptions}" th:label="${org.name}">
+                            <option th:each="d : ${departmentOptions}" th:if="${d.organizationId == org.id}"
+                                    th:value="${d.id}" th:text="${d.label}">Dept</option>
+                        </optgroup>
+                    </th:block>
+                    <th:block th:if="${formMode == 'edit'}">
+                        <option th:each="d : ${departmentOptions}" th:value="${d.id}" th:text="${d.label}">Dept</option>
+                    </th:block>
+                </select>
+                <p class="admin-field-error" th:if="${#fields.hasErrors('departmentIds')}"
+                   th:errors="*{departmentIds}">Department error</p>
+                <p class="admin-field-hint">Hold Cmd/Ctrl to select multiple. Links mark where a skill is used; they never assign it to employees.</p>
+            </div>
+
+            <div class="admin-form-actions">
+                <button type="submit" class="admin-btn"
+                        th:text="${formMode == 'create'} ? 'Create skill' : 'Save changes'">Save</button>
+                <a class="admin-btn admin-btn--ghost"
+                   th:href="${formMode == 'create'}
+                       ? @{/admin/skills}
+                       : @{'/admin/skills/' + ${skill.id}}">Cancel</a>
+            </div>
+        </form>
+    </section>
+</div>
+</body>
+</html>

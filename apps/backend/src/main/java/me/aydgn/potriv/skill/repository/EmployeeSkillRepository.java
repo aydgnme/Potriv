@@ -17,6 +17,9 @@ public interface EmployeeSkillRepository extends JpaRepository<EmployeeSkill, UU
 
     boolean existsByUser_IdAndSkill_Id(UUID userId, UUID skillId);
 
+    // Admin skill detail: how many employees hold this catalog skill.
+    long countBySkill_Id(UUID skillId);
+
     // Own assignments, with skill and category fetch-joined and ordered by
     // category name then skill name, to avoid N+1.
     @Query("select es from EmployeeSkill es "

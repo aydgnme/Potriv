@@ -15,9 +15,13 @@ public interface SkillDepartmentLinkRepository extends JpaRepository<SkillDepart
 
     Optional<SkillDepartmentLink> findBySkill_IdAndDepartment_Id(UUID skillId, UUID departmentId);
 
+    boolean existsBySkill_IdAndDepartment_Id(UUID skillId, UUID departmentId);
+
     boolean existsByDepartment_Id(UUID departmentId);
 
     long countByDepartment_Id(UUID departmentId);
+
+    long countBySkill_Id(UUID skillId);
 
     @Query("select l from SkillDepartmentLink l "
         + "join fetch l.department "
