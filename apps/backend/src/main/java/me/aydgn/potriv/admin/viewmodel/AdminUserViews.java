@@ -5,8 +5,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * User read models for the admin UI. Security-sensitive fields (password hash,
- * failed-login counters, lock timestamps, tokens) are never included.
+ * User read models for the admin UI. The password hash and any tokens are never
+ * included. Account-operations metadata (status, failed-login count, lock state)
+ * is exposed on the detail view so an admin can safely run account actions.
  */
 public final class AdminUserViews {
 
@@ -34,6 +35,10 @@ public final class AdminUserViews {
         List<String> roles,
         String status,
         boolean platformUser,
+        boolean systemAdmin,
+        int failedLoginAttempts,
+        OffsetDateTime lockedUntil,
+        boolean loginLocked,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
     ) {
