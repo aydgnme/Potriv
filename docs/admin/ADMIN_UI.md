@@ -36,6 +36,8 @@ are reached externally at `/api/admin/**`:
 | --- | --- |
 | `GET /admin` | `/api/admin` |
 | `GET /admin/users` , `/admin/users/{id}` | `/api/admin/users…` |
+| `GET/POST /admin/users/{id}/edit` | `/api/admin/users/{id}/edit` |
+| `POST /admin/users/{id}/activate` , `/suspend` , `/unlock` | `/api/admin/users/{id}/…` |
 | `GET /admin/organizations` , `/{id}` | `/api/admin/organizations…` |
 | `GET /admin/departments` , `/{id}` | `/api/admin/departments…` |
 | `GET /admin/projects` , `/{id}` | `/api/admin/projects…` |
@@ -182,6 +184,40 @@ REMOVED`.
 assignment/level editing, endorsement/validation, project skill requirements,
 Team Finder changes, user role management, and bulk actions.
 
+## Safe user account forms (ADMIN-UI-05)
+
+A narrow, production-safe **account-operations** slice — not full user CRUD — on
+the same service-layer + form-bean + CSRF pattern (`AdminUserWriteService`).
+
+**Routes** (all under `/api/admin`): `GET/POST /admin/users/{id}/edit` (display
+name only); `POST /admin/users/{id}/activate`, `/suspend`, `/unlock`.
+
+- **Name edit only.** Only the display name is bindable. Email, password,
+  organization, roles, and status are never editable through these forms.
+- **Status actions.** `activate` → `ACTIVE`, `suspend` → `SUSPENDED`, via the
+  domain `changeStatus(...)`. Idempotent (re-activating an active user is a
+  no-op with an informational flash).
+- **Two safety rules, enforced server-side and audited:** an admin cannot
+  suspend their **own** account, and the **last active `SYSTEM_ADMIN`** cannot be
+  suspended (counted with `UserRoleRepository.countByRoleAndUser_StatusAndUser_IdNot`).
+  A blocked action mutates nothing, flashes an error, and records
+  `ADMIN_USER_ACTION_BLOCKED`.
+- **Unlock.** `unlock` clears the lockout and resets the failed-login counter via
+  the domain `resetLoginFailures()` (the two are coupled in the model). It never
+  changes the password and never creates or revokes sessions.
+- The user detail view exposes safe account metadata (status, failed-login count,
+  lock state) so an admin can run these actions; it never renders the password
+  hash, tokens, or normalized secrets.
+
+Audited via `ADMIN_USER_PROFILE_UPDATED`, `ADMIN_USER_STATUS_CHANGED`,
+`ADMIN_USER_UNLOCKED`, and `ADMIN_USER_ACTION_BLOCKED` (actor = signed-in admin,
+target user id included; no secrets in details).
+
+**Out of scope (ADMIN-UI-05):** password reset / admin-set password, email
+change, organization reassignment, role management, `SYSTEM_ADMIN` grant/revoke,
+user hard delete, bulk actions, and impersonation. Role management is a separate
+PR.
+
 ### Relationship to `/api/admin/monitor`
 
 The monitor from PR #47 is preserved: same controller and secret masking, now
@@ -292,15 +328,21 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
 - `AdminSkillDepartmentLinkIntegrationTest` — add/remove links, idempotent
   duplicates, cross-organization department blocked, and remove preserving skill
   and department.
+- `AdminUserFormIntegrationTest` — name edit persists/audits, blank-name error,
+  unknown id `404`, CSRF-less `403`, suspend/activate, self-suspend blocked,
+  last active SYSTEM_ADMIN suspend blocked, unlock clears lock + failed attempts,
+  API isolation, and no sensitive values.
 
 Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 
 ## Known limitations
 
 - Writes cover organization rename, department create/edit/delete (ADMIN-UI-03),
-  and skill-category + skill catalog management (ADMIN-UI-04). Everything else is
-  read-only: no other domain actions, no bulk operations, no organization delete,
-  no category delete/deactivate.
+  skill-category + skill catalog management (ADMIN-UI-04), and a safe user
+  account-operations slice — name edit, activate/suspend, unlock (ADMIN-UI-05).
+  Everything else is read-only: no other domain actions, no bulk operations, no
+  organization delete, no category delete/deactivate, no user role management, no
+  password/email changes, no user hard delete.
 - Access is a per-user SYSTEM_ADMIN browser session; there is no role UI to
   grant SYSTEM_ADMIN from inside the console (roles are managed out of band).
 - Audit-log page paginates by newest-first without a search filter yet.
@@ -312,6 +354,7 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 - **ADMIN-AUTH-02** — Browser Session Admin Authentication using existing Potriv
   users and roles. ✅ Done.
 - **ADMIN-UI-03** — Safe Admin Forms for Organization + Department. ✅ Done.
-- **ADMIN-UI-04** — Safe Skill Catalog Administration Forms. ✅ Done (this PR).
-- **ADMIN-UI-05** — Audit Log improvements and admin action auditing.
+- **ADMIN-UI-04** — Safe Skill Catalog Administration Forms. ✅ Done.
+- **ADMIN-UI-05** — Safe User Administration Forms (account operations). ✅ Done (this PR).
+- **ADMIN-UI-06** — User role management (SYSTEM_ADMIN grant/revoke).
 - **ADMIN-UI-06** — Production polish, accessibility, and query performance pass.

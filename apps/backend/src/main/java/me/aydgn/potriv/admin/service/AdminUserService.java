@@ -68,6 +68,10 @@ public class AdminUserService {
             roles,
             user.getStatus().name(),
             organization == null,
+            roles.contains("SYSTEM_ADMIN"),
+            user.getFailedLoginAttempts(),
+            user.getLockedUntil(),
+            user.isLoginLocked(),
             user.getCreatedAt(),
             user.getUpdatedAt());
     }
