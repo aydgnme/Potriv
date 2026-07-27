@@ -49,6 +49,13 @@ are reached externally at `/api/admin/**`:
 | `GET /admin/departments/new` , `POST /admin/departments` | `/api/admin/departments…` |
 | `GET/POST /admin/departments/{id}/edit` | `/api/admin/departments/{id}/edit` |
 | `GET/POST /admin/departments/{id}/delete` | `/api/admin/departments/{id}/delete` |
+| `GET /admin/skill-categories` , `/{id}` , `/new` | `/api/admin/skill-categories…` |
+| `POST /admin/skill-categories` , `GET/POST /{id}/edit` | `/api/admin/skill-categories…` |
+| `GET /admin/skills` , `/{id}` , `/new` | `/api/admin/skills…` |
+| `POST /admin/skills` , `GET/POST /{id}/edit` | `/api/admin/skills…` |
+| `POST /admin/skills/{id}/deactivate` , `/reactivate` | `/api/admin/skills/{id}/…` |
+| `GET/POST /admin/skills/{id}/department-links` | `/api/admin/skills/{id}/department-links` |
+| `POST /admin/skills/{id}/department-links/{deptId}/remove` | `/api/admin/skills/{id}/…` |
 
 ## Security model
 
@@ -127,9 +134,53 @@ invariants through repositories, thin controller GET/POST handlers with
 for guarded deletes), and audit events. Reuse the `.admin-form-*` styles and the
 `layout/messages` flash fragment.
 
-**Out of scope (still):** organization delete, organization address/other fields,
-skills CRUD, project CRUD, allocation/deallocation actions, user role management,
-invitation actions, and bulk actions.
+**Out of scope (for ADMIN-UI-03):** organization delete, organization
+address/other fields, skills CRUD (ADMIN-UI-04), project CRUD,
+allocation/deallocation actions, user role management, invitation actions, and
+bulk actions.
+
+## Safe skill-catalog forms (ADMIN-UI-04)
+
+Skill-category and skill administration for the organization-scoped catalog, on
+the same service-layer + form-bean + CSRF pattern.
+
+**Routes** (all under `/api/admin`): `skill-categories` list/detail/new/create/
+edit; `skills` list/detail/new/create/edit, `deactivate`/`reactivate`, and
+`department-links` (manage page + add + `/{deptId}/remove`).
+
+**Skill categories** — create and edit (name) only. Unique per
+(organization, normalized name). No delete and no deactivate in this PR
+(future skills reference the row).
+
+**Skills** — create/edit through `AdminSkillWriteService`, preserving every
+domain invariant of the org-scoped `SkillService`:
+
+- **Scoping enforced server-side.** The chosen category, author, and departments
+  must all belong to the chosen organization; the category must be active. The
+  create form presents cross-organization options grouped by `<optgroup>` and
+  the service validates consistency (no client-side cascade needed).
+- **Author is a Department Manager, immutable.** Create requires an author that
+  belongs to the organization and holds `DEPARTMENT_MANAGER` (a clear validation
+  error otherwise — never a silent SYSTEM_ADMIN fallback). Edit cannot change the
+  author or the organization.
+- **Uniqueness** per (organization, category, normalized name); the same name is
+  allowed in a different category.
+- **No hard delete.** Skills are soft-toggled through the domain
+  `activate()`/`deactivate()` methods; deactivation keeps the category, links,
+  and employee-skill assignments intact. Toggles are idempotent.
+- **Department links** are catalog usage links only — they never assign the
+  skill to employees. `linkedBy` is the acting SYSTEM_ADMIN. Links are managed
+  from the skill edit form (multi-select) and a dedicated manage page; adding a
+  cross-organization department is rejected, duplicates are ignored, and removing
+  a link deletes neither the skill nor the department.
+
+Audited via `ADMIN_SKILL_CATEGORY_CREATED/UPDATED`, `ADMIN_SKILL_CREATED/
+UPDATED/DEACTIVATED/REACTIVATED`, and `ADMIN_SKILL_DEPARTMENT_LINK_ADDED/
+REMOVED`.
+
+**Out of scope (ADMIN-UI-04):** category delete/deactivate, employee skill
+assignment/level editing, endorsement/validation, project skill requirements,
+Team Finder changes, user role management, and bulk actions.
 
 ### Relationship to `/api/admin/monitor`
 
@@ -230,14 +281,26 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   redirect, field/duplicate/invalid-organization errors, delete confirmation does
   not mutate, CSRF-less delete `403`, safe delete removes, dependency-blocked
   delete keeps the department, and the corresponding audit events.
+- `AdminSkillCategoryFormIntegrationTest` — category list/detail/create/edit,
+  blank/duplicate/unknown-organization errors, unknown id `404`, CSRF-less `403`,
+  no sensitive values.
+- `AdminSkillFormIntegrationTest` — skill create/edit with cross-organization
+  category/author/department blocking, non-manager author blocked, duplicate name
+  blocked, same name in another category allowed, author/organization immutable
+  on edit, safe deactivate/reactivate preserving links, CSRF-less `403`, and API
+  isolation.
+- `AdminSkillDepartmentLinkIntegrationTest` — add/remove links, idempotent
+  duplicates, cross-organization department blocked, and remove preserving skill
+  and department.
 
 Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 
 ## Known limitations
 
-- Writes are limited to organization rename and department create/edit/delete
-  (ADMIN-UI-03). Everything else is read-only: no other domain actions, no bulk
-  operations, no organization delete.
+- Writes cover organization rename, department create/edit/delete (ADMIN-UI-03),
+  and skill-category + skill catalog management (ADMIN-UI-04). Everything else is
+  read-only: no other domain actions, no bulk operations, no organization delete,
+  no category delete/deactivate.
 - Access is a per-user SYSTEM_ADMIN browser session; there is no role UI to
   grant SYSTEM_ADMIN from inside the console (roles are managed out of band).
 - Audit-log page paginates by newest-first without a search filter yet.
@@ -248,7 +311,7 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 
 - **ADMIN-AUTH-02** — Browser Session Admin Authentication using existing Potriv
   users and roles. ✅ Done.
-- **ADMIN-UI-03** — Safe Admin Forms for Organization + Department. ✅ Done (this PR).
-- **ADMIN-UI-04** — Domain Actions through existing services.
+- **ADMIN-UI-03** — Safe Admin Forms for Organization + Department. ✅ Done.
+- **ADMIN-UI-04** — Safe Skill Catalog Administration Forms. ✅ Done (this PR).
 - **ADMIN-UI-05** — Audit Log improvements and admin action auditing.
 - **ADMIN-UI-06** — Production polish, accessibility, and query performance pass.

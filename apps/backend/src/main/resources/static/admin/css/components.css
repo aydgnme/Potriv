@@ -332,7 +332,8 @@
 }
 
 .admin-form-field input[type="text"],
-.admin-form-field select {
+.admin-form-field select,
+.admin-form-field textarea {
     width: 100%;
     background: var(--surface);
     color: var(--ink);
@@ -343,16 +344,33 @@
     font-family: inherit;
 }
 
+.admin-form-field textarea {
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.admin-form-field select[multiple] {
+    padding: 4px;
+}
+
 .admin-form-field input:focus,
-.admin-form-field select:focus {
+.admin-form-field select:focus,
+.admin-form-field textarea:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: var(--ring);
 }
 
 .admin-form-field input.has-error,
-.admin-form-field select.has-error {
+.admin-form-field select.has-error,
+.admin-form-field textarea.has-error {
     border-color: var(--fail);
+}
+
+.admin-field-hint {
+    margin: 6px 0 0;
+    color: var(--ink-3);
+    font-size: 11.5px;
 }
 
 .admin-form-static {

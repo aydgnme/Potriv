@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1>Department links</h1>
+        <p class="admin-page-sub">
+            <a th:href="@{'/admin/skills/' + ${skill.id}}" th:text="${skill.name}">Skill</a>
+            · <span th:text="${skill.organizationName}">Org</span>
+        </p>
+    </div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Linked departments</h2>
+        <div th:if="${skill.departments.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No departments linked yet.')}"></div>
+        <table th:unless="${skill.departments.isEmpty()}" class="admin-table">
+            <thead><tr><th>Department</th><th></th></tr></thead>
+            <tbody>
+            <tr th:each="dept : ${skill.departments}">
+                <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
+                <td class="num">
+                    <form method="post" style="display:inline"
+                          th:action="@{'/admin/skills/' + ${skill.id} + '/department-links/' + ${dept.id} + '/remove'}">
+                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                        <button type="submit" class="admin-btn admin-btn--ghost">Remove</button>
+                    </form>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-card admin-card--form">
+        <h2 class="admin-card-title">Add a department link</h2>
+        <p th:if="${availableDepartments.isEmpty()}" class="muted" style="margin:0">
+            All departments in this organization are already linked.
+        </p>
+        <form th:unless="${availableDepartments.isEmpty()}" method="post"
+              th:action="@{'/admin/skills/' + ${skill.id} + '/department-links'}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <div class="admin-form-field">
+                <label for="departmentId">Department</label>
+                <select id="departmentId" name="departmentId">
+                    <option th:each="d : ${availableDepartments}" th:value="${d.id}" th:text="${d.label}">Dept</option>
+                </select>
+            </div>
+            <div class="admin-form-actions">
+                <button type="submit" class="admin-btn">Add link</button>
+                <a class="admin-btn admin-btn--ghost"
+                   th:href="@{'/admin/skills/' + ${skill.id}}">Back to skill</a>
+            </div>
+        </form>
+    </section>
+</div>
+</body>
+</html>

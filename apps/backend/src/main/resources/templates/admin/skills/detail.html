@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1 th:text="${skill.name}">Skill</h1>
+        <div class="admin-page-actions">
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/skills/' + ${skill.id} + '/edit'}">Edit</a>
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/skills/' + ${skill.id} + '/department-links'}">Department links</a>
+            <form th:if="${skill.active}" method="post" style="display:inline"
+                  th:action="@{'/admin/skills/' + ${skill.id} + '/deactivate'}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <button type="submit" class="admin-btn admin-btn--danger">Deactivate</button>
+            </form>
+            <form th:unless="${skill.active}" method="post" style="display:inline"
+                  th:action="@{'/admin/skills/' + ${skill.id} + '/reactivate'}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <button type="submit" class="admin-btn">Reactivate</button>
+            </form>
+        </div>
+    </div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">General</h2>
+        <dl class="admin-dl">
+            <dt>Name</dt><dd th:text="${skill.name}">Name</dd>
+            <dt>Category</dt>
+            <dd><a th:href="@{'/admin/skill-categories/' + ${skill.categoryId}}"
+                   th:text="${skill.categoryName}">Category</a></dd>
+            <dt>Organization</dt>
+            <dd><a th:href="@{'/admin/organizations/' + ${skill.organizationId}}"
+                   th:text="${skill.organizationName}">Org</a></dd>
+            <dt>Author</dt>
+            <dd><a th:href="@{'/admin/users/' + ${skill.authorId}}"
+                   th:text="${skill.authorName}">Author</a></dd>
+            <dt>Status</dt>
+            <dd><span class="signal" th:classappend="${skill.active} ? 'signal--ok' : 'signal--idle'"
+                      th:text="${skill.active} ? 'Active' : 'Inactive'">Active</span></dd>
+            <dt>Employees with skill</dt>
+            <dd class="mono" th:text="${skill.employeeAssignments}">0</dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Description</h2>
+        <p th:if="${skill.description}" th:text="${skill.description}"
+           style="margin:0; white-space:pre-wrap">Description</p>
+        <p th:unless="${skill.description}" class="muted" style="margin:0">No description.</p>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Linked departments</h2>
+        <div th:if="${skill.departments.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No linked departments.')}"></div>
+        <p th:unless="${skill.departments.isEmpty()}">
+            <a class="tag" th:each="dept : ${skill.departments}"
+               th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a>
+        </p>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Metadata</h2>
+        <dl class="admin-dl">
+            <dt>ID</dt><dd><code th:text="${skill.id}">uuid</code></dd>
+            <dt>Created</dt><dd th:text="${@adminFormat.dateTime(skill.createdAt)}">date</dd>
+            <dt>Updated</dt><dd th:text="${@adminFormat.dateTime(skill.updatedAt)}">date</dd>
+        </dl>
+    </section>
+</div>
+</body>
+</html>

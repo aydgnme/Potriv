@@ -24,6 +24,13 @@ public interface UserRoleRepository extends JpaRepository<UserRole, UUID> {
     List<User> findUsersByOrganizationIdAndRole(
         @Param("organizationId") UUID organizationId, @Param("role") AccessRole role);
 
+    // All users holding a role across every organization, org fetched — used by
+    // the admin skill create form's author picker (grouped by organization).
+    @Query("select distinct u from UserRole ur join ur.user u "
+        + "left join fetch u.organization "
+        + "where ur.role = :role order by u.name asc")
+    List<User> findUsersByRole(@Param("role") AccessRole role);
+
     boolean existsByUserAndRole(User user, AccessRole role);
 
     void deleteByUserAndRoleIn(User user, Collection<AccessRole> roles);
