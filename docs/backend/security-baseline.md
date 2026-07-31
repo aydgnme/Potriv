@@ -356,10 +356,14 @@ this repository's commits**:
   migration test guards against shipping the drift.
 - **Invite tokens are stored raw**, unlike refresh and password-reset tokens.
   An organization invite is a deliberately shareable join link rather than a
-  personal credential, it can be rotated (`EMPLOYEE_INVITE_ROTATED`), and it is
-  never rendered in the admin UI (only a masked hint). *Accepted for now;*
-  hashing it — with lookup by hash — is a cheap hardening step whenever invite
-  handling is next touched.
+  personal credential, and it is never rendered in the admin UI (only a masked
+  hint), never logged, and never written to audit details. A leaked link can be
+  killed from the console — `ADMIN_INVITATION_REVOKED` disables it, and
+  `ADMIN_INVITATION_REGENERATED` replaces the organization's link (both
+  ADMIN-UI-07) — alongside the organization admin's own
+  `EMPLOYEE_INVITE_ROTATED`. *Storing the token raw is accepted for now;* hashing
+  it, with lookup by hash, remains a cheap hardening step whenever invite handling
+  is next touched.
 - **No rate limiting** beyond the login lockout. A reverse proxy or gateway
   should provide it before public exposure.
 - **No TLS in the compose stack**; it publishes plain HTTP on 8080 for local

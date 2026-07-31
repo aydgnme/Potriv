@@ -2,7 +2,32 @@
 <html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="content">
-    <div class="admin-page-head"><h1 th:text="'Invitation · ' + ${invitation.organizationName}">Invitation</h1></div>
+    <div class="admin-page-head">
+        <h1 th:text="'Invitation · ' + ${invitation.organizationName}">Invitation</h1>
+        <div class="admin-page-actions">
+            <!-- Only offered while the link is still enabled; the service enforces
+                 this regardless of what the page shows. -->
+            <form th:if="${invitation.active}" method="post" style="display:inline"
+                  th:action="@{'/admin/invitations/' + ${invitation.id} + '/revoke'}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <button type="submit" class="admin-btn admin-btn--danger">Revoke</button>
+            </form>
+            <form method="post" style="display:inline"
+                  th:action="@{'/admin/invitations/' + ${invitation.id} + '/regenerate'}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                <button type="submit" class="admin-btn">Regenerate</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="admin-message admin-message--warn">
+        A Potriv invitation is an <strong>organization-wide join link</strong>, not a
+        per-person invite: anyone holding the link can register while it is usable.
+        <strong>Revoke</strong> disables this link permanently. <strong>Regenerate</strong>
+        disables every active link for the organization and issues a fresh one. The link
+        itself is never shown here — the organization retrieves it through its own invite
+        endpoint.
+    </div>
 
     <section class="admin-card">
         <h2 class="admin-card-title">General</h2>

@@ -127,6 +127,7 @@ actions. See `docs/backend/environment.md` for usage.
 | `V1__init.sql` | Original empty placeholder. Kept as-is so any database that already applied it keeps a valid checksum. |
 | `V2__create_application_schema.sql` | The real baseline: every application table, UUID primary key, foreign key, unique constraint, index, and enum `CHECK` constraint for the current entity model. |
 | `V3__refresh_audit_event_type_check.sql` | Refreshes the `security_audit_events.event_type` `CHECK` constraint for the two `SYSTEM_ADMIN_BOOTSTRAP_*` events — a worked example of the enum rule below. |
+| `V4__refresh_audit_event_type_check_invitations.sql` | Same refresh for the two `ADMIN_INVITATION_*` events (ADMIN-UI-07). |
 
 A fresh production database boots cleanly: Flyway applies `V1` then `V2`, and
 Hibernate `validate` then accepts the result. This is covered automatically by
