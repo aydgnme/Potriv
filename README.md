@@ -57,3 +57,17 @@ session is isolated from the JWT API. See
 
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 `docs/backend/deployment-checklist.md` for the full production documentation.
+
+## Continuous Integration
+
+**Backend CI** (`.github/workflows/backend-ci.yml`) runs on pull requests to
+`main`, pushes to `main`, and manual dispatch:
+
+- `backend-verify` — Java 21, then `./mvnw -B clean verify` from `apps/backend`
+  (full suite, Testcontainers PostgreSQL included, nothing skipped).
+- `production-compose-config` — validates `docker-compose.prod.yml` against
+  `.env.prod.example`.
+
+No repository secrets are required. Once the first run is green, require the
+`Backend CI / backend-verify` check on `main` in the repository's branch
+protection settings.

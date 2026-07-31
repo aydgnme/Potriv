@@ -4,8 +4,11 @@ Run through this list for every production deployment of `apps/backend`.
 
 ## Pre-deploy
 
-- [ ] `main` is green: `cd apps/backend && ./mvnw clean verify` (full suite,
-      currently 300+ tests, `BUILD SUCCESS`).
+- [ ] `main` is green: **Backend CI** passed on the merge commit
+      (`.github/workflows/backend-ci.yml` runs `./mvnw -B clean verify` from
+      `apps/backend` on every PR to `main`, every push to `main`, and on manual
+      dispatch). Locally the same gate is
+      `cd apps/backend && ./mvnw clean verify` (full suite, `BUILD SUCCESS`).
 - [ ] Flyway migrations under `src/main/resources/db/migration` cover every
       schema change since the last release (production runs
       `ddl-auto: validate` — Hibernate will not create or alter tables).

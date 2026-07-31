@@ -4,6 +4,27 @@ State of the backend's production posture after the PROD-READY-01 hardening
 pass. Product behavior is unchanged; this page records what production enforces
 and what still needs work before the first real deployment.
 
+## Continuous integration
+
+`.github/workflows/backend-ci.yml` ("Backend CI") is the automated gate. It runs
+on pull requests to `main`, pushes to `main`, and manual dispatch:
+
+| Job | What it does |
+| --- | --- |
+| `backend-verify` | Java 21 (Temurin, Maven cache), then `./mvnw -B clean verify` from `apps/backend` — the full suite, including the Testcontainers PostgreSQL integration tests. No tests are skipped. |
+| `production-compose-config` | `docker compose --env-file .env.prod.example -f docker-compose.prod.yml config --quiet`, so broken compose syntax or environment wiring fails before a deploy. |
+
+CI pins Java 21 because that is the project's target; it also keeps logs clean,
+since newer JDKs make JaCoCo emit "Unsupported class file major version" noise
+that hides real failures. The workflow needs no repository secrets.
+
+**Recommended repository setting:** once the first run is green, require the
+`Backend CI / backend-verify` status check on `main` through GitHub branch
+protection. That is a settings change, deliberately not automated here. The
+workflow has no `paths:` filter for exactly this reason — a path-filtered
+workflow never reports a status on PRs that miss the filter, which would block
+those PRs forever once the check is required.
+
 ## Fail-fast guardrails (`prod` profile only)
 
 `me.aydgn.potriv.common.config.ProductionConfigGuard` runs at boot and refuses
