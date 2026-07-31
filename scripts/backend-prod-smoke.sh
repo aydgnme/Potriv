@@ -49,7 +49,9 @@ done
 
 echo "Backend did not become healthy in time."
 echo "Inspect logs with:  ${COMPOSE[*]} logs potriv-backend"
-echo "Note: on an empty database the prod profile fails Hibernate schema"
-echo "validation until real Flyway migrations exist — this is the documented"
-echo "fail-fast posture, not a container problem."
+echo "On an empty database the prod profile applies the Flyway migrations"
+echo "(V1 + V2__create_application_schema.sql) and then validates the schema, so"
+echo "a failure here usually means missing configuration or a migration that does"
+echo "not match the current entity model — check the log for Flyway or Hibernate"
+echo "schema validation errors."
 exit 1
