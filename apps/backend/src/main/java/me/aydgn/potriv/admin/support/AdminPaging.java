@@ -22,6 +22,24 @@ public final class AdminPaging {
         return PageRequest.of(safePage, safeSize, sort);
     }
 
+    /**
+     * Reads a page/size query parameter that arrived as raw text. A blank or
+     * non-numeric value becomes {@code null} so {@link #of} applies its default
+     * — binding these as {@code Integer} instead lets a hand-edited URL raise a
+     * type-mismatch, which the admin error advice renders as a 500.
+     */
+    public static Integer number(String raw) {
+        String value = normalizeQuery(raw);
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
     /** Normalizes a free-text search term to null when blank. */
     public static String normalizeQuery(String query) {
         if (query == null) {

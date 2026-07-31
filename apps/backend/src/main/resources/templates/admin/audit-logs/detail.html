@@ -7,7 +7,14 @@
     <section class="admin-card">
         <h2 class="admin-card-title">Event</h2>
         <dl class="admin-dl">
-            <dt>Event type</dt><dd><code th:text="${event.eventType}">EVENT</code></dd>
+            <dt>Event type</dt>
+            <dd>
+                <code th:text="${event.eventType}">EVENT</code>
+                <a class="admin-inline-link"
+                   th:href="@{/admin/audit-logs(eventType=${event.eventType})}">All of this type</a>
+            </dd>
+            <dt>Outcome</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${event.outcome})}"></span></dd>
             <dt>Timestamp</dt><dd th:text="${@adminFormat.dateTime(event.createdAt)}">date</dd>
             <dt>Actor</dt><dd th:text="${event.actor}">actor</dd>
             <dt>IP address</dt><dd th:text="${event.ipAddress} ?: '—'">ip</dd>
@@ -19,11 +26,24 @@
         <h2 class="admin-card-title">References</h2>
         <dl class="admin-dl">
             <dt>Actor user</dt>
-            <dd><code th:text="${event.actorUserId} ?: '—'">uuid</code></dd>
+            <dd>
+                <code th:text="${event.actorUserId} ?: '—'">uuid</code>
+                <a th:if="${event.actorUserId != null}" class="admin-inline-link"
+                   th:href="@{/admin/audit-logs(actor=${event.actorUserId})}">All by this user</a>
+            </dd>
             <dt>Subject user</dt>
-            <dd><code th:text="${event.userId} ?: '—'">uuid</code></dd>
+            <dd>
+                <code th:text="${event.userId} ?: '—'">uuid</code>
+                <a th:if="${event.userId != null}" class="admin-inline-link"
+                   th:href="@{/admin/audit-logs(actor=${event.userId})}">All for this user</a>
+            </dd>
             <dt>Organization</dt>
-            <dd><code th:text="${event.organizationId} ?: '—'">uuid</code></dd>
+            <dd>
+                <code th:text="${event.organizationId} ?: '—'">uuid</code>
+                <a th:if="${event.organizationId != null}" class="admin-inline-link"
+                   th:href="@{/admin/audit-logs(organizationId=${event.organizationId})}">
+                    All for this organization</a>
+            </dd>
             <dt>Session</dt>
             <dd><code th:text="${event.sessionId} ?: '—'">uuid</code></dd>
             <dt>ID</dt><dd><code th:text="${event.id}">uuid</code></dd>

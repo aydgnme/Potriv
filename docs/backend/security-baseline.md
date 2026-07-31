@@ -199,6 +199,14 @@ benign and were each inspected:
 - No password hash, raw refresh token, raw invite token, or JWT secret is
   rendered in any template. Invitations expose only a masked `tokenHint`; audit
   detail blobs are excluded from the read models on purpose.
+- The audit review page (OPS-02) keeps that exclusion: `details` is neither
+  rendered nor searchable, so an injected or accidentally-recorded value has no
+  path into the console's HTML. Two integration tests write a `<script>` payload
+  and a fake secret into `details` and assert neither reaches the rendered list
+  or detail page. Filtering is read-only and GET-only, `SYSTEM_ADMIN`-gated by
+  the same `/admin/**` chain, and bound through the JPA Criteria API — no user
+  input is concatenated into a query, and operator-typed LIKE wildcards are
+  escaped rather than interpreted.
 - The monitor shows `jwtSecretConfigured` as a **boolean** and token TTLs as
   durations — never the secret itself.
 

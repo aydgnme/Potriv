@@ -4,20 +4,88 @@
 <div th:fragment="content">
     <div class="admin-page-head"><h1>Audit Logs</h1></div>
 
+    <!-- GET-only filter form: every control is a query parameter, so a filtered
+         view is a plain link that can be shared, bookmarked and paged. -->
+    <form class="admin-filters admin-filters--grid" method="get" th:action="@{/admin/audit-logs}">
+        <div class="admin-filter-field">
+            <label for="filter-event-type">Event type</label>
+            <select id="filter-event-type" name="eventType">
+                <option value="">All event types</option>
+                <option th:each="type : ${eventTypes}" th:value="${type}" th:text="${type}"
+                        th:selected="${type == filter.eventType}">EVENT_TYPE</option>
+            </select>
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-outcome">Outcome</label>
+            <select id="filter-outcome" name="outcome">
+                <option value="">Any outcome</option>
+                <option value="success" th:selected="${filter.outcome == 'success'}">Success</option>
+                <option value="failure" th:selected="${filter.outcome == 'failure'}">Failure</option>
+            </select>
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-actor">Actor</label>
+            <input id="filter-actor" type="search" name="actor" th:value="${filter.actor}"
+                   placeholder="Email or user UUID">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-organization">Organization</label>
+            <input id="filter-organization" type="text" name="organizationId"
+                   th:value="${filter.organizationId}" placeholder="Organization UUID">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-ip">IP address</label>
+            <input id="filter-ip" type="text" name="ip" th:value="${filter.ip}"
+                   placeholder="e.g. 10.0.">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-from">From (UTC)</label>
+            <input id="filter-from" type="datetime-local" name="from" th:value="${filter.from}">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-to">To (UTC)</label>
+            <input id="filter-to" type="datetime-local" name="to" th:value="${filter.to}">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-size">Per page</label>
+            <select id="filter-size" name="size">
+                <option th:each="option : ${pageSizes}" th:value="${option}" th:text="${option}"
+                        th:selected="${option == selectedSize}">25</option>
+            </select>
+        </div>
+        <div class="admin-filter-actions">
+            <button type="submit" class="admin-btn">Apply filters</button>
+            <a th:if="${filter.active()}" class="admin-btn admin-btn--ghost"
+               th:href="@{/admin/audit-logs}">Clear filters</a>
+        </div>
+    </form>
+
     <div th:if="${list.items.isEmpty()}">
-        <div th:replace="~{admin/fragments/empty-state :: empty('No audit events.')}"></div>
+        <div th:replace="~{admin/fragments/empty-state :: empty(${filter.active()}
+             ? 'No audit events match these filters.' : 'No audit events.')}"></div>
     </div>
 
     <table th:unless="${list.items.isEmpty()}" class="admin-table">
         <thead>
-        <tr><th>Timestamp</th><th>Event</th><th>Actor</th><th>IP</th></tr>
+        <tr>
+            <th>Timestamp</th><th>Event</th><th>Outcome</th>
+            <th>Actor</th><th>Organization</th><th>IP</th>
+        </tr>
         </thead>
         <tbody>
         <tr th:each="event : ${list.items}">
             <td><a th:href="@{'/admin/audit-logs/' + ${event.id}}"
                    th:text="${@adminFormat.dateTime(event.createdAt)}">date</a></td>
             <td><code th:text="${event.eventType}">EVENT</code></td>
+            <td><span th:replace="~{admin/fragments/badges :: badge(${event.outcome})}"></span></td>
             <td th:text="${event.actor}">actor</td>
+            <!-- Pivots to every event recorded for the same organization. -->
+            <td>
+                <a th:if="${event.organizationId != null}"
+                   th:href="@{/admin/audit-logs(organizationId=${event.organizationId})}"
+                   th:text="${@adminFormat.shortId(event.organizationId)}">org</a>
+                <span th:if="${event.organizationId == null}" class="muted">—</span>
+            </td>
             <td th:text="${event.ipAddress} ?: '—'">ip</td>
         </tr>
         </tbody>
