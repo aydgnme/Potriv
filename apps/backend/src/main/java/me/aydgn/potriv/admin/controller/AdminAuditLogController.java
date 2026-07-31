@@ -71,7 +71,7 @@ public class AdminAuditLogController {
         Sort resolvedSort = AdminRequests.sort(sort, SORTABLE, DEFAULT_SORT).and(TIEBREAKER);
 
         Map<String, String> retained = AdminAuditQuery.retainedParams(filter);
-        retained.put("size", size);
+        retained.put("size", AdminPaging.retainedSize(size));
         retained.put("sort", sort);
         String baseQuery = AdminRequests.baseQuery(retained);
 
@@ -82,10 +82,10 @@ public class AdminAuditLogController {
         model.addAttribute("filter", filter);
         model.addAttribute("eventTypes", eventTypeOptions());
         model.addAttribute("pageSizes", PAGE_SIZES);
-        model.addAttribute("selectedSize", AdminPaging.number(size));
+        // The dropdown shows the size actually in effect, not what was asked for.
+        model.addAttribute("selectedSize", AdminPaging.size(size));
         model.addAttribute("list", auditLogService.list(filter,
-            AdminPaging.of(AdminPaging.number(page), AdminPaging.number(size), resolvedSort),
-            baseQuery));
+            AdminPaging.of(page, size, resolvedSort), baseQuery));
         return "admin/audit-logs/list";
     }
 

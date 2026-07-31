@@ -408,10 +408,16 @@ tables + pagination). `js/admin.js` is optional progressive enhancement only
 - Search/filter/sort are retained across pagination via `AdminListView.baseQuery`.
 - Invalid enum filters (e.g. `?status=BANANA`) are ignored with a visible
   message — never a stack trace.
-- The audit page additionally binds `page`/`size` as raw strings and parses them
-  through `AdminPaging.number`, so a non-numeric value falls back to the default
-  instead of raising a type mismatch. Other list pages still bind them as
-  `Integer`; a hand-edited `?page=abc` there renders the 500 page.
+- **`page`/`size` bind as raw strings on every admin list page** and normalize
+  through `AdminPaging` (ADMIN-HARDEN-01). Binding them as `Integer` let a
+  hand-edited `?page=abc` raise a type mismatch, which `AdminErrorAdvice` renders
+  as a 500. Contract: missing/malformed/negative `page` → `0`; a large valid page
+  is honoured and simply renders empty; missing/malformed/non-positive `size` →
+  **25**; oversized `size` → clamped to **100**; repeated parameters bind as a
+  comma-joined string and therefore fall back to the default, deterministically.
+- Pagination links retain the **effective** size (`AdminPaging.retainedSize`), and
+  only when one was requested — so a hostile `?size=<script>` is never echoed into
+  a rendered link.
 - Postgres note: search uses a precomputed lower-cased LIKE pattern
   (`AdminPaging.likePattern`) rather than a nullable bind inside `concat(...)`,
   which avoids the `lower(bytea)` type-inference error.
@@ -476,6 +482,12 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   unknown id `404`, CSRF-less `403`, suspend/activate, self-suspend blocked,
   last active SYSTEM_ADMIN suspend blocked, unlock clears lock + failed attempts,
   API isolation, and no sensitive values.
+- `AdminPagingTest` + `AdminPaginationHardeningIntegrationTest` — the
+  normalization contract asserted directly on the helper, then replayed against
+  all nine paginated admin routes: malformed, negative, oversized, far-past-the-end,
+  repeated and hostile `page`/`size` all render a list; the hostile text is neither
+  executed nor echoed; the effective size is what the operator sees; audit filters
+  still apply under malformed pagination; anonymous is still turned away.
 - `AdminAuditFiltersIntegrationTest` — anonymous/non-SYSTEM_ADMIN blocked,
   newest-first stable ordering under equal timestamps, per-filter isolation
   (event type, organization, outcome, actor by email and by user id, IP, date
@@ -502,6 +514,9 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
   password/email changes, no user hard delete.
 - Access is a per-user SYSTEM_ADMIN browser session; `SYSTEM_ADMIN` itself is not
   grantable/revocable from the console (managed out of band).
+- Path variables are still bound as typed values, so a malformed id such as
+  `/admin/users/not-a-uuid` renders the 500 page rather than the admin `404`.
+  Pagination hardening (ADMIN-HARDEN-01) did not cover this.
 - Audit review filters only what `SecurityAuditEvent` actually stores; the
   free-form `details` column is neither rendered nor searchable (OPS-02), and
   there is no export or retention policy.
@@ -517,5 +532,6 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 - **ADMIN-UI-05** — Safe User Administration Forms (account operations). ✅ Done.
 - **ADMIN-UI-06** — Safe User Role Management. ✅ Done (this PR).
 - **ADMIN-UI-07** — Safe Invitation Administration Actions. ✅ Done (this PR).
-- **OPS-02** — Advanced Audit/Admin Event Review Filters. ✅ Done (this PR).
+- **OPS-02** — Advanced Audit/Admin Event Review Filters. ✅ Done.
+- **ADMIN-HARDEN-01** — Admin List Pagination Hardening. ✅ Done (this PR).
 - **ADMIN-UI-08** — Production polish, accessibility, and query performance pass.

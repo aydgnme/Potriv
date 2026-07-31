@@ -56,8 +56,8 @@ public class AdminSkillController {
         @RequestParam(required = false) String organization,
         @RequestParam(required = false) String category,
         @RequestParam(required = false) String status,
-        @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) String page,
+        @RequestParam(required = false) String size,
         @RequestParam(required = false) String sort,
         Model model
     ) {
@@ -72,7 +72,7 @@ public class AdminSkillController {
         retained.put("organization", organization);
         retained.put("category", category);
         retained.put("status", status);
-        retained.put("size", size == null ? null : size.toString());
+        retained.put("size", AdminPaging.retainedSize(size));
         retained.put("sort", sort);
         String baseQuery = AdminRequests.baseQuery(retained);
 
