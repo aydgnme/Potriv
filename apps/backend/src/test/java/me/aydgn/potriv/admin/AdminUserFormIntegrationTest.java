@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -142,14 +143,25 @@ class AdminUserFormIntegrationTest extends AbstractAdminIntegrationTest {
     @Test
     void lastActiveSystemAdminCannotBeSuspended() throws Exception {
         // Establish the admin session while the seeded admin is still active,
-        // before we temporarily suspend it below.
+        // before the suspensions below.
         adminSession();
         User newAdmin = newSystemAdmin();
-        User seeded = userRepository.findByEmail(SYSTEM_ADMIN_EMAIL).orElseThrow();
-        // Make newAdmin the sole active SYSTEM_ADMIN, then restore afterward so the
-        // seeded admin can still authenticate in other tests.
-        seeded.changeStatus(AccessAccountStatus.SUSPENDED);
-        userRepository.save(seeded);
+
+        // The guard only fires when the target really is the last active system
+        // admin, so every *other* active one has to be suspended — not just the
+        // seeded account. Several test classes create active SYSTEM_ADMIN users
+        // in this shared database, and suspending only the seeded one made this
+        // assertion silently depend on class execution order.
+        List<User> othersToSuspend = userRoleRepository
+            .findUsersByRole(AccessRole.SYSTEM_ADMIN).stream()
+            .filter(candidate -> !candidate.getId().equals(newAdmin.getId()))
+            .filter(User::isActive)
+            .toList();
+        othersToSuspend.forEach(other -> {
+            other.changeStatus(AccessAccountStatus.SUSPENDED);
+            userRepository.save(other);
+        });
+
         try {
             mockMvc.perform(post("/admin/users/" + newAdmin.getId() + "/suspend")
                     .with(csrf()).session(adminSession()))
@@ -157,9 +169,13 @@ class AdminUserFormIntegrationTest extends AbstractAdminIntegrationTest {
             assertThat(userRepository.findById(newAdmin.getId()).orElseThrow().getStatus())
                 .isEqualTo(AccessAccountStatus.ACTIVE);
         } finally {
-            User reloaded = userRepository.findByEmail(SYSTEM_ADMIN_EMAIL).orElseThrow();
-            reloaded.changeStatus(AccessAccountStatus.ACTIVE);
-            userRepository.save(reloaded);
+            // Restore every account touched above, so the seeded admin can still
+            // authenticate and no other test inherits a suspended admin.
+            othersToSuspend.forEach(other ->
+                userRepository.findById(other.getId()).ifPresent(reloaded -> {
+                    reloaded.changeStatus(AccessAccountStatus.ACTIVE);
+                    userRepository.save(reloaded);
+                }));
         }
     }
 
