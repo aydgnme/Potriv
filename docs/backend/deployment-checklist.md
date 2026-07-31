@@ -9,6 +9,9 @@ Run through this list for every production deployment of `apps/backend`.
 - [ ] Flyway migrations under `src/main/resources/db/migration` cover every
       schema change since the last release (production runs
       `ddl-auto: validate` — Hibernate will not create or alter tables).
+      Entity or enum changes since the last release need a **new** migration
+      (`V3`, `V4`, …); never edit an already-applied file. A fresh database is
+      built by `V1` + `V2__create_application_schema.sql`.
 - [ ] `SPRING_PROFILES_ACTIVE=prod` is set in the target environment.
 - [ ] All required environment variables are present
       (see `docs/backend/environment.md`): `DATABASE_URL`,

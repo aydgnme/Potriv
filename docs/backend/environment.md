@@ -158,8 +158,9 @@ Build the image on its own with:
 docker build -t potriv-backend apps/backend
 ```
 
-Current limitation: because the prod profile validates the schema against
-Flyway-managed migrations and only an empty baseline exists, the backend will
-fail schema validation on a fresh database until real migrations are authored
-(see `docs/backend/production-readiness.md`). This is the intended fail-fast
-posture.
+On a fresh database the prod profile applies the Flyway migrations
+(`V1__init.sql` + `V2__create_application_schema.sql`) and Hibernate then
+validates the result, so the stack reaches a healthy state without any manual
+schema step. Schema changes always ship as new migrations — Hibernate never
+creates or alters tables in production. See
+`docs/backend/production-readiness.md`.

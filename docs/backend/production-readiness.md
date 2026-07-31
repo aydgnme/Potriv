@@ -83,13 +83,32 @@ actions. See `docs/backend/environment.md` for usage.
 - Development is code-first: `ddl-auto: update`, Flyway disabled.
 - Tests run `ddl-auto: create-drop` against Testcontainers PostgreSQL.
 - Production runs `ddl-auto: validate` with Flyway enabled
-  (`classpath:db/migration`).
-- **Honest current state:** the only migration, `V1__init.sql`, is an empty
-  baseline. Because production validates the schema against the entity model,
-  the first production deployment requires authoring real Flyway migrations
-  (or a reviewed baseline generated from the entity model) beforehand. Until
-  those exist, a `prod`-profile boot against an empty database will
-  intentionally fail during schema validation rather than auto-create tables.
+  (`classpath:db/migration`). **Flyway owns the production schema; Hibernate
+  only validates it.**
+
+### Migrations
+
+| File | Purpose |
+| --- | --- |
+| `V1__init.sql` | Original empty placeholder. Kept as-is so any database that already applied it keeps a valid checksum. |
+| `V2__create_application_schema.sql` | The real baseline: every application table, UUID primary key, foreign key, unique constraint, index, and enum `CHECK` constraint for the current entity model. |
+
+A fresh production database boots cleanly: Flyway applies `V1` then `V2`, and
+Hibernate `validate` then accepts the result. This is covered automatically by
+`ProductionSchemaMigrationIntegrationTest`, which starts an empty Testcontainers
+PostgreSQL, runs the migrations under the real `prod` profile, and asserts the
+context starts.
+
+**Changing the entity model requires a new migration.** Never edit a migration
+that has already been applied anywhere — add `V3`, `V4`, … instead. This applies
+equally to enum changes: an `@Enumerated(EnumType.STRING)` column carries a
+`CHECK` constraint listing every constant, so adding a constant needs a
+migration that refreshes that constraint. `ProductionSchemaMigrationIntegrationTest`
+fails if `security_audit_events.event_type` falls behind `SecurityAuditEventType`.
+
+**Never initialize a production database by running the dev profile.**
+`ddl-auto: update` would create tables outside Flyway's history, leaving the
+database permanently out of sync with the migrations.
 
 ## Actuator
 
@@ -113,10 +132,14 @@ actions. See `docs/backend/environment.md` for usage.
 
 ## Known gaps (tracked, not hidden)
 
-- Real Flyway migrations must be written before the first production deploy.
-  On an empty database the prod profile applies the (empty) Flyway baseline and
-  then intentionally fails Hibernate schema validation — the compose stack
-  therefore does not reach a healthy state until migrations exist.
+- Existing **development** databases were built by `ddl-auto: update` and have no
+  Flyway history. They can also carry stale enum `CHECK` constraints, because
+  `update` never refreshes an existing constraint — this is why new `ADMIN_*`
+  audit events were rejected locally while tests stayed green. Fix a drifted dev
+  database by recreating it (`docker compose down --volumes && docker compose up -d`,
+  the recommended path) or, to keep the data, by refreshing the affected
+  constraint by hand. Production is unaffected: it is Flyway-managed from the
+  first boot.
 - The development compose file (`docker-compose.yml`) provisions local
   PostgreSQL and Mailpit only and is unchanged.
 - Rate limiting beyond the existing login lockout is not implemented.
