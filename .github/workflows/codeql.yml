@@ -1,0 +1,62 @@
+name: CodeQL
+
+# Static application security testing for the backend. Deliberately a separate
+# workflow from "Backend CI": CodeQL is slower, needs different permissions
+# (security-events: write), and should keep running on a schedule even when
+# nobody opens a PR — newly published queries find issues in code that has not
+# changed.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly, Monday 03:27 UTC (off the hour to avoid GitHub's scheduling peak).
+    - cron: '27 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Must precede the CodeQL build step: the manual build needs the same
+      # Java 21 toolchain the project targets.
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          # Autobuild is unreliable for a Maven module nested in a monorepo,
+          # so the build below is run explicitly.
+          build-mode: manual
+          queries: security-extended,security-and-quality
+
+      # CodeQL only needs compiled classes, so the test suite is skipped here —
+      # Backend CI already runs the full `clean verify` gate on the same commit.
+      - name: Build backend for analysis
+        run: ./mvnw -B -DskipTests compile
+        working-directory: apps/backend
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:java-kotlin

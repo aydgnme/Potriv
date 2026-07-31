@@ -9,6 +9,12 @@ Run through this list for every production deployment of `apps/backend`.
       `apps/backend` on every PR to `main`, every push to `main`, and on manual
       dispatch). Locally the same gate is
       `cd apps/backend && ./mvnw clean verify` (full suite, `BUILD SUCCESS`).
+- [ ] **CodeQL** reported no new alerts on the release commit
+      (Security → Code scanning).
+- [ ] The most recent **Dependency Check** run actually scanned — it is weekly
+      and skips with a warning unless the `NVD_API_KEY` secret is set. Review the
+      uploaded report artifact for critical CVEs. See
+      [`security-baseline.md`](security-baseline.md).
 - [ ] Flyway migrations under `src/main/resources/db/migration` cover every
       schema change since the last release (production runs
       `ddl-auto: validate` — Hibernate will not create or alter tables).

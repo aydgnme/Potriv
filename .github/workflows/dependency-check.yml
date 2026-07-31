@@ -1,0 +1,93 @@
+name: Dependency Check
+
+# Software composition analysis (known-CVE scan) for the backend's dependency
+# tree. Deliberately NOT on pull requests: OWASP Dependency-Check has to sync the
+# National Vulnerability Database, and without an API key that first sync takes
+# hours (measured locally: ~2.5h for 372k records). Keeping it scheduled means
+# PR feedback stays fast while CVE coverage still runs regularly.
+on:
+  schedule:
+    # Weekly, Monday 04:17 UTC — after CodeQL, off the hour.
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-check
+  cancel-in-progress: false
+
+jobs:
+  dependency-check:
+    name: dependency-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Mapped to an env var so the guard below can test it: the `secrets`
+      # context is not available in step-level `if:` conditions.
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      # Pinned for reproducibility; matches the version verified locally.
+      DEPENDENCY_CHECK_VERSION: 12.2.2
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # Without a key the scan would fall back to an anonymous, rate-limited NVD
+      # sync that burns hours of runner time and usually still fails. Warn
+      # loudly and finish successfully instead of pretending to scan.
+      - name: Check for NVD API key
+        id: guard
+        run: |
+          if [ -z "$NVD_API_KEY" ]; then
+            echo "::warning title=Dependency-Check skipped::NVD_API_KEY secret is not configured. \
+            A real scan needs it: without a key the NVD sync is rate-limited to hours. \
+            Add the secret (free key: https://nvd.nist.gov/developers/request-an-api-key) and re-run."
+            echo "have_key=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "have_key=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Java 21
+        if: steps.guard.outputs.have_key == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      # The NVD dataset is expensive to build and changes slowly, so it is
+      # cached across runs and refreshed incrementally.
+      - name: Cache NVD data
+        if: steps.guard.outputs.have_key == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ env.DEPENDENCY_CHECK_VERSION }}-${{ github.run_id }}
+          restore-keys: |
+            nvd-${{ env.DEPENDENCY_CHECK_VERSION }}-
+
+      # failBuildOnCVSS=9 keeps the gate meaningful at first: only critical
+      # findings break the build, so noisy medium/low CVEs cannot make the
+      # workflow useless. Lower it deliberately once the backlog is understood.
+      - name: Run OWASP Dependency-Check
+        if: steps.guard.outputs.have_key == 'true'
+        working-directory: apps/backend
+        run: >
+          ./mvnw -B
+          org.owasp:dependency-check-maven:${DEPENDENCY_CHECK_VERSION}:check
+          -DnvdApiKey="$NVD_API_KEY"
+          -Dformats=HTML,JSON
+          -DfailBuildOnCVSS=9
+          -DskipProvidedScope=true
+
+      # Reports are the point of the run, so upload them even when the scan
+      # failed the CVSS gate. They are artifacts only — never committed.
+      - name: Upload Dependency-Check reports
+        if: always() && steps.guard.outputs.have_key == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: apps/backend/target/dependency-check-report.*
+          if-no-files-found: warn
+          retention-days: 30

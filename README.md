@@ -68,6 +68,17 @@ See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 - `production-compose-config` — validates `docker-compose.prod.yml` against
   `.env.prod.example`.
 
-No repository secrets are required. Once the first run is green, require the
-`Backend CI / backend-verify` check on `main` in the repository's branch
-protection settings.
+No repository secrets are required for Backend CI.
+
+Security gates run as separate workflows:
+
+- **CodeQL** (`codeql.yml`) — SAST on PRs, pushes to `main`, and weekly.
+- **Dependency Check** (`dependency-check.yml`) — weekly/manual CVE scan.
+  Requires an `NVD_API_KEY` secret; without it the job warns and skips instead
+  of starting a multi-hour anonymous NVD sync.
+- **GitGuardian** — connected app, scans pull requests for secrets.
+
+See [`docs/backend/security-baseline.md`](docs/backend/security-baseline.md) for
+the full security posture, accepted limitations, and the repository settings
+(branch protection, `NVD_API_KEY`, push protection) that still have to be
+applied by hand.

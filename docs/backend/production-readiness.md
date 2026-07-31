@@ -18,12 +18,25 @@ CI pins Java 21 because that is the project's target; it also keeps logs clean,
 since newer JDKs make JaCoCo emit "Unsupported class file major version" noise
 that hides real failures. The workflow needs no repository secrets.
 
-**Recommended repository setting:** once the first run is green, require the
-`Backend CI / backend-verify` status check on `main` through GitHub branch
-protection. That is a settings change, deliberately not automated here. The
-workflow has no `paths:` filter for exactly this reason — a path-filtered
-workflow never reports a status on PRs that miss the filter, which would block
-those PRs forever once the check is required.
+Two security workflows run alongside it:
+
+| Workflow | Trigger | Notes |
+| --- | --- | --- |
+| `codeql.yml` ("CodeQL") | PR → `main`, push → `main`, weekly, dispatch | SAST over the backend, `java-kotlin`, manual Maven build. |
+| `dependency-check.yml` ("Dependency Check") | weekly, dispatch — **not** on PRs | Known-CVE scan. **Requires the `NVD_API_KEY` secret**; without it the job warns and exits without scanning, so a green run alone does not prove the dependencies were checked. |
+
+Secret scanning is handled by the connected **GitGuardian** app on pull
+requests. SonarCloud is **not** active. Full detail, including accepted
+limitations and what is still only a repository setting, lives in
+[`security-baseline.md`](security-baseline.md).
+
+**Repository settings still to apply manually** (none are configured by code):
+require the `Backend CI / backend-verify` status check on `main` through branch
+protection — and the CodeQL check once it is stably green; add the `NVD_API_KEY`
+secret; enable GitHub secret scanning push protection. Backend CI has no
+`paths:` filter for exactly this reason — a path-filtered workflow never reports
+a status on PRs that miss the filter, which would block those PRs forever once
+the check is required.
 
 ## Fail-fast guardrails (`prod` profile only)
 
