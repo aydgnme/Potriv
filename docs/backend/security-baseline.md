@@ -291,6 +291,22 @@ here; Backend CI already runs `clean verify` on the same commit. Query packs:
 `security-extended,security-and-quality`. It runs weekly as well as per-PR, so
 newly published queries reach code that has not changed.
 
+### CodeQL findings (first triage)
+
+Code scanning is live and currently reports **8 open alerts, none of them a real
+vulnerability.** They are recorded here rather than suppressed — silencing a rule
+to get a clean dashboard is how genuine findings get lost later.
+
+| Alert | Where | Assessment |
+| --- | --- | --- |
+| `java/spring-disabled-csrf-protection` (high) | `SecurityConfig:42` | **Correct as written.** The REST chain is `STATELESS` and Bearer-authenticated; CSRF tokens defend cookie-borne credentials, which this chain does not use. The rule cannot see the session policy. |
+| `java/spring-disabled-csrf-protection` (high) | `AdminSecurityConfig:39` | **Correct as written.** That branch runs only when the console is *disabled*, where every route is `permitAll()` and every controller answers an anti-leak `404` — there is no session to protect. The enabled branch keeps CSRF on, proven by `AdminCsrfIntegrationTest`. |
+| `java/user-controlled-bypass` (high) | `JwtAuthenticationFilter:45` | **False positive.** The "user-controlled" value is the JWT itself, which is supposed to come from the client and is cryptographically verified inside `authenticateAccessToken`; a `JwtException` clears the security context. The decision trusts a signature check, not the raw header. |
+| `java/unused-parameter` (note ×5) | `ProjectService`, `AdminOrganizationService`, `GlobalExceptionHandler` | Cosmetic. Mostly framework-mandated handler signatures. |
+
+None were introduced by the current work, and no suppression file exists. If any
+of these is ever dismissed in the GitHub UI, the reason belongs in this table.
+
 ### Dependency-Check
 
 Scheduled weekly and manually dispatchable — deliberately **not** on pull

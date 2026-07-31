@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Duration;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -39,12 +40,34 @@ class SystemAdminBootstrapIntegrationTest extends AbstractIntegrationTest {
     @Autowired
     private SecurityAuditEventRepository auditEventRepository;
 
+    private final java.util.Set<String> createdEmails = new java.util.LinkedHashSet<>();
+
     /** Points the seeder at a throwaway account so the shared seeded admin is untouched. */
     private String useAccount(String email, String password, String name) {
         ReflectionTestUtils.setField(seeder, "email", email);
         ReflectionTestUtils.setField(seeder, "password", password);
         ReflectionTestUtils.setField(seeder, "name", name);
-        return email.trim().toLowerCase();
+        String normalized = email.trim().toLowerCase();
+        createdEmails.add(normalized);
+        return normalized;
+    }
+
+    /**
+     * Removes the throwaway admins this class creates.
+     *
+     * <p>The suite shares one database, and these are real <em>active</em>
+     * {@code SYSTEM_ADMIN} accounts. Leaving them behind changes global state
+     * other tests legitimately depend on — {@code AdminUserFormIntegrationTest}
+     * asserts that the <em>last</em> active system admin cannot be suspended, and
+     * silently stops testing anything if spare admins linger.
+     */
+    @AfterEach
+    void removeBootstrapAccounts() {
+        createdEmails.forEach(email -> userRepository.findByEmail(email).ifPresent(user -> {
+            userRoleRepository.deleteAll(userRoleRepository.findByUser(user));
+            userRepository.delete(user);
+        }));
+        createdEmails.clear();
     }
 
     private User reload(String email) {
