@@ -72,6 +72,7 @@ token → `403`).
 | Password reset token | **SHA-256 hash** (`password_reset_tokens.token_hash`) | 30-minute TTL |
 | Organization invite token | **raw value** (`invite_tokens.token`) | see §5, accepted risk |
 | JWT signing secret | environment only | HS256, min 32 bytes enforced by `JwtProperties` in *every* profile |
+| Bootstrap admin password | environment only, stored as BCrypt hash | Reconciled on every start, so `SYSTEM_ADMIN_PASSWORD` rotates the credential without manual database access. Audit rows record only the **names** of changed fields — never the password or its hash. |
 
 Login lockout: 5 failed attempts → 15-minute lock (`app.auth.*`), applied by both
 the JWT and admin login paths.
@@ -290,6 +291,22 @@ here; Backend CI already runs `clean verify` on the same commit. Query packs:
 `security-extended,security-and-quality`. It runs weekly as well as per-PR, so
 newly published queries reach code that has not changed.
 
+### CodeQL findings (first triage)
+
+Code scanning is live and currently reports **8 open alerts, none of them a real
+vulnerability.** They are recorded here rather than suppressed — silencing a rule
+to get a clean dashboard is how genuine findings get lost later.
+
+| Alert | Where | Assessment |
+| --- | --- | --- |
+| `java/spring-disabled-csrf-protection` (high) | `SecurityConfig:42` | **Correct as written.** The REST chain is `STATELESS` and Bearer-authenticated; CSRF tokens defend cookie-borne credentials, which this chain does not use. The rule cannot see the session policy. |
+| `java/spring-disabled-csrf-protection` (high) | `AdminSecurityConfig:39` | **Correct as written.** That branch runs only when the console is *disabled*, where every route is `permitAll()` and every controller answers an anti-leak `404` — there is no session to protect. The enabled branch keeps CSRF on, proven by `AdminCsrfIntegrationTest`. |
+| `java/user-controlled-bypass` (high) | `JwtAuthenticationFilter:45` | **False positive.** The "user-controlled" value is the JWT itself, which is supposed to come from the client and is cryptographically verified inside `authenticateAccessToken`; a `JwtException` clears the security context. The decision trusts a signature check, not the raw header. |
+| `java/unused-parameter` (note ×5) | `ProjectService`, `AdminOrganizationService`, `GlobalExceptionHandler` | Cosmetic. Mostly framework-mandated handler signatures. |
+
+None were introduced by the current work, and no suppression file exists. If any
+of these is ever dismissed in the GitHub UI, the reason belongs in this table.
+
 ### Dependency-Check
 
 Scheduled weekly and manually dispatchable — deliberately **not** on pull
@@ -331,9 +348,12 @@ this repository's commits**:
   the only Flyway-managed environment.
 - **Dev database enum `CHECK` drift.** `update` never refreshes an existing
   `CHECK` constraint, so a dev database can reject new enum values (this really
-  happened with new `ADMIN_*` audit events). Fix by recreating the dev database
-  (`docker compose down --volumes && docker compose up -d`). Production is
-  unaffected, and the migration test guards against shipping the drift.
+  happened with new `ADMIN_*` audit events). The dev profile now **detects this
+  at startup and fails fast** with an actionable message
+  (`DevSchemaDriftDetector`); fix it with `./scripts/reset-dev-db.sh --yes`. The
+  detector only reads the catalog — it never alters a schema by itself, is off by
+  default, and is never enabled in production. Production is unaffected, and the
+  migration test guards against shipping the drift.
 - **Invite tokens are stored raw**, unlike refresh and password-reset tokens.
   An organization invite is a deliberately shareable join link rather than a
   personal credential, it can be rotated (`EMPLOYEE_INVITE_ROTATED`), and it is

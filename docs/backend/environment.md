@@ -40,9 +40,81 @@ datasource, or a destructive Hibernate DDL mode.
 | `REFRESH_TOKEN_TTL_DAYS` | no (default `7`) | Refresh token lifetime. |
 | `SWAGGER_ENABLED` | no (default `false`) | Set `true` to expose OpenAPI/Swagger UI in production (not recommended). |
 | `BACKEND_CONSOLE_ENABLED` | no (default `false`) | Enables the embedded administration console under `/api/admin/**` (login, monitor, users, projects). |
-| `SYSTEM_ADMIN_EMAIL` | recommended (required when console enabled) | Seeded platform system-admin login — also the browser login for the admin console. Override before first boot. |
-| `SYSTEM_ADMIN_PASSWORD` | recommended (required when console enabled) | Seeded system-admin / admin-console password. When the console is enabled in prod, the guard refuses placeholder or <12-character values. |
-| `SYSTEM_ADMIN_NAME` | no | Display name of the seeded system admin. |
+| `SYSTEM_ADMIN_EMAIL` | recommended (required when console enabled) | Bootstrap platform system-admin login — also the browser login for the admin console. Override before first boot. |
+| `SYSTEM_ADMIN_PASSWORD` | recommended (required when console enabled) | Bootstrap system-admin / admin-console password. **Changing it rotates the password on the next start** (see below). When the console is enabled in prod, the guard refuses placeholder or <12-character values. |
+| `SYSTEM_ADMIN_NAME` | no | Display name of the bootstrap system admin. Applied on every start. |
+
+## System administrator bootstrap
+
+`potriv.system-admin.*` describes the platform `SYSTEM_ADMIN` account, and the
+application **reconciles it on every start** rather than only creating it once:
+
+| Situation | What happens at startup |
+| --- | --- |
+| No account with that email | Created: BCrypt password hash, display name, `ACTIVE`, `SYSTEM_ADMIN` role. |
+| `SYSTEM_ADMIN_PASSWORD` changed | Password is rotated — **no manual database edit needed**. |
+| `SYSTEM_ADMIN_NAME` changed | Display name updated. |
+| Account locked out / failed logins | Lockout cleared and the counter reset. |
+| Account suspended or disabled | Set back to `ACTIVE`. |
+| `SYSTEM_ADMIN` role missing | Re-granted (never duplicated). |
+| Nothing differs | Nothing is written — the normal restart case. |
+
+The configured email is normalized (trimmed, lower-cased) exactly like the rest
+of the identity code, so the bootstrap account is always reachable by the login
+flow.
+
+> **The bootstrap account is configuration-owned break-glass access.** Because
+> reconciliation re-activates it, suspending it through the admin console does
+> **not** survive a restart. To retire it, change or remove `SYSTEM_ADMIN_EMAIL`
+> — do not rely on suspending the account.
+
+Every reconciliation that actually changes something is audited
+(`SYSTEM_ADMIN_BOOTSTRAP_CREATED` / `SYSTEM_ADMIN_BOOTSTRAP_RECONCILED`) with the
+**names** of the changed fields only. No password or password hash is ever
+logged, audited, rendered, or written to documentation.
+
+## Development database drift
+
+Development runs Hibernate `ddl-auto: update`, which creates an enum `CHECK`
+constraint once and then never refreshes it. A local database created by older
+code therefore silently rejects newly added enum values — the application used
+to start fine and then fail on the first audited write, which was confusing
+enough to cost manual database surgery.
+
+The `dev` profile now checks this at startup and **fails fast** with the fix
+included:
+
+```text
+Development database schema drift detected: security_audit_events.event_type
+CHECK constraint is missing values [SYSTEM_ADMIN_BOOTSTRAP_CREATED]. Recreate the
+local dev database or apply a manual dev-only constraint refresh. Recommended
+local reset: docker compose down --volumes && docker compose up -d
+(or ./scripts/reset-dev-db.sh --yes).
+```
+
+Fix it with the helper (destructive, and it does nothing without `--yes`):
+
+```bash
+./scripts/reset-dev-db.sh          # prints what it would do
+./scripts/reset-dev-db.sh --yes    # actually recreates the dev database
+```
+
+To keep local data instead, refresh the constraint by hand in `psql`.
+
+The detector only ever **reads** the catalog — it never runs `ALTER TABLE` for
+you, because changing a schema stays an explicit developer action. Settings:
+
+```yaml
+potriv:
+  dev:
+    schema-drift:
+      enabled: true      # dev only; false in the shared default and in prod
+      fail-fast: true    # set false to log the warning and start anyway
+```
+
+**This is a development aid, not a production control.** In production the
+schema is owned by Flyway and validated by Hibernate `ddl-auto=validate`, and
+`ProductionSchemaMigrationIntegrationTest` guards the migrations themselves.
 
 ## Run commands
 
