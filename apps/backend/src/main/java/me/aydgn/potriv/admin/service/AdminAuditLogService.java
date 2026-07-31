@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import me.aydgn.potriv.admin.support.AdminAuditQuery;
 import me.aydgn.potriv.admin.support.AdminListView;
 import me.aydgn.potriv.admin.support.AdminNotFoundException;
 import me.aydgn.potriv.admin.viewmodel.AdminAuditLogViews;
@@ -15,7 +16,8 @@ import me.aydgn.potriv.security.repository.SecurityAuditEventRepository;
 
 /**
  * Read-only view over security audit events. The free-form {@code details}
- * metadata is never exposed so no secret stored there can leak.
+ * metadata is never exposed so no secret stored there can leak — which also
+ * means it is deliberately not searchable from the console.
  */
 @Service
 public class AdminAuditLogService {
@@ -27,14 +29,19 @@ public class AdminAuditLogService {
     }
 
     @Transactional(readOnly = true)
-    public AdminListView<AdminAuditLogViews.ListItem> list(Pageable pageable, String baseQuery) {
-        Page<SecurityAuditEvent> page = auditEventRepository.findAll(pageable);
+    public AdminListView<AdminAuditLogViews.ListItem> list(
+        AdminAuditLogViews.Filter filter, Pageable pageable, String baseQuery) {
+
+        Page<SecurityAuditEvent> page = auditEventRepository
+            .findAll(AdminAuditQuery.of(filter).specification(), pageable);
         Page<AdminAuditLogViews.ListItem> mapped = page.map(event ->
             new AdminAuditLogViews.ListItem(
                 event.getId(),
                 event.getEventType().name(),
+                outcome(event),
                 actor(event),
                 event.getActorUserId(),
+                event.getOrganizationId(),
                 event.getIpAddress(),
                 event.getCreatedAt()));
         return AdminListView.of(mapped, null, baseQuery);
@@ -47,6 +54,7 @@ public class AdminAuditLogService {
         return new AdminAuditLogViews.Details(
             event.getId(),
             event.getEventType().name(),
+            outcome(event),
             actor(event),
             event.getActorUserId(),
             event.getUserId(),
@@ -65,5 +73,10 @@ public class AdminAuditLogService {
             return event.getActorUserId().toString();
         }
         return "—";
+    }
+
+    /** Badge label for the stored {@code success} flag. */
+    private static String outcome(SecurityAuditEvent event) {
+        return event.isSuccess() ? "Success" : "Failure";
     }
 }

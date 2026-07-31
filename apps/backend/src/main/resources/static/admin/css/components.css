@@ -172,6 +172,8 @@
 }
 
 .admin-filters input[type="search"],
+.admin-filters input[type="text"],
+.admin-filters input[type="datetime-local"],
 .admin-filters select {
     background: var(--surface);
     color: var(--ink);
@@ -188,6 +190,52 @@
     outline: none;
     border-color: var(--accent);
     box-shadow: var(--ring);
+}
+
+/* Multi-field filter bar: labelled controls that wrap into a grid, for pages
+   that filter on more than a single search term. */
+.admin-filters--grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px 14px;
+    align-items: end;
+    padding: 14px 16px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+}
+
+.admin-filter-field label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-3);
+    margin-bottom: 5px;
+}
+
+.admin-filters--grid .admin-filter-field input,
+.admin-filters--grid .admin-filter-field select {
+    width: 100%;
+    min-width: 0;
+}
+
+.admin-filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Secondary navigation inside a definition list — pivots to a filtered view. */
+.admin-inline-link {
+    margin-left: 10px;
+    font-size: 11.5px;
+    color: var(--ink-3);
+}
+
+.admin-inline-link:hover {
+    color: var(--accent);
 }
 
 /* ------------------------------------------------- Signal — shared state DNA
@@ -226,6 +274,7 @@
 .badge--active,
 .badge--approved,
 .badge--accepted,
+.badge--success,
 .badge--in_progress,
 .badge--completed {
     background: var(--ok-tint);
@@ -247,6 +296,7 @@
 .badge--disabled,
 .badge--expired,
 .badge--revoked,
+.badge--failure,
 .badge--cancelled {
     background: var(--fail-tint);
     color: var(--fail);

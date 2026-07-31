@@ -302,6 +302,60 @@ Audited via `ADMIN_INVITATION_REVOKED` and `ADMIN_INVITATION_REGENERATED`
 - Used/accepted-invitation rules do not apply: that state does not exist in this
   model.
 
+## Audit event review filters (OPS-02)
+
+`GET /admin/audit-logs` is a **read-only, GET-only** review page over
+`security_audit_events`. There is no POST endpoint, no delete, no retention
+action and no export — the console can narrow the log, never change it.
+
+### Supported filters
+
+All filters combine with **AND**, all are query parameters, and all are built
+through the JPA Criteria API (`AdminAuditQuery`), so no user input is ever
+concatenated into a query.
+
+| Parameter | Column | Matching |
+| --- | --- | --- |
+| `eventType` | `event_type` | exact, from a dropdown of `SecurityAuditEventType` values |
+| `outcome` | `success` | `success` / `failure` |
+| `actor` | `normalized_email`, `actor_user_id`, `user_id` | case-insensitive *contains* on the email; when the term parses as a UUID it also matches either id |
+| `organizationId` | `organization_id` | exact UUID |
+| `ip` | `ip_address` | case-insensitive *contains*, so `10.0.` matches a range |
+| `from` / `to` | `created_at` | `>= from`, `<= to`; a `datetime-local` or bare date read as **UTC** — the zone every admin timestamp is rendered in. A bare date as `to` covers the whole day |
+| `page` / `size` | — | default **25**, max **100** |
+
+The detail page links back into the filtered list for the event's type, actor,
+subject user and organization, and the list's organization column does the same,
+so a single event pivots to everything related to it.
+
+### Behaviour
+
+- Ordering is `created_at DESC, id DESC`. Rows written by one request share a
+  timestamp, so paging is only deterministic with the id tiebreaker.
+- **Nothing throws.** Filters bind as raw strings and parse leniently: an unknown
+  event type, a malformed UUID, an unreadable date, a non-numeric `page`/`size`
+  are dropped, and the remaining filters still apply. This matters because
+  `AdminErrorAdvice` turns any escaping exception into a **500**, so a
+  hand-edited query string would otherwise render an error page.
+- Operator-typed LIKE wildcards (`%`, `_`, `\`) are escaped, so `%` matches a
+  literal percent sign rather than every row.
+- Pagination links carry every filter (`AdminListView.baseQuery`).
+
+### Deliberately not implemented
+
+- **`details` is neither rendered nor searchable.** The free-form metadata column
+  is excluded from both audit read models by design, so no secret written there
+  can reach the console — that safety is worth more than full-text search over
+  it. Searching `details` would also have meant `LIKE` over an unindexed `TEXT`
+  column across the whole audit history.
+- **Event category/prefix filter** (`ADMIN_*`, `AUTH_*`) — the enum has no
+  consistent taxonomy (`SYSTEM_ADMIN_BOOTSTRAP_*` vs `ADMIN_*` vs bare
+  `LOGIN_*`), so a derived prefix would be inventing a category system. Adding a
+  new audit taxonomy is an explicit non-goal.
+- **User-agent filter** — stored and shown on the detail page, but filtering an
+  audit log by browser string is not a triage workflow worth a form field.
+- No export, no deletion, no retention policy, no severity classification.
+
 ### Relationship to `/api/admin/monitor`
 
 The monitor from PR #47 is preserved: same controller and secret masking, now
@@ -318,7 +372,9 @@ signed-in admin's name, a `SYSTEM_ADMIN` badge, and a logout button.
   `layout/messages.html` — shell parts. The sidebar shows only entries
   implemented in this PR and highlights the active section via `activeNav`.
 - `fragments/` — `table.html` (card wrapper), `pagination.html`, `filters.html`
-  (search box), `badges.html` (status badge), `empty-state.html`.
+  (search box), `badges.html` (status badge), `empty-state.html`. Pages needing
+  more than one filter build a labelled `.admin-filters--grid` form inline (see
+  `audit-logs/list.html`).
 - `dashboard/index.html`, `<entity>/list.html`, `<entity>/detail.html`,
   `error/{403,404,500}.html`.
 
@@ -352,6 +408,10 @@ tables + pagination). `js/admin.js` is optional progressive enhancement only
 - Search/filter/sort are retained across pagination via `AdminListView.baseQuery`.
 - Invalid enum filters (e.g. `?status=BANANA`) are ignored with a visible
   message — never a stack trace.
+- The audit page additionally binds `page`/`size` as raw strings and parses them
+  through `AdminPaging.number`, so a non-numeric value falls back to the default
+  instead of raising a type mismatch. Other list pages still bind them as
+  `Integer`; a hand-edited `?page=abc` there renders the 500 page.
 - Postgres note: search uses a precomputed lower-cased LIKE pattern
   (`AdminPaging.likePattern`) rather than a nullable bind inside `concat(...)`,
   which avoids the `lower(bytea)` type-inference error.
@@ -416,6 +476,13 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   unknown id `404`, CSRF-less `403`, suspend/activate, self-suspend blocked,
   last active SYSTEM_ADMIN suspend blocked, unlock clears lock + failed attempts,
   API isolation, and no sensitive values.
+- `AdminAuditFiltersIntegrationTest` — anonymous/non-SYSTEM_ADMIN blocked,
+  newest-first stable ordering under equal timestamps, per-filter isolation
+  (event type, organization, outcome, actor by email and by user id, IP, date
+  from/to), AND semantics for combined filters, pagination preserving every
+  filter, unreadable enum/UUID/date/page/size narrowing instead of erroring,
+  escaped LIKE wildcards, `details` never reaching the HTML, and repeated GETs
+  leaving audit rows untouched.
 - `AdminUserRoleManagementIntegrationTest` — grant/revoke persist + audit, grant
   does not create assignment/ownership, idempotent duplicate/missing, CSRF-less
   `403`, tampered `SYSTEM_ADMIN` grant/revoke blocked, self-revoke blocked,
@@ -435,7 +502,9 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
   password/email changes, no user hard delete.
 - Access is a per-user SYSTEM_ADMIN browser session; `SYSTEM_ADMIN` itself is not
   grantable/revocable from the console (managed out of band).
-- Audit-log page paginates by newest-first without a search filter yet.
+- Audit review filters only what `SecurityAuditEvent` actually stores; the
+  free-form `details` column is neither rendered nor searchable (OPS-02), and
+  there is no export or retention policy.
 - Organization detail lists departments by name/link only (member counts live on
   the Departments page) to avoid fabricating per-row counts.
 
@@ -448,4 +517,5 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 - **ADMIN-UI-05** — Safe User Administration Forms (account operations). ✅ Done.
 - **ADMIN-UI-06** — Safe User Role Management. ✅ Done (this PR).
 - **ADMIN-UI-07** — Safe Invitation Administration Actions. ✅ Done (this PR).
+- **OPS-02** — Advanced Audit/Admin Event Review Filters. ✅ Done (this PR).
 - **ADMIN-UI-08** — Production polish, accessibility, and query performance pass.
