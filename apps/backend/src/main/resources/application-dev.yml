@@ -22,3 +22,13 @@ spring:
   mail:
     host: localhost
     port: 1025
+
+potriv:
+  dev:
+    # `ddl-auto: update` never refreshes an existing enum CHECK constraint, so a
+    # local database created by older code silently rejects new enum values.
+    # Fail fast at startup with an actionable message instead of surfacing it as
+    # a confusing error on the first audited write.
+    schema-drift:
+      enabled: true
+      fail-fast: true

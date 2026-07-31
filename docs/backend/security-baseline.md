@@ -72,6 +72,7 @@ token → `403`).
 | Password reset token | **SHA-256 hash** (`password_reset_tokens.token_hash`) | 30-minute TTL |
 | Organization invite token | **raw value** (`invite_tokens.token`) | see §5, accepted risk |
 | JWT signing secret | environment only | HS256, min 32 bytes enforced by `JwtProperties` in *every* profile |
+| Bootstrap admin password | environment only, stored as BCrypt hash | Reconciled on every start, so `SYSTEM_ADMIN_PASSWORD` rotates the credential without manual database access. Audit rows record only the **names** of changed fields — never the password or its hash. |
 
 Login lockout: 5 failed attempts → 15-minute lock (`app.auth.*`), applied by both
 the JWT and admin login paths.
@@ -331,9 +332,12 @@ this repository's commits**:
   the only Flyway-managed environment.
 - **Dev database enum `CHECK` drift.** `update` never refreshes an existing
   `CHECK` constraint, so a dev database can reject new enum values (this really
-  happened with new `ADMIN_*` audit events). Fix by recreating the dev database
-  (`docker compose down --volumes && docker compose up -d`). Production is
-  unaffected, and the migration test guards against shipping the drift.
+  happened with new `ADMIN_*` audit events). The dev profile now **detects this
+  at startup and fails fast** with an actionable message
+  (`DevSchemaDriftDetector`); fix it with `./scripts/reset-dev-db.sh --yes`. The
+  detector only reads the catalog — it never alters a schema by itself, is off by
+  default, and is never enabled in production. Production is unaffected, and the
+  migration test guards against shipping the drift.
 - **Invite tokens are stored raw**, unlike refresh and password-reset tokens.
   An organization invite is a deliberately shareable join link rather than a
   personal credential, it can be rotated (`EMPLOYEE_INVITE_ROTATED`), and it is

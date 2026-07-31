@@ -126,6 +126,7 @@ actions. See `docs/backend/environment.md` for usage.
 | --- | --- |
 | `V1__init.sql` | Original empty placeholder. Kept as-is so any database that already applied it keeps a valid checksum. |
 | `V2__create_application_schema.sql` | The real baseline: every application table, UUID primary key, foreign key, unique constraint, index, and enum `CHECK` constraint for the current entity model. |
+| `V3__refresh_audit_event_type_check.sql` | Refreshes the `security_audit_events.event_type` `CHECK` constraint for the two `SYSTEM_ADMIN_BOOTSTRAP_*` events — a worked example of the enum rule below. |
 
 A fresh production database boots cleanly: Flyway applies `V1` then `V2`, and
 Hibernate `validate` then accepts the result. This is covered automatically by
@@ -169,10 +170,12 @@ database permanently out of sync with the migrations.
 - Existing **development** databases were built by `ddl-auto: update` and have no
   Flyway history. They can also carry stale enum `CHECK` constraints, because
   `update` never refreshes an existing constraint — this is why new `ADMIN_*`
-  audit events were rejected locally while tests stayed green. Fix a drifted dev
-  database by recreating it (`docker compose down --volumes && docker compose up -d`,
-  the recommended path) or, to keep the data, by refreshing the affected
-  constraint by hand. Production is unaffected: it is Flyway-managed from the
+  audit events were rejected locally while tests stayed green. **The dev profile
+  now detects this at startup** and fails with an actionable message instead of
+  breaking later on the first audited write (see
+  [`environment.md`](environment.md#development-database-drift)). Fix it with
+  `./scripts/reset-dev-db.sh --yes`, or refresh the affected constraint by hand
+  to keep local data. Production is unaffected: it is Flyway-managed from the
   first boot.
 - The development compose file (`docker-compose.yml`) provisions local
   PostgreSQL and Mailpit only and is unchanged.

@@ -31,10 +31,21 @@ potriv:
   # login backed by the system-admin identity below.
   backend-console:
     enabled: ${BACKEND_CONSOLE_ENABLED:false}
+  # Bootstrap system administrator. Reconciled on every start: changing these
+  # values rotates the account's password/name and reactivates it, so the
+  # configuration stays the source of truth (see SystemAdminSeeder).
   system-admin:
     email: ${SYSTEM_ADMIN_EMAIL:admin@aydgn.me}
     password: ${SYSTEM_ADMIN_PASSWORD:ChangeMe123!}
     name: ${SYSTEM_ADMIN_NAME:Potriv System Admin}
+
+  dev:
+    # Development-only diagnostic for stale enum CHECK constraints left behind by
+    # Hibernate `ddl-auto: update`. Off by default; application-dev.yml opts in.
+    # Production schema is owned by Flyway and must never depend on this.
+    schema-drift:
+      enabled: false
+      fail-fast: false
 
 cors:
   # Local frontend dev servers (Vite and the Next.js control console).

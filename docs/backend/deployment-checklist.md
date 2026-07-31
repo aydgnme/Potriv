@@ -32,7 +32,10 @@ Run through this list for every production deployment of `apps/backend`.
       (e.g. `https://potriv.aydgn.me`) — no wildcards.
 - [ ] `SYSTEM_ADMIN_EMAIL` / `SYSTEM_ADMIN_PASSWORD` are overridden from their
       repository defaults before the first boot against a fresh database. These
-      double as the admin-console browser login.
+      double as the admin-console browser login. The account is **reconciled on
+      every start**, so changing `SYSTEM_ADMIN_PASSWORD` here rotates the
+      credential at the next deploy — and suspending the account will not stick.
+      See [`environment.md`](environment.md#system-administrator-bootstrap).
 - [ ] `SWAGGER_ENABLED` is unset or `false`.
 - [ ] `BACKEND_CONSOLE_ENABLED` is unset or `false` — or, if the embedded
       administration console is deliberately enabled, a strong
