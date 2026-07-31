@@ -110,7 +110,8 @@ against an empty database and additionally fails if
 | Check | Tool | Status |
 | --- | --- | --- |
 | Secret / sensitive data | `git ls-files` + targeted `grep` over tracked files | **Run.** See §4. |
-| Secret scanning (dedicated) | `gitleaks` | **Not run — not installed locally.** Must be a CI job. |
+| Secret scanning (continuous) | **GitGuardian** (connected GitHub App) | **Active and passing** on pull requests. Not configured in-repo — it is a repository/organization integration, so there is no file to review here. |
+| Secret scanning (local CLI) | `gitleaks` | **Not run — not installed locally.** Optional: GitGuardian already covers the PR path. |
 | Dependency vulnerabilities (SCA) | `org.owasp:dependency-check-maven` | See §3. |
 | SAST | SonarQube / SonarCloud | **Not active.** No workflow, no connected project. §6. |
 | SAST | CodeQL | **Not active.** No `.github/workflows/codeql.yml`. §7. |
@@ -281,7 +282,7 @@ by **PR #57** — `backend-verify` (`./mvnw -B clean verify` on Java 21) and
 | --- | --- |
 | SAST | `.github/workflows/codeql.yml` |
 | SCA | OWASP Dependency-Check, scheduled, with `NVD_API_KEY` |
-| Secret scanning | Gitleaks job and/or GitHub secret scanning + push protection |
+| Secret scanning | Already covered on PRs by the connected **GitGuardian** app. Optionally add GitHub secret scanning **push protection** so a secret is blocked at push time rather than reported after it lands. |
 
 ### Recommended CodeQL configuration
 
