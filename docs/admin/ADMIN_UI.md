@@ -45,6 +45,7 @@ are reached externally at `/api/admin/**`:
 | `GET /admin/projects` , `/{id}` | `/api/admin/projects…` |
 | `GET /admin/allocations` , `/{id}` | `/api/admin/allocations…` |
 | `GET /admin/invitations` , `/{id}` | `/api/admin/invitations…` |
+| `POST /admin/invitations/{id}/revoke` , `/regenerate` | `/api/admin/invitations/{id}/…` |
 | `GET /admin/audit-logs` , `/{id}` | `/api/admin/audit-logs…` |
 | `GET /admin/monitor` | `/api/admin/monitor` |
 | `GET /admin/login` , `POST /admin/login` | `/api/admin/login` |
@@ -140,7 +141,7 @@ for guarded deletes), and audit events. Reuse the `.admin-form-*` styles and the
 
 **Out of scope (for ADMIN-UI-03):** organization delete, organization
 address/other fields, skills CRUD (ADMIN-UI-04), project CRUD,
-allocation/deallocation actions, user role management, invitation actions, and
+allocation/deallocation actions, user role management, and
 bulk actions.
 
 ## Safe skill-catalog forms (ADMIN-UI-04)
@@ -256,6 +257,50 @@ secrets).
 **Out of scope (ADMIN-UI-06):** `SYSTEM_ADMIN` grant/revoke, department-manager
 assignment UI, project ownership UI, employee skill assignment UI, bulk role
 editing, and impersonation.
+
+## Safe invitation actions (ADMIN-UI-07)
+
+**Read the model first: a Potriv invitation is an organization-wide join link,
+not a per-recipient invite.** `InviteToken` holds an organization, a token, an
+optional `expiresAt` and an `active` flag — there is no recipient address and no
+"used"/"accepted" state, and any number of employees can register with the same
+link while `isUsable()` (`active && !expired`) holds. Status shown in the console
+is derived: `ACTIVE`, `EXPIRED`, `DISABLED`.
+
+Two actions, both `POST` + CSRF + redirect-after-POST, on the invitation detail
+page:
+
+| Action | Effect |
+| --- | --- |
+| **Revoke** | `deactivate()`s this link. It can no longer be used to register (`AuthRegistrationService` rejects a non-usable token). Idempotent — revoking an already disabled invitation reports that and changes nothing. |
+| **Regenerate** | Disables **every** active link for the organization and issues one fresh invitation, under the same pessimistic organization lock the org-admin rotation uses, so the "at most one active invite per organization" invariant holds. |
+
+**Token secrecy.** The raw token is never rendered (only the fixed `•••• (hidden)`
+mark), never logged, and never written into audit details — including the
+regenerated one. Regenerate deliberately does **not** return the new link: the
+console's job is to invalidate a leaked one, and the organization retrieves the
+replacement through its own invite endpoint.
+
+**Revoking never reaches backwards.** Employees who already registered with a
+link keep their accounts and can still sign in; only future registrations are
+blocked.
+
+Audited via `ADMIN_INVITATION_REVOKED` and `ADMIN_INVITATION_REGENERATED`
+(organization id and the replacement's *id* only).
+
+### Deliberately not implemented
+
+- **Resend** — there is no invitation email anywhere in the product. Invite links
+  are shared by the organization admin out of band; the only mail service is for
+  password reset. A "resend" button would have required inventing a delivery
+  channel, which is out of scope. **Regenerate** is the honest equivalent: it
+  invalidates the old link and produces a new one.
+- **Expire** — `isUsable()` already returns false once a link is revoked, and the
+  product never sets `expiresAt`, so a separate "expire" action would be a second
+  way to reach exactly the state Revoke produces. Redundant surface was not worth
+  adding.
+- Used/accepted-invitation rules do not apply: that state does not exist in this
+  model.
 
 ### Relationship to `/api/admin/monitor`
 
@@ -402,4 +447,5 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 - **ADMIN-UI-04** — Safe Skill Catalog Administration Forms. ✅ Done.
 - **ADMIN-UI-05** — Safe User Administration Forms (account operations). ✅ Done.
 - **ADMIN-UI-06** — Safe User Role Management. ✅ Done (this PR).
-- **ADMIN-UI-07** — Production polish, accessibility, and query performance pass.
+- **ADMIN-UI-07** — Safe Invitation Administration Actions. ✅ Done (this PR).
+- **ADMIN-UI-08** — Production polish, accessibility, and query performance pass.

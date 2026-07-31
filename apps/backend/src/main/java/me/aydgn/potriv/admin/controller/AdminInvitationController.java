@@ -6,13 +6,19 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import me.aydgn.potriv.admin.security.AdminPrincipal;
 import me.aydgn.potriv.admin.service.AdminInvitationService;
+import me.aydgn.potriv.admin.service.AdminInvitationWriteService;
+import me.aydgn.potriv.admin.service.AdminInvitationWriteService.InvitationActionOutcome;
 import me.aydgn.potriv.admin.support.AdminAccessGuard;
 import me.aydgn.potriv.admin.support.AdminPaging;
 import me.aydgn.potriv.admin.support.AdminRequests;
@@ -25,11 +31,16 @@ public class AdminInvitationController {
 
     private final AdminAccessGuard guard;
     private final AdminInvitationService invitationService;
+    private final AdminInvitationWriteService invitationWriteService;
 
     public AdminInvitationController(
-        AdminAccessGuard guard, AdminInvitationService invitationService) {
+        AdminAccessGuard guard,
+        AdminInvitationService invitationService,
+        AdminInvitationWriteService invitationWriteService
+    ) {
         this.guard = guard;
         this.invitationService = invitationService;
+        this.invitationWriteService = invitationWriteService;
     }
 
     @GetMapping("/admin/invitations")
@@ -68,5 +79,34 @@ public class AdminInvitationController {
         model.addAttribute("detailLabel", details.organizationName());
         model.addAttribute("invitation", details);
         return "admin/invitations/detail";
+    }
+
+    /** Disables an invite link. POST-redirect-GET so a refresh cannot repeat it. */
+    @PostMapping("/admin/invitations/{id}/revoke")
+    public String revoke(
+        @PathVariable UUID id,
+        @AuthenticationPrincipal AdminPrincipal principal,
+        RedirectAttributes redirectAttributes
+    ) {
+        guard.requireEnabled();
+        flash(redirectAttributes, invitationWriteService.revoke(id, principal));
+        return "redirect:/admin/invitations/" + id;
+    }
+
+    /** Disables the organization's active links and issues one fresh invitation. */
+    @PostMapping("/admin/invitations/{id}/regenerate")
+    public String regenerate(
+        @PathVariable UUID id,
+        @AuthenticationPrincipal AdminPrincipal principal,
+        RedirectAttributes redirectAttributes
+    ) {
+        guard.requireEnabled();
+        flash(redirectAttributes, invitationWriteService.regenerate(id, principal));
+        return "redirect:/admin/invitations/" + id;
+    }
+
+    private static void flash(
+        RedirectAttributes redirectAttributes, InvitationActionOutcome outcome) {
+        redirectAttributes.addFlashAttribute("adminSuccess", outcome.message());
     }
 }
