@@ -114,7 +114,7 @@ against an empty database and additionally fails if
 | Secret scanning (local CLI) | `gitleaks` | **Not run — not installed locally.** Optional: GitGuardian already covers the PR path. |
 | Dependency vulnerabilities (SCA) | `org.owasp:dependency-check-maven` | See §3. |
 | SAST | SonarQube / SonarCloud | **Not active.** No workflow, no connected project. §6. |
-| SAST | CodeQL | **Not active.** No `.github/workflows/codeql.yml`. §7. |
+| SAST | CodeQL | **Active** — `.github/workflows/codeql.yml`, per-PR and weekly. §7. |
 | Container / Dockerfile review | manual | **Run.** See §5. |
 | Production config review | manual | **Run.** See §5. |
 | Schema/enum drift | `ProductionSchemaMigrationIntegrationTest` | **Automated, green.** |
@@ -271,32 +271,56 @@ Setup still required (outside this repository):
 
 ---
 
-## 7. What CI must enforce next
+## 7. CI security gates
 
-The backend verification workflow (`.github/workflows/backend-ci.yml`) is added
-by **PR #57** — `backend-verify` (`./mvnw -B clean verify` on Java 21) and
-`production-compose-config`. That gives correctness and compose validation, but
-**no security scanning**. The remaining gaps:
+| Gate | Workflow | Trigger | Status |
+| --- | --- | --- | --- |
+| Correctness + compose validation | `backend-ci.yml` ("Backend CI") | PR → `main`, push → `main`, dispatch | **Active** (PR #57) |
+| SAST | `codeql.yml` ("CodeQL") | PR → `main`, push → `main`, weekly, dispatch | **Active** (SECURITY-02) |
+| SCA | `dependency-check.yml` ("Dependency Check") | weekly, dispatch | **Active, but a real scan needs `NVD_API_KEY`** — see below |
+| Secret scanning | GitGuardian (connected app) | PR | **Active**, no in-repo config |
+| SAST (Sonar) | — | — | **Not active.** §6 |
 
-| Gap | Suggested job |
-| --- | --- |
-| SAST | `.github/workflows/codeql.yml` |
-| SCA | OWASP Dependency-Check, scheduled, with `NVD_API_KEY` |
-| Secret scanning | Already covered on PRs by the connected **GitGuardian** app. Optionally add GitHub secret scanning **push protection** so a secret is blocked at push time rather than reported after it lands. |
+### CodeQL
 
-### Recommended CodeQL configuration
+`java-kotlin`, **manual build mode** (`./mvnw -B -DskipTests compile` from
+`apps/backend`) — autobuild is unreliable for a Maven module nested in a
+monorepo, and CodeQL only needs compiled classes, so the test suite is skipped
+here; Backend CI already runs `clean verify` on the same commit. Query packs:
+`security-extended,security-and-quality`. It runs weekly as well as per-PR, so
+newly published queries reach code that has not changed.
 
-- **Language:** `java-kotlin` (Java is currently enough).
-- **Build mode:** manual — `cd apps/backend && ./mvnw -B -DskipTests compile`.
-  Autobuild is unreliable for a nested Maven module in a monorepo, and CodeQL
-  only needs compiled classes, so skipping tests keeps it fast.
-- **Triggers:** pull requests to `main`, pushes to `main`, plus a weekly
-  schedule (so newly published rules reach existing code).
+### Dependency-Check
 
-### Branch protection (a GitHub setting, not code)
+Scheduled weekly and manually dispatchable — deliberately **not** on pull
+requests, because the NVD sync would dominate PR feedback time.
 
-Once the first runs are green, require on `main`: `Backend CI / backend-verify`,
-and later the CodeQL check.
+**`NVD_API_KEY` is required for the workflow to actually scan.** Without the
+secret the job prints a GitHub warning and exits successfully rather than
+starting a rate-limited multi-hour anonymous sync that usually fails anyway. So
+a green "Dependency Check" run does **not** by itself prove the dependency tree
+was scanned — check the run log or the uploaded report artifact.
+
+Configuration: plugin pinned to `12.2.2`, `failBuildOnCVSS=9` (only critical
+findings break the build at first, so noisy medium/low CVEs cannot make the gate
+useless), HTML + JSON reports uploaded as artifacts, NVD dataset cached between
+runs. No suppressions exist; adding one requires a written per-CVE
+justification.
+
+Free key: <https://nvd.nist.gov/developers/request-an-api-key> → store as the
+`NVD_API_KEY` repository secret.
+
+### Repository settings still to apply manually
+
+These are GitHub settings, not code, and **none of them has been configured by
+this repository's commits**:
+
+1. **Branch protection on `main`** — require `Backend CI / backend-verify`; add
+   the CodeQL check once its first runs are stably green.
+2. **`NVD_API_KEY` secret** — without it, Dependency Check reports a warning and
+   scans nothing.
+3. **GitHub secret scanning push protection** — GitGuardian reports a leak after
+   it is pushed; push protection blocks it at push time.
 
 ---
 
