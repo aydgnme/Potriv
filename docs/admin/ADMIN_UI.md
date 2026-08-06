@@ -10,9 +10,79 @@ projects, allocations, invitations, audit logs) and system health from the
 backend runtime itself.
 
 The console started read-only (PR #49) and gained SYSTEM_ADMIN session login
-(PR #50) and a unified design language (PR #51). It is now **mostly read-only**:
-the only write surfaces are the safe organization/department forms added in
-ADMIN-UI-03 (see below). Everything else remains inspection-only.
+(PR #50), a unified design language (PR #51), and then a deliberately narrow set
+of write surfaces. It is now **read-first with a small, audited set of safe
+actions**: organization rename; department create/edit/delete; skill-category and
+skill catalog management; user name edit, activate/suspend and unlock; manageable
+role grant/revoke; invitation revoke/regenerate; and project status change and
+delete. Everything else — allocations, proposals, audit events, the domain's own
+workflows — stays inspection-only, on purpose.
+
+Each action reuses the product's own rules rather than a console-specific
+shortcut; where a domain service could not be reused, the reason is written down
+under that section's *Deliberately not implemented*.
+
+## Running the console locally
+
+The console is **disabled by default** and answers an anti-leak `404` on every
+route until it is switched on.
+
+```bash
+cd apps/backend
+BACKEND_CONSOLE_ENABLED=true \
+SYSTEM_ADMIN_EMAIL=admin@aydgn.me \
+SYSTEM_ADMIN_PASSWORD='strong-local-password' \
+SYSTEM_ADMIN_NAME='Mert Aydogan' \
+./mvnw spring-boot:run
+```
+
+Then sign in at:
+
+```text
+http://localhost:8080/api/admin/login
+```
+
+`SystemAdminSeeder` reconciles the bootstrap account on every start, so changing
+`SYSTEM_ADMIN_PASSWORD` and restarting **rotates the credential** — no manual
+database access is needed. The email is normalized (trimmed and lower-cased)
+before lookup, and audit rows record only the *names* of the fields that changed.
+
+If the local dev database rejects a new audit event type, that is enum `CHECK`
+drift from `ddl-auto: update`; the dev profile detects it at startup and prints
+the fix. Reset with `./scripts/reset-dev-db.sh --yes`.
+
+### What a SYSTEM_ADMIN can do
+
+| Area | Actions |
+| --- | --- |
+| Organizations | Rename |
+| Departments | Create, rename, dependency-safe delete |
+| Skill catalog | Create/edit categories and skills, deactivate/reactivate skills, add/remove skill–department links |
+| Users | Edit name, activate/suspend, unlock and reset failed attempts |
+| Roles | Grant/revoke `EMPLOYEE`, `ORGANIZATION_ADMIN`, `DEPARTMENT_MANAGER`, `PROJECT_MANAGER` |
+| Invitations | Revoke a link, regenerate an organization's link |
+| Projects | Change status, delete while still in planning |
+| Everything else | Read, filter, paginate |
+
+### What a SYSTEM_ADMIN deliberately cannot do
+
+Grant or revoke `SYSTEM_ADMIN`; change a password or email; hard-delete a user;
+delete an organization or a skill category; edit project metadata; approve,
+reject or reverse an allocation or proposal; export, edit or delete audit events;
+or run any bulk/destructive operation. See **Known limitations** for the reasons.
+
+### Demo checklist
+
+Sign in, then walk: dashboard → users (search, open one, view roles) →
+organizations (open one, follow the *Skills* / *Allocations* / *Audit events*
+pivots) → departments (open one, try the delete confirmation on a department with
+members and read the blocked reason) → projects (open one, read Status History,
+change a status, open the delete confirmation) → allocations (filter by status and
+date, open one, read the Assignment Review card) → invitations (open one, read the
+warning banner) → skills and categories → audit logs (filter by event type,
+outcome, actor and date; follow a pivot) → monitor. Finally, hand-edit a URL
+(`?page=abc`, `/admin/users/not-a-uuid`) and confirm you get a normal page or the
+admin 404 rather than an error.
 
 ## Architecture
 
@@ -690,20 +760,53 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 
 ## Known limitations
 
-- Writes cover organization rename, department create/edit/delete (ADMIN-UI-03),
-  skill-category + skill catalog management (ADMIN-UI-04), a safe user
-  account-operations slice — name edit, activate/suspend, unlock (ADMIN-UI-05) —
-  and manageable-role grant/revoke (ADMIN-UI-06). Everything else is read-only:
-  no other domain actions, no bulk operations, no organization delete, no
-  category delete/deactivate, no `SYSTEM_ADMIN` role management, no
-  password/email changes, no user hard delete.
-- Access is a per-user SYSTEM_ADMIN browser session; `SYSTEM_ADMIN` itself is not
-  grantable/revocable from the console (managed out of band).
-- Audit review filters only what `SecurityAuditEvent` actually stores; the
-  free-form `details` column is neither rendered nor searchable (OPS-02), and
-  there is no export or retention policy.
-- Organization detail lists departments by name/link only (member counts live on
-  the Departments page) to avoid fabricating per-row counts.
+Truthful as of the console-finalization PR.
+
+**Write surface**
+
+- Actions are limited to the list in the Overview. There are **no bulk
+  operations**, no data purge, no audit deletion or retention job, no audit
+  export, no organization delete, no skill-category delete, no user hard delete,
+  and no password or email changes.
+- `SYSTEM_ADMIN` itself is not grantable or revocable from the console; it is
+  managed out of band through the bootstrap environment variables.
+- **Project metadata** (name, schedule, description, technology stack, team role
+  requirements) is not editable here: `ProjectService.update` is gated on the
+  caller being the project's own manager, and reproducing its cross-entity
+  validation in the console would duplicate real logic with drift risk.
+- **Allocations and proposals are read-only.** No force-approve, force-reject or
+  force-deallocate: no domain service exposes such an override, and adding one
+  would bypass the review workflow the product is built around.
+
+**Review surface**
+
+- Audit review filters only what `SecurityAuditEvent` actually stores. The
+  free-form `details` column is neither rendered nor searchable, so a secret
+  accidentally written there cannot leak through the console — at the cost of
+  full-text search over it.
+- The users and projects lists have no organization filter, so an organization's
+  user and project counts are plain numbers rather than pivots.
+- Organization detail lists departments by name/link only; per-row member counts
+  live on the Departments page rather than being fabricated here.
+
+**Platform**
+
+- **Invite tokens are stored raw**, unlike refresh and password-reset tokens. The
+  console never renders one, and a leaked link can be killed from the invitation
+  page, but hashing them remains an open hardening step (see
+  `docs/backend/security-baseline.md` §8).
+- **CodeQL has 8 open alerts** (3 high, 5 note), all pre-existing and triaged in
+  `security-baseline.md` §2/§7. None were introduced or suppressed by this work.
+- **Dependency-Check runs on a weekly schedule and on manual dispatch only** — it
+  does not run on pull requests, and it skips itself with a warning when
+  `NVD_API_KEY` is absent rather than starting an unauthenticated multi-hour sync.
+- A **malformed `page`, `size`, filter value or path id** is normalized or
+  answered with the admin 404; encoded spaces, semicolons and path traversal are
+  refused with a `400` by Spring Security's firewall before routing.
+- **No browser smoke test was performed for this PR.** Correctness is asserted by
+  integration tests against rendered HTML, and every CSS class used by the admin
+  templates was checked mechanically against the stylesheets; the pages were not
+  opened in a real browser.
 
 ## Follow-up PRs
 
@@ -715,5 +818,8 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
 - **ADMIN-UI-06** — Safe User Role Management. ✅ Done (this PR).
 - **ADMIN-UI-07** — Safe Invitation Administration Actions. ✅ Done (this PR).
 - **OPS-02** — Advanced Audit/Admin Event Review Filters. ✅ Done.
-- **ADMIN-HARDEN-01** — Admin List Pagination Hardening. ✅ Done (this PR).
+- **ADMIN-HARDEN-01** — Admin List Pagination Hardening. ✅ Done.
+- **Console finalization** — path-variable hardening, safe project administration
+  actions, allocation review filters, cross-page consistency, accessibility and
+  layout polish, and this documentation pass. ✅ Done (this PR).
 - **ADMIN-UI-08** — Production polish, accessibility, and query performance pass.

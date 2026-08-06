@@ -37,6 +37,13 @@ Run through this list for every production deployment of `apps/backend`.
       credential at the next deploy — and suspending the account will not stick.
       See [`environment.md`](environment.md#system-administrator-bootstrap).
 - [ ] `SWAGGER_ENABLED` is unset or `false`.
+- [ ] If the console **is** enabled, confirm what it grants: a `SYSTEM_ADMIN`
+      can rename organizations, manage departments and the skill catalog, edit
+      user names, activate/suspend/unlock accounts, grant manageable roles,
+      revoke/regenerate invitations, and change or delete a project that is still
+      in planning. It cannot grant `SYSTEM_ADMIN`, change passwords or emails,
+      hard-delete users, delete organizations, or touch allocations, proposals or
+      audit events. See [`../admin/ADMIN_UI.md`](../admin/ADMIN_UI.md).
 - [ ] `BACKEND_CONSOLE_ENABLED` is unset or `false` — or, if the embedded
       administration console is deliberately enabled, a strong
       `SYSTEM_ADMIN_PASSWORD` (≥ 12 chars, no placeholder) is set (the console
