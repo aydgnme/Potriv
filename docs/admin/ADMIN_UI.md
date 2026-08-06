@@ -430,6 +430,28 @@ values (shown as a fixed masked hint), audit `details` metadata, and normalized
 names. Detail pages may show full UUIDs under a Metadata section; tables show
 short/abbreviated identifiers or link text.
 
+## Unreadable request values
+
+The console answers a mistyped URL with its own pages, never a stack trace:
+
+- **Malformed path id** (`/admin/users/not-a-uuid`) → admin **404**.
+  `AdminErrorAdvice` maps Spring's `MethodArgumentTypeMismatchException` to the
+  same page an unknown id produces, which is also the answer that discloses least.
+  The mapping is deliberately narrow — a conversion failure raised deeper in the
+  stack is a real defect and still surfaces as a 500.
+- **Malformed `page`/`size`** → normalized by `AdminPaging` (see the conventions
+  above); the list still renders.
+- **Malformed filter values** → dropped by the page's own parser; remaining
+  filters still apply.
+- **Encoded spaces, semicolons and path traversal** (`/admin/users/%20`,
+  `..%2F..%2Fetc`) never reach MVC at all: Spring Security's `StrictHttpFirewall`
+  refuses them with a **400** before routing. That control is deliberately left
+  as-is.
+
+Security is evaluated before any of this: an anonymous request to a malformed URL
+is redirected to the login page and learns nothing, and a POST without a CSRF
+token is `403` regardless of whether its id would have parsed.
+
 ## Error pages
 
 `AdminErrorAdvice` (scoped to `me.aydgn.potriv.admin.controller`, so it never
@@ -514,9 +536,6 @@ Run: `cd apps/backend && ./mvnw test && ./mvnw verify`.
   password/email changes, no user hard delete.
 - Access is a per-user SYSTEM_ADMIN browser session; `SYSTEM_ADMIN` itself is not
   grantable/revocable from the console (managed out of band).
-- Path variables are still bound as typed values, so a malformed id such as
-  `/admin/users/not-a-uuid` renders the 500 page rather than the admin `404`.
-  Pagination hardening (ADMIN-HARDEN-01) did not cover this.
 - Audit review filters only what `SecurityAuditEvent` actually stores; the
   free-form `details` column is neither rendered nor searchable (OPS-02), and
   there is no export or retention policy.
