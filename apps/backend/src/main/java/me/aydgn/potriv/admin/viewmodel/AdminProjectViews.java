@@ -38,6 +38,8 @@ public final class AdminProjectViews {
         List<RoleRequirement> teamRoleRequirements,
         List<Member> activeMembers,
         List<Member> pastMembers,
+        List<StatusChange> statusHistory,
+        boolean deletable,
         long pendingAssignmentProposals,
         long pendingDeallocationProposals,
         OffsetDateTime createdAt,
@@ -45,6 +47,16 @@ public final class AdminProjectViews {
     ) {
 
         public record RoleRequirement(String roleName, int requiredMembers, boolean active) {
+        }
+
+        /** One recorded lifecycle transition, newest first. */
+        public record StatusChange(
+            String fromStatus,
+            String toStatus,
+            String changedByName,
+            UUID changedById,
+            OffsetDateTime changedAt
+        ) {
         }
 
         public record Member(

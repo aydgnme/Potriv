@@ -210,6 +210,30 @@ benign and were each inspected:
 - The monitor shows `jwtSecretConfigured` as a **boolean** and token TTLs as
   durations — never the secret itself.
 
+### Administration console posture (finalized)
+
+- **One boundary.** Everything under `/admin/**` is the SYSTEM_ADMIN session
+  chain; the REST API stays stateless Bearer/JWT with CSRF disabled by design. An
+  admin session grants nothing on the API and a JWT grants nothing on the console.
+- **Every mutation is `POST` + CSRF + redirect-after-POST.** No GET route mutates
+  anything; the allocation and audit review pages have no mutation endpoint at all.
+- **Every mutation is audited** with the acting administrator's user id, and audit
+  `details` carry field *names* and ids — never values, tokens or hashes.
+- **Unreadable input never becomes a 500.** Pagination and filters normalize;
+  a malformed path id renders the admin 404. Encoded spaces, semicolons and path
+  traversal are refused with `400` by Spring Security's firewall before routing.
+- **Audit `details` is not a read surface.** It is excluded from both admin read
+  models, so a secret accidentally recorded there cannot reach the console.
+
+### Audit event and migration policy
+
+Adding a `SecurityAuditEventType` value **requires** a Flyway migration that drops
+and recreates the `security_audit_events.event_type` `CHECK` constraint with the
+complete current value set (`V3`, `V4`, `V5` are the worked examples).
+`ProductionSchemaMigrationIntegrationTest` iterates the enum and fails if the
+constraint falls behind, so this cannot be forgotten silently. Never edit a
+migration that has already been applied.
+
 ### Historical finding (fixed, worth recording)
 
 `.env.prod.example` briefly carried a weak real-looking console password

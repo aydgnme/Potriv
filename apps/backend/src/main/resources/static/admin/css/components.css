@@ -227,6 +227,40 @@
     align-items: center;
 }
 
+/* A single action rendered as one row: label, control, submit. For a card that
+   performs one small operation rather than editing a whole record. */
+.admin-inline-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.admin-inline-form label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--ink-3);
+}
+
+.admin-inline-form select {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-sm);
+    padding: 6px 11px;
+    font-size: 12.5px;
+    font-family: inherit;
+    min-width: 180px;
+}
+
+.admin-inline-form select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: var(--ring);
+}
+
 /* Secondary navigation inside a definition list — pivots to a filtered view. */
 .admin-inline-link {
     margin-left: 10px;
@@ -306,6 +340,7 @@
 .signal--idle,
 .badge--not_started,
 .badge--past,
+.badge--inactive,
 .badge--suspended,
 .badge--closed {
     background: var(--idle-tint);

@@ -36,8 +36,7 @@
             <dd><a th:href="@{'/admin/users/' + ${skill.authorId}}"
                    th:text="${skill.authorName}">Author</a></dd>
             <dt>Status</dt>
-            <dd><span class="signal" th:classappend="${skill.active} ? 'signal--ok' : 'signal--idle'"
-                      th:text="${skill.active} ? 'Active' : 'Inactive'">Active</span></dd>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${skill.active} ? 'Active' : 'Inactive')}"></span></dd>
             <dt>Employees with skill</dt>
             <dd class="mono" th:text="${skill.employeeAssignments}">0</dd>
         </dl>

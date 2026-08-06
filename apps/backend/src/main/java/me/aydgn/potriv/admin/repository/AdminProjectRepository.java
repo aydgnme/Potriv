@@ -13,6 +13,7 @@ import org.springframework.data.repository.query.Param;
 
 import me.aydgn.potriv.project.entity.Project;
 import me.aydgn.potriv.project.entity.ProjectStatus;
+import me.aydgn.potriv.project.entity.ProjectStatusHistory;
 
 public interface AdminProjectRepository extends Repository<Project, UUID> {
 
@@ -31,6 +32,10 @@ public interface AdminProjectRepository extends Repository<Project, UUID> {
         + "left join fetch p.projectManager left join fetch p.organization "
         + "where p.id = :id")
     Optional<Project> findDetailById(@Param("id") UUID id);
+
+    @Query("select h from ProjectStatusHistory h left join fetch h.changedBy "
+        + "where h.project.id = :projectId order by h.createdAt desc, h.id desc")
+    List<ProjectStatusHistory> findStatusHistory(@Param("projectId") UUID projectId);
 
     @Query("select t.project.id, count(t) from ProjectTechnology t "
         + "where t.project.id in :ids group by t.project.id")

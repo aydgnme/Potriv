@@ -48,9 +48,6 @@ import me.aydgn.potriv.project.repository.ProjectTechnologyRepository;
 @Service
 public class ProjectService {
 
-    private static final Set<ProjectStatus> DELETION_BLOCKING_STATUSES = Set.of(
-        ProjectStatus.IN_PROGRESS, ProjectStatus.CLOSING, ProjectStatus.CLOSED);
-
     private final ProjectRepository projectRepository;
     private final ProjectTechnologyRepository technologyRepository;
     private final ProjectTeamRoleRequirementRepository requirementRepository;
@@ -224,7 +221,7 @@ public class ProjectService {
 
         // The historical rule cannot be bypassed by the current status.
         if (statusHistoryRepository.existsByProject_IdAndToStatusIn(
-            project.getId(), DELETION_BLOCKING_STATUSES)) {
+            project.getId(), ProjectStatus.deletionBlockingStatuses())) {
             throw new ConflictException(
                 "This project has progressed beyond planning and can no longer be deleted.");
         }

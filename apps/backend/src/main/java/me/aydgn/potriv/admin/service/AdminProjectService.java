@@ -18,6 +18,7 @@ import me.aydgn.potriv.allocation.entity.ProjectAllocation;
 import me.aydgn.potriv.allocation.repository.ProjectAllocationRepository;
 import me.aydgn.potriv.project.entity.Project;
 import me.aydgn.potriv.project.entity.ProjectStatus;
+import me.aydgn.potriv.project.entity.ProjectStatusHistory;
 import me.aydgn.potriv.project.repository.ProjectTeamRoleRequirementRepository;
 import me.aydgn.potriv.project.repository.ProjectTechnologyRepository;
 
@@ -28,17 +29,20 @@ public class AdminProjectService {
     private final ProjectTechnologyRepository technologyRepository;
     private final ProjectTeamRoleRequirementRepository requirementRepository;
     private final ProjectAllocationRepository allocationRepository;
+    private final AdminProjectWriteService projectWriteService;
 
     public AdminProjectService(
         AdminProjectRepository projectRepository,
         ProjectTechnologyRepository technologyRepository,
         ProjectTeamRoleRequirementRepository requirementRepository,
-        ProjectAllocationRepository allocationRepository
+        ProjectAllocationRepository allocationRepository,
+        AdminProjectWriteService projectWriteService
     ) {
         this.projectRepository = projectRepository;
         this.technologyRepository = technologyRepository;
         this.requirementRepository = requirementRepository;
         this.allocationRepository = allocationRepository;
+        this.projectWriteService = projectWriteService;
     }
 
     @Transactional(readOnly = true)
@@ -88,6 +92,10 @@ public class AdminProjectService {
             allocationRepository.findPastByProjectIdWithDetails(id).stream()
                 .map(AdminProjectService::toMember).toList();
 
+        List<AdminProjectViews.Details.StatusChange> statusHistory =
+            projectRepository.findStatusHistory(id).stream()
+                .map(AdminProjectService::toStatusChange).toList();
+
         return new AdminProjectViews.Details(
             project.getId(),
             project.getName(),
@@ -103,10 +111,22 @@ public class AdminProjectService {
             requirements,
             activeMembers,
             pastMembers,
+            statusHistory,
+            projectWriteService.deletable(id),
             projectRepository.countPendingAssignmentProposals(id),
             projectRepository.countPendingDeallocationProposals(id),
             project.getCreatedAt(),
             project.getUpdatedAt());
+    }
+
+    private static AdminProjectViews.Details.StatusChange toStatusChange(
+        ProjectStatusHistory history) {
+        return new AdminProjectViews.Details.StatusChange(
+            history.getFromStatus() == null ? "—" : history.getFromStatus().name(),
+            history.getToStatus().name(),
+            history.getChangedBy().getName(),
+            history.getChangedBy().getId(),
+            history.getCreatedAt());
     }
 
     private static AdminProjectViews.Details.Member toMember(ProjectAllocation allocation) {

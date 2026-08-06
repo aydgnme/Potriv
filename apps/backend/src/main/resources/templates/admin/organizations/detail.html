@@ -15,9 +15,19 @@
         <dl class="admin-dl">
             <dt>Name</dt><dd th:text="${organization.name}">Name</dd>
             <dt>Headquarter</dt><dd th:text="${organization.headquarterAddress}">Address</dd>
-            <dt>Users</dt><dd th:text="${organization.usersCount}">0</dd>
-            <dt>Departments</dt><dd th:text="${organization.departmentsCount}">0</dd>
-            <dt>Projects</dt><dd th:text="${organization.projectsCount}">0</dd>
+            <dt>Users</dt><dd class="mono" th:text="${organization.usersCount}">0</dd>
+            <dt>Departments</dt>
+            <dd class="mono" th:text="${organization.departmentsCount}">0</dd>
+            <dt>Projects</dt><dd class="mono" th:text="${organization.projectsCount}">0</dd>
+            <dt>Related</dt>
+            <dd>
+                <a class="admin-inline-link"
+                   th:href="@{/admin/skills(organization=${organization.id})}">Skills</a>
+                <a class="admin-inline-link"
+                   th:href="@{/admin/allocations(organizationId=${organization.id})}">Allocations</a>
+                <a class="admin-inline-link"
+                   th:href="@{/admin/audit-logs(organizationId=${organization.id})}">Audit events</a>
+            </dd>
         </dl>
     </section>
 
@@ -25,14 +35,16 @@
         <h2 class="admin-card-title">Departments</h2>
         <div th:if="${organization.departments.isEmpty()}"
              th:replace="~{admin/fragments/empty-state :: empty('No departments.')}"></div>
-        <table th:unless="${organization.departments.isEmpty()}" class="admin-table">
-            <thead><tr><th>Name</th></tr></thead>
-            <tbody>
-            <tr th:each="dept : ${organization.departments}">
-                <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="admin-table-scroll">
+            <table th:unless="${organization.departments.isEmpty()}" class="admin-table">
+                <thead><tr><th>Name</th></tr></thead>
+                <tbody>
+                <tr th:each="dept : ${organization.departments}">
+                    <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <section class="admin-card">

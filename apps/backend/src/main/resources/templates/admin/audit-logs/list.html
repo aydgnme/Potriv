@@ -65,31 +65,33 @@
              ? 'No audit events match these filters.' : 'No audit events.')}"></div>
     </div>
 
-    <table th:unless="${list.items.isEmpty()}" class="admin-table">
-        <thead>
-        <tr>
-            <th>Timestamp</th><th>Event</th><th>Outcome</th>
-            <th>Actor</th><th>Organization</th><th>IP</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr th:each="event : ${list.items}">
-            <td><a th:href="@{'/admin/audit-logs/' + ${event.id}}"
-                   th:text="${@adminFormat.dateTime(event.createdAt)}">date</a></td>
-            <td><code th:text="${event.eventType}">EVENT</code></td>
-            <td><span th:replace="~{admin/fragments/badges :: badge(${event.outcome})}"></span></td>
-            <td th:text="${event.actor}">actor</td>
-            <!-- Pivots to every event recorded for the same organization. -->
-            <td>
-                <a th:if="${event.organizationId != null}"
-                   th:href="@{/admin/audit-logs(organizationId=${event.organizationId})}"
-                   th:text="${@adminFormat.shortId(event.organizationId)}">org</a>
-                <span th:if="${event.organizationId == null}" class="muted">—</span>
-            </td>
-            <td th:text="${event.ipAddress} ?: '—'">ip</td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="admin-table-scroll">
+        <table th:unless="${list.items.isEmpty()}" class="admin-table">
+            <thead>
+            <tr>
+                <th>Timestamp</th><th>Event</th><th>Outcome</th>
+                <th>Actor</th><th>Organization</th><th>IP</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="event : ${list.items}">
+                <td><a th:href="@{'/admin/audit-logs/' + ${event.id}}"
+                       th:text="${@adminFormat.dateTime(event.createdAt)}">date</a></td>
+                <td><code th:text="${event.eventType}">EVENT</code></td>
+                <td><span th:replace="~{admin/fragments/badges :: badge(${event.outcome})}"></span></td>
+                <td th:text="${event.actor}">actor</td>
+                <!-- Pivots to every event recorded for the same organization. -->
+                <td>
+                    <a th:if="${event.organizationId != null}"
+                       th:href="@{/admin/audit-logs(organizationId=${event.organizationId})}"
+                       th:text="${@adminFormat.shortId(event.organizationId)}">org</a>
+                    <span th:if="${event.organizationId == null}" class="muted">—</span>
+                </td>
+                <td th:text="${event.ipAddress} ?: '—'">ip</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 
     <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
 </div>

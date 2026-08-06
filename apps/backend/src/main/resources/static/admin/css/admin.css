@@ -453,6 +453,42 @@ code {
     margin: 0 0 22px;
 }
 
+/* Keyboard users land on a link that jumps past the nav; it only becomes visible
+   when focused. */
+.admin-skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+    background: var(--accent);
+    color: var(--accent-ink);
+    padding: 10px 16px;
+    border-radius: 0 0 var(--r-sm) 0;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.admin-skip-link:focus {
+    left: 0;
+    text-decoration: none;
+}
+
+/* Long machine values never stretch a card. */
+code, .mono {
+    overflow-wrap: anywhere;
+}
+
+/* Respect a reduced-motion preference: the console has no motion worth keeping. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
 /* --------------------------------------------------------------- Responsive */
 @media (max-width: 860px) {
     .admin-shell {
@@ -485,5 +521,30 @@ code {
 
     .admin-topbar-tag {
         display: none;
+    }
+
+    /* Spec lists stack instead of squeezing a 190px label column. */
+    .admin-dl {
+        grid-template-columns: 1fr;
+        gap: 2px 0;
+    }
+
+    .admin-dl dt {
+        margin-top: 8px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    /* One filter control per row rather than a cramped grid. */
+    .admin-filters--grid {
+        grid-template-columns: 1fr;
+    }
+
+    .admin-page-head,
+    .admin-page-actions,
+    .admin-form-actions {
+        flex-wrap: wrap;
+        gap: 8px;
     }
 }

@@ -10,12 +10,41 @@
         <h2 class="admin-card-title">General</h2>
         <dl class="admin-dl">
             <dt>Employee</dt>
-            <dd><a th:href="@{'/admin/users/' + ${allocation.employeeId}}"
-                   th:text="${allocation.employeeName}">Employee</a></dd>
+            <dd>
+                <a th:href="@{'/admin/users/' + ${allocation.employeeId}}"
+                   th:text="${allocation.employeeName}">Employee</a>
+                <a class="admin-inline-link"
+                   th:href="@{/admin/allocations(employeeId=${allocation.employeeId})}">
+                    All allocations</a>
+            </dd>
             <dt>Project</dt>
-            <dd><a th:href="@{'/admin/projects/' + ${allocation.projectId}}"
-                   th:text="${allocation.projectName}">Project</a></dd>
-            <dt>Review Department</dt><dd th:text="${allocation.reviewDepartmentName}">Dept</dd>
+            <dd>
+                <a th:href="@{'/admin/projects/' + ${allocation.projectId}}"
+                   th:text="${allocation.projectName}">Project</a>
+                <a class="admin-inline-link"
+                   th:href="@{/admin/allocations(projectId=${allocation.projectId})}">
+                    All allocations</a>
+            </dd>
+            <dt>Organization</dt>
+            <dd>
+                <a th:if="${allocation.organizationId != null}"
+                   th:href="@{'/admin/organizations/' + ${allocation.organizationId}}"
+                   th:text="${allocation.organizationName}">Org</a>
+                <span th:if="${allocation.organizationId == null}" class="muted">—</span>
+                <a th:if="${allocation.organizationId != null}" class="admin-inline-link"
+                   th:href="@{/admin/allocations(organizationId=${allocation.organizationId})}">
+                    All allocations</a>
+            </dd>
+            <dt>Review Department</dt>
+            <dd>
+                <a th:if="${allocation.departmentId != null}"
+                   th:href="@{'/admin/departments/' + ${allocation.departmentId}}"
+                   th:text="${allocation.reviewDepartmentName}">Dept</a>
+                <span th:if="${allocation.departmentId == null}" class="muted">—</span>
+                <a th:if="${allocation.departmentId != null}" class="admin-inline-link"
+                   th:href="@{/admin/allocations(departmentId=${allocation.departmentId})}">
+                    All allocations</a>
+            </dd>
             <dt>Work hours/day</dt><dd th:text="${allocation.workHoursPerDay}">0</dd>
             <dt>Status</dt>
             <dd><span th:replace="~{admin/fragments/badges :: badge(${allocation.status})}"></span></dd>
@@ -28,14 +57,44 @@
     </section>
 
     <section class="admin-card">
+        <h2 class="admin-card-title">Assignment Review</h2>
+        <p class="admin-field-hint">
+            Every allocation exists because an assignment proposal was approved.
+            This is the review record behind it; the console does not approve,
+            reject or reverse proposals.
+        </p>
+        <dl class="admin-dl">
+            <dt>Proposal status</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${allocation.proposalStatus})}"></span></dd>
+            <dt>Proposed by</dt>
+            <dd>
+                <a th:if="${allocation.proposedById != null}"
+                   th:href="@{'/admin/users/' + ${allocation.proposedById}}"
+                   th:text="${allocation.proposedByName}">User</a>
+                <span th:if="${allocation.proposedById == null}" class="muted">—</span>
+            </dd>
+            <dt>Reviewed by</dt>
+            <dd>
+                <a th:if="${allocation.reviewedById != null}"
+                   th:href="@{'/admin/users/' + ${allocation.reviewedById}}"
+                   th:text="${allocation.reviewedByName}">User</a>
+                <span th:if="${allocation.reviewedById == null}" class="muted">—</span>
+            </dd>
+            <dt>Reviewed at</dt>
+            <dd th:text="${allocation.reviewedAt != null
+                          ? @adminFormat.dateTime(allocation.reviewedAt) : '—'}">—</dd>
+            <dt>Proposal ID</dt>
+            <dd><code th:text="${allocation.assignmentProposalId}">uuid</code></dd>
+        </dl>
+    </section>
+
+    <section class="admin-card">
         <h2 class="admin-card-title">Timeline &amp; Metadata</h2>
         <dl class="admin-dl">
             <dt>Allocated at</dt><dd th:text="${@adminFormat.dateTime(allocation.allocatedAt)}">date</dd>
             <dt>Deallocated at</dt>
             <dd th:text="${allocation.deallocatedAt != null
                           ? @adminFormat.dateTime(allocation.deallocatedAt) : '—'}">—</dd>
-            <dt>Assignment proposal</dt>
-            <dd><code th:text="${allocation.assignmentProposalId}">uuid</code></dd>
             <dt>ID</dt><dd><code th:text="${allocation.id}">uuid</code></dd>
             <dt>Created</dt><dd th:text="${@adminFormat.dateTime(allocation.createdAt)}">date</dd>
             <dt>Updated</dt><dd th:text="${@adminFormat.dateTime(allocation.updatedAt)}">date</dd>

@@ -9,10 +9,11 @@
     <link rel="stylesheet" th:href="@{/admin/css/tables.css}">
 </head>
 <body>
+<a class="admin-skip-link" href="#admin-content">Skip to content</a>
 <header th:replace="~{admin/layout/topbar :: topbar}"></header>
 <div class="admin-shell">
     <aside class="admin-sidebar" th:replace="~{admin/layout/sidebar :: sidebar}"></aside>
-    <main class="admin-main">
+    <main class="admin-main" id="admin-content" tabindex="-1">
         <nav th:replace="~{admin/layout/breadcrumbs :: breadcrumbs}"></nav>
         <div th:replace="~{admin/layout/messages :: messages}"></div>
         <section th:replace="${content}">Page content</section>

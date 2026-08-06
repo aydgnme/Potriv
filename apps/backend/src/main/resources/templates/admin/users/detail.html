@@ -68,6 +68,16 @@
     </section>
 
     <section class="admin-card">
+        <h2 class="admin-card-title">Related</h2>
+        <p>
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{/admin/allocations(employeeId=${user.id})}">Allocations</a>
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{/admin/audit-logs(actor=${user.id})}">Audit events</a>
+        </p>
+    </section>
+
+    <section class="admin-card">
         <h2 class="admin-card-title">Roles</h2>
         <p>
             <span class="tag" th:each="role : ${user.roles}" th:text="${role}">ROLE</span>

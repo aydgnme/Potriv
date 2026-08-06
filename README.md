@@ -45,15 +45,26 @@ cp .env.prod.example .env.prod   # edit the placeholder values
 ./scripts/backend-prod-smoke.sh
 ```
 
-An embedded read-only **administration console** (monitor plus a Django-style
-backoffice for users, organizations, departments, projects, allocations,
-invitations, and audit logs) is served under `http://localhost:8080/api/admin`
-when enabled with `BACKEND_CONSOLE_ENABLED=true`. It is protected by a
-server-side session form login: sign in at `/api/admin/login` with a
-`SYSTEM_ADMIN` account (`SYSTEM_ADMIN_EMAIL` / `SYSTEM_ADMIN_PASSWORD`) — the
-session is isolated from the JWT API. See
-[docs/admin/ADMIN_UI.md](docs/admin/ADMIN_UI.md) and
-`docs/backend/environment.md`.
+An embedded **administration console** (monitor plus a Django-style backoffice
+for users, organizations, departments, projects, allocations, invitations, skills
+and audit logs) is served under `http://localhost:8080/api/admin` when enabled
+with `BACKEND_CONSOLE_ENABLED=true`. It is read-first with a small, audited set of
+safe actions — and deliberately cannot grant `SYSTEM_ADMIN`, change credentials,
+hard-delete users, or alter allocations, proposals or audit events.
+
+```bash
+cd apps/backend
+BACKEND_CONSOLE_ENABLED=true \
+SYSTEM_ADMIN_EMAIL=admin@aydgn.me \
+SYSTEM_ADMIN_PASSWORD='strong-local-password' \
+SYSTEM_ADMIN_NAME='Mert Aydogan' \
+./mvnw spring-boot:run
+```
+
+Sign in at `http://localhost:8080/api/admin/login` with that `SYSTEM_ADMIN`
+account; the browser session is fully isolated from the JWT API. See
+[docs/admin/ADMIN_UI.md](docs/admin/ADMIN_UI.md) for what the console can and
+cannot do, and `docs/backend/environment.md` for the variables.
 
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 `docs/backend/deployment-checklist.md` for the full production documentation.
