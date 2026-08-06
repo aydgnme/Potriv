@@ -48,6 +48,11 @@ services:
       SMTP_USERNAME: ${SMTP_USERNAME:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:?MAIL_FROM is required}
+      # Bounded so a hung SMTP server cannot hold an HTTP thread (mail is sent
+      # synchronously inside the password-reset request).
+      MAIL_CONNECTION_TIMEOUT_MS: ${MAIL_CONNECTION_TIMEOUT_MS:-5000}
+      MAIL_READ_TIMEOUT_MS: ${MAIL_READ_TIMEOUT_MS:-5000}
+      MAIL_WRITE_TIMEOUT_MS: ${MAIL_WRITE_TIMEOUT_MS:-5000}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
       # Admin console login is a SYSTEM_ADMIN browser session — no separate
       # console credentials.

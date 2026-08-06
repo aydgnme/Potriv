@@ -32,6 +32,19 @@ spring:
           auth: true
           starttls:
             enable: true
+            # Refuse to fall back to plaintext. Submission credentials must never
+            # cross the wire unencrypted, even if the server stops advertising
+            # STARTTLS.
+            required: true
+          # The reset mail is sent synchronously inside the request thread, and
+          # JavaMail's defaults are *unbounded*: a hung SMTP server would hold an
+          # HTTP thread forever and exhaust the pool. These caps bound the worst
+          # case to a few seconds; the send then fails, is caught, and the
+          # anti-enumeration response is unchanged.
+          connectiontimeout: ${MAIL_CONNECTION_TIMEOUT_MS:5000}
+          timeout: ${MAIL_READ_TIMEOUT_MS:5000}
+          writetimeout: ${MAIL_WRITE_TIMEOUT_MS:5000}
+          # Certificate validation stays on. Never set mail.smtp.ssl.trust here.
 
 app:
   frontend-url: ${FRONTEND_URL:https://potriv.aydgn.me}
