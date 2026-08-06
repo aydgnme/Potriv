@@ -66,6 +66,14 @@ account; the browser session is fully isolated from the JWT API. See
 [docs/admin/ADMIN_UI.md](docs/admin/ADMIN_UI.md) for what the console can and
 cannot do, and `docs/backend/environment.md` for the variables.
 
+Outbound mail (the password-reset link is the only message Potriv sends) is
+captured locally by Mailpit and, in production, delivered by a self-hosted
+Stalwart stack — see
+[docs/backend/mail-infrastructure.md](docs/backend/mail-infrastructure.md) for
+the architecture and [infra/mail/README.md](infra/mail/README.md) for the
+runbook. Real public deliverability additionally requires DNS, PTR and outbound
+port 25, none of which live in this repository.
+
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 `docs/backend/deployment-checklist.md` for the full production documentation, and
 [docs/backend/final-audit.md](docs/backend/final-audit.md) for the end-to-end

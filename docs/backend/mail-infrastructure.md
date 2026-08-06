@@ -95,8 +95,9 @@ Chosen over the alternatives for reasons that matter to this repository:
   surface; Potriv needs *authenticated submission plus outbound delivery*, not a
   full groupware host.
 - **Native DKIM signing and ACME** — no separate opendkim/certbot sidecars.
-- **A supported non-interactive bootstrap**: the initial admin password can be
-  supplied through configuration instead of being scraped out of a web wizard.
+- **A pinnable bootstrap credential**: `STALWART_RECOVERY_ADMIN=admin:<password>`
+  supplies the initial administrator instead of leaving it as a random password
+  printed once to the container log. (Verified by running the image.)
 - **Actively maintained** with frequent, tagged releases.
 - **Relay policy is explicit** in configuration rather than implied by a stack of
   Postfix restriction classes, which makes "no open relay" reviewable.
@@ -185,11 +186,11 @@ Settled in PR #65 and preserved here:
 
 What actually needs to survive a host loss:
 
-1. **Stalwart configuration** (`/opt/stalwart/etc`) — domains, accounts, relay
-   policy, listeners.
-2. **Stalwart data** (`/opt/stalwart/data`) — account database, queue, and the
-   **DKIM private key**. Losing the DKIM key means every published DKIM DNS
-   record must be replaced.
+1. **`/etc/stalwart`** (volume `potriv_mail_config`) — the on-disk
+   `config.json`, which as of v0.16 describes only the datastore.
+2. **`/var/lib/stalwart`** (volume `potriv_mail_data`) — the datastore itself:
+   domains, accounts, relay policy, queue, and the **DKIM private key**. Losing
+   the DKIM key means every published DKIM DNS record must be replaced.
 3. Nothing else. Potriv stores no mailboxes.
 
 Backups are taken from the named volumes with the service stopped or quiesced,
@@ -225,7 +226,38 @@ only environment values.
 
 ---
 
-## 9. Accepted limitations
+## 9. Provisioning: what is automated and what is not
+
+Verified by running `stalwartlabs/stalwart:v0.16.16` locally:
+
+- With no `config.json`, the server starts in **bootstrap mode**, opens only the
+  management listener on `8080`, and keeps mail ports closed.
+- `STALWART_RECOVERY_ADMIN=admin:<password>` pins the bootstrap credential.
+- `/healthz/live` and `/healthz/ready` respond and are what the container
+  healthcheck uses.
+- The image ships **one binary** (`/usr/local/bin/stalwart`) whose only options
+  are `--config`, `--export`, `--import`, `--console`. There is no CLI in the
+  image, and `v0.16.16`'s release assets contain no `stalwart-cli`.
+- The management API is not reachable in bootstrap mode; provisioning happens
+  after initial setup.
+
+Stalwart's own upgrade documentation describes `stalwart-cli apply` with a
+declarative plan file as the infrastructure-as-code path. **That path could not
+be implemented or verified here**, because the CLI is not distributed with this
+version's release assets or image. Rather than inventing configuration keys, this
+repository does what the tool supports today:
+
+- a **pinned bootstrap credential** from the env file,
+- `bootstrap-mailserver.sh`, which starts the stack, waits for the management
+  listener, **detects bootstrap mode** and prints the exact provisioning steps,
+  and reports `PROVISIONED` on re-run — so it is idempotent in effect,
+- validation through `mail-smoke.sh --relay` / `--dns` / `--prod` afterwards.
+
+Domain, accounts, aliases, DKIM key generation and relay policy are therefore a
+**documented one-time setup**, not an automated one. This is called out here
+rather than hidden behind a script that pretends otherwise.
+
+## 10. Accepted limitations
 
 - **Delivery stays synchronous.** Introducing Kafka/RabbitMQ/an outbox is
   explicitly out of scope, and the product sends one low-volume message type. The

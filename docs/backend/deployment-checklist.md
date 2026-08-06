@@ -37,6 +37,14 @@ Run through this list for every production deployment of `apps/backend`.
       credential at the next deploy — and suspending the account will not stick.
       See [`environment.md`](environment.md#system-administrator-bootstrap).
 - [ ] `SWAGGER_ENABLED` is unset or `false`.
+- [ ] Outbound mail is configured: `SMTP_HOST`/`SMTP_PORT` point at the mail
+      service or an authenticated relay, `SMTP_USERNAME`/`SMTP_PASSWORD` are a
+      **dedicated application credential** (not the mail administrator), and
+      `MAIL_FROM` matches a sender the server will accept. If the self-hosted
+      stack is used, `./infra/mail/scripts/mail-preflight.sh` passes.
+- [ ] Mail delivery failure is understood as **non-fatal**: the backend stays
+      ready, password-reset responses stay anti-enumerating, and only the mail
+      itself is lost. There is no retry queue by design.
 - [ ] Orchestrator liveness/readiness probes point at
       `/api/actuator/health/readiness` (db + ping), **not** the aggregate
       `/api/actuator/health`, which also reports outbound mail and would take a
