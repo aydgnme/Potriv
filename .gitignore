@@ -11,6 +11,7 @@
 .env.*
 !.env.example
 !.env.prod.example
+!.env.mail.example
 
 # Logs
 *.log
@@ -39,3 +40,14 @@ apps/frontend/coverage/
 # Temporary files
 *.tmp
 *.temp
+
+# --- Mail infrastructure -------------------------------------------------
+# Generated mail data, queues, DKIM/TLS private keys and backup archives must
+# never be tracked. Live env files are already covered by the .env.* rule above.
+infra/mail/stalwart/config/*
+!infra/mail/stalwart/config/*.example
+infra/mail/stalwart/data/
+infra/mail/backups/
+*.dkim
+*.pem
+*.key

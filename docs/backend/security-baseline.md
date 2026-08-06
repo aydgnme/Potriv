@@ -225,6 +225,28 @@ benign and were each inspected:
 - **Audit `details` is not a read surface.** It is excluded from both admin read
   models, so a secret accidentally recorded there cannot reach the console.
 
+### Outbound mail
+
+- Submission requires **SMTP AUTH** and **STARTTLS `required`** — a server that
+  stops advertising TLS fails the send instead of downgrading to plaintext.
+  Certificate validation is never disabled; `mail.smtp.ssl.trust` must never
+  appear in production configuration. `ProductionMailTransportTest` fails the
+  build if any of this is loosened.
+- Connect/read/write timeouts are **bounded** (5s each by default). Mail is sent
+  synchronously inside the password-reset request and JavaMail's defaults are
+  unbounded, so without these a hung SMTP server would hold HTTP threads until
+  the pool was exhausted.
+- The sender identity is configuration (`MAIL_FROM`); a caller can never choose
+  the envelope sender, the From header, or the recipient — the recipient is
+  always the stored account address.
+- SMTP credentials never appear in the actuator, the admin console, an error page
+  or a log. The **raw reset token is never logged**, only its SHA-256 hash is
+  stored.
+- A delivery failure is caught and does not change the endpoint's response, so
+  the reset endpoint cannot be used as an account oracle even during an outage.
+- Self-hosted mail adds operational surface that is documented rather than
+  hidden: see `docs/backend/mail-infrastructure.md` and `infra/mail/README.md`.
+
 ### Audit event and migration policy
 
 Adding a `SecurityAuditEventType` value **requires** a Flyway migration that drops

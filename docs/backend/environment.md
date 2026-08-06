@@ -236,3 +236,23 @@ validates the result, so the stack reaches a healthy state without any manual
 schema step. Schema changes always ship as new migrations — Hibernate never
 creates or alters tables in production. See
 `docs/backend/production-readiness.md`.
+
+
+## Outbound mail
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SMTP_HOST` | — (required in prod) | Mail server host. Use the Compose **service name** (`potriv-mail`) so submission stays on the internal network, or an authenticated relay's host. |
+| `SMTP_PORT` | `587` | Submission port. STARTTLS is required. |
+| `SMTP_USERNAME` / `SMTP_PASSWORD` | — | The backend's **dedicated** account — never the mail-server administrator. |
+| `MAIL_FROM` | — (required in prod) | The only sender identity the application uses. Callers cannot choose it. |
+| `MAIL_CONNECTION_TIMEOUT_MS` | `5000` | Connect timeout. Bounded because mail is sent synchronously inside the password-reset request; JavaMail's own default is unbounded. |
+| `MAIL_READ_TIMEOUT_MS` | `5000` | Read timeout, same reason. |
+| `MAIL_WRITE_TIMEOUT_MS` | `5000` | Write timeout, same reason. |
+
+The self-hosted mail stack adds its own file, `.env.mail` (template:
+`.env.mail.example`) — see [`../../infra/mail/README.md`](../../infra/mail/README.md).
+
+Switching between the self-hosted server and an authenticated relay (SES,
+Postmark, …) is an environment change only; no application code depends on which
+one is behind `SMTP_HOST`.
