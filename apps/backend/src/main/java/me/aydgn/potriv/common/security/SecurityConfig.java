@@ -50,7 +50,12 @@ public class SecurityConfig {
             )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
+                    // Health *and* its groups: container and orchestrator probes
+                    // read /actuator/health/readiness. Safe to leave anonymous
+                    // because show-details is left at Spring's default "never",
+                    // so every response is a bare status with no component data.
                     "/actuator/health",
+                    "/actuator/health/**",
                     "/actuator/info",
                     "/swagger-ui/**",
                     "/v3/api-docs/**"

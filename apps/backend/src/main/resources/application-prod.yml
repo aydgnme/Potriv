@@ -58,6 +58,16 @@ springdoc:
     enabled: ${SWAGGER_ENABLED:false}
 
 management:
+  endpoint:
+    health:
+      group:
+        # What the container/orchestrator probe asks: can *this instance* serve
+        # requests? That depends on the database, not on an external SMTP server.
+        # Outbound mail still appears in the full /actuator/health aggregate, so
+        # its state stays visible without taking a serving instance out of
+        # rotation whenever the mail provider blips.
+        readiness:
+          include: db, ping
   endpoints:
     web:
       exposure:

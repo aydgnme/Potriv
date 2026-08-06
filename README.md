@@ -67,7 +67,10 @@ account; the browser session is fully isolated from the JWT API. See
 cannot do, and `docs/backend/environment.md` for the variables.
 
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
-`docs/backend/deployment-checklist.md` for the full production documentation.
+`docs/backend/deployment-checklist.md` for the full production documentation, and
+[docs/backend/final-audit.md](docs/backend/final-audit.md) for the end-to-end
+readiness audit — including what was verified, what was fixed, and what remains
+an accepted limitation.
 
 ## Continuous Integration
 

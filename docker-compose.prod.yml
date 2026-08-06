@@ -61,8 +61,10 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
-      # The API serves under the /api context path.
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/actuator/health || exit 1"]
+      # The API serves under the /api context path. The readiness group is used
+      # deliberately: the aggregate health endpoint also reports outbound mail,
+      # and an SMTP outage must not mark a serving container unhealthy.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/actuator/health/readiness || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 20
