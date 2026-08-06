@@ -38,8 +38,8 @@ public class AdminAllocationController {
     public String list(
         @RequestParam(required = false) String q,
         @RequestParam(required = false) String status,
-        @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) String page,
+        @RequestParam(required = false) String size,
         @RequestParam(required = false) String sort,
         Model model
     ) {
@@ -51,7 +51,7 @@ public class AdminAllocationController {
         Map<String, String> retained = new LinkedHashMap<>();
         retained.put("q", q);
         retained.put("status", activeOnly ? "ACTIVE" : null);
-        retained.put("size", size == null ? null : size.toString());
+        retained.put("size", AdminPaging.retainedSize(size));
         retained.put("sort", sort);
         String baseQuery = AdminRequests.baseQuery(retained);
 
