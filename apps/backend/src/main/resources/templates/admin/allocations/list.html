@@ -4,19 +4,67 @@
 <div th:fragment="content">
     <div class="admin-page-head"><h1>Allocations</h1></div>
 
-    <form class="admin-filters" method="get" th:action="@{/admin/allocations}">
-        <input type="search" name="q" th:value="${list.query}"
-               placeholder="Search employee or project…" aria-label="Search">
-        <select name="status" aria-label="Status">
-            <option value="" th:selected="${!activeOnly}">All</option>
-            <option value="ACTIVE" th:selected="${activeOnly}">Active only</option>
-        </select>
-        <button type="submit" class="admin-btn">Filter</button>
-        <a class="admin-btn admin-btn--ghost" th:href="@{/admin/allocations}">Clear</a>
+    <!-- GET-only filter form: every control is a query parameter, so a filtered
+         view is a plain link that can be shared, bookmarked and paged. -->
+    <form class="admin-filters admin-filters--grid" method="get" th:action="@{/admin/allocations}">
+        <div class="admin-filter-field">
+            <label for="filter-q">Search</label>
+            <input id="filter-q" type="search" name="q" th:value="${filter.q}"
+                   placeholder="Employee or project name">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-status">Status</label>
+            <select id="filter-status" name="status">
+                <option value="">Any status</option>
+                <option value="ACTIVE" th:selected="${filter.status == 'ACTIVE'}">Active</option>
+                <option value="PAST" th:selected="${filter.status == 'PAST'}">Past</option>
+            </select>
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-organization">Organization</label>
+            <input id="filter-organization" type="text" name="organizationId"
+                   th:value="${filter.organizationId}" placeholder="Organization UUID">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-project">Project</label>
+            <input id="filter-project" type="text" name="projectId"
+                   th:value="${filter.projectId}" placeholder="Project UUID">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-employee">Employee</label>
+            <input id="filter-employee" type="text" name="employeeId"
+                   th:value="${filter.employeeId}" placeholder="Employee UUID">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-department">Review department</label>
+            <input id="filter-department" type="text" name="departmentId"
+                   th:value="${filter.departmentId}" placeholder="Department UUID">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-from">Allocated from (UTC)</label>
+            <input id="filter-from" type="datetime-local" name="from" th:value="${filter.from}">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-to">Allocated to (UTC)</label>
+            <input id="filter-to" type="datetime-local" name="to" th:value="${filter.to}">
+        </div>
+        <div class="admin-filter-field">
+            <label for="filter-size">Per page</label>
+            <select id="filter-size" name="size">
+                <option th:each="option : ${pageSizes}" th:value="${option}" th:text="${option}"
+                        th:selected="${option == selectedSize}">25</option>
+            </select>
+        </div>
+        <div class="admin-filter-actions">
+            <button type="submit" class="admin-btn">Apply filters</button>
+            <a th:if="${filter.active()}" class="admin-btn admin-btn--ghost"
+               th:href="@{/admin/allocations}">Clear filters</a>
+        </div>
     </form>
 
     <div th:if="${list.items.isEmpty()}">
-        <div th:replace="~{admin/fragments/empty-state :: empty('No allocations found.')}"></div>
+        <div th:replace="~{admin/fragments/empty-state :: empty(${filter.active()}
+             ? 'No allocations match these filters.' : 'No allocations found.')}"></div>
     </div>
 
     <table th:unless="${list.items.isEmpty()}" class="admin-table">

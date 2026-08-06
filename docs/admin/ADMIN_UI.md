@@ -352,6 +352,47 @@ Audited via `ADMIN_PROJECT_STATUS_CHANGED`, `ADMIN_PROJECT_DELETED` and
   proposals — no domain service exposes an administrative override, and inventing
   one would bypass the review workflow the product is built around.
 
+## Allocation review filters
+
+The allocations page is the operational answer to "who is on what, and since
+when". It is **read-only and GET-only** — an allocation exists only because an
+assignment proposal was approved, and the console offers no way to create,
+approve, reject or reverse one.
+
+| Parameter | Column | Matching |
+| --- | --- | --- |
+| `q` | employee name, project name | case-insensitive contains |
+| `status` | `deallocated_at` | `ACTIVE` (still running) / `PAST` (deallocated) |
+| `organizationId` | `project.organization.id` | exact UUID |
+| `projectId` | `project.id` | exact UUID |
+| `employeeId` | `employee.id` | exact UUID |
+| `departmentId` | `assignmentProposal.reviewDepartment.id` | exact UUID |
+| `from` / `to` | `allocated_at` | `>=` / `<=`, read as UTC |
+
+All filters combine with **AND**, are bound as typed query parameters, and are
+parsed leniently — a mistyped id or date is dropped and the rest still apply.
+
+**Postgres note.** Optional id filters use `(:id is null or ...)`, but the date
+bounds do not: a null `timestamptz` bind leaves Postgres unable to infer the
+parameter type (`could not determine data type of parameter`) — the same class of
+failure `AdminPaging.likePattern` records for `lower(bytea)`. The service passes
+wide sentinel bounds instead, so the parameter is always typed.
+
+The detail page links its full context — employee, project, organization, review
+department — and each reference also pivots back into the filtered allocation
+list. A new **Assignment Review** card shows the proposal's status, who proposed
+it, who reviewed it and when.
+
+### Deliberately not implemented
+
+- **Proposal status filter** on allocations: an allocation only exists for an
+  approved proposal, so the filter would have exactly one usable value.
+- **Proposal comments** are not rendered. They are free-text authored by users and
+  add nothing to operational review.
+- **Force approve / reject / deallocate**: no domain service exposes an
+  administrative override, and adding one would bypass the review workflow the
+  product is built around.
+
 ## Audit event review filters (OPS-02)
 
 `GET /admin/audit-logs` is a **read-only, GET-only** review page over
@@ -560,6 +601,11 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   repeated and hostile `page`/`size` all render a list; the hostile text is neither
   executed nor echoed; the effective size is what the operator sees; audit filters
   still apply under malformed pagination; anonymous is still turned away.
+- `AdminAllocationReviewIntegrationTest` — anonymous blocked, non-SYSTEM_ADMIN
+  cannot authenticate, the pages expose no mutation (`405` on POST, repeated GETs
+  change nothing), each filter narrows to its own row, AND semantics, pagination
+  preserving filters, unreadable values narrowing nothing, filter echo escaped,
+  detail links its context, and the seeded password hash never surfaces.
 - `AdminProjectActionsIntegrationTest` — anonymous/non-SYSTEM_ADMIN/CSRF-less
   blocked, GET confirmation does not mutate, unknown id `404`, status change
   applied and recorded with the **administrator** as actor, no-op and unusable
