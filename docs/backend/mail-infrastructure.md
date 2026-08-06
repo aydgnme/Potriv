@@ -270,3 +270,148 @@ rather than hidden behind a script that pretends otherwise.
 - **External deliverability is unproven** until a controlled message is accepted
   by a real provider and its headers show SPF/DKIM/DMARC alignment. Passing local
   tests proves the software, not the reputation.
+
+
+---
+
+# Delivery report (POTRIV-MAIL-01)
+
+## 1. Executive verdict
+
+```text
+READY FOR LOCAL SMTP DEVELOPMENT
+```
+
+Local mail is complete and proven end to end. The production stack is built,
+pinned, hardened and starts cleanly, but **self-hosted public delivery is blocked
+by external prerequisites** that do not exist in this environment (no public IP,
+no DNS control, no PTR, outbound port 25 unverified) and by a one-time
+provisioning step that this Stalwart version does not expose non-interactively.
+
+`READY FOR SELF-HOSTED PRODUCTION SMTP` is deliberately **not** claimed: DNS,
+PTR, TLS, port 25, authenticated submission, open-relay rejection and one
+controlled external delivery have not all been verified.
+
+## 2. Test baselines
+
+```text
+start   757 tests, 0 failures        (main, after PR #65)
+final   766 tests, 0 failures, 0 errors, 0 skipped, BUILD SUCCESS
+```
+
++9, all new and all explained:
+- `PasswordResetMailDeliveryIntegrationTest` — 6
+- `ProductionMailTransportTest` — 3
+
+## 3. Chosen architecture
+
+Development uses **Mailpit `v1.30.6`** as an SMTP sink; production uses
+**Stalwart `v0.16.16`**. Rationale in §2 above; both image tags were pulled and
+verified, neither is `latest`.
+
+## 4. Development flow — VERIFIED
+
+Actually executed, not described:
+
+| Step | Result |
+| --- | --- |
+| Postgres + Mailpit + backend started | healthy |
+| Registered an account through the real API | `201` |
+| Reset requested for the real address | `202` |
+| Reset requested for an unknown address | `202` (identical) |
+| Messages captured by Mailpit | **exactly 1** — the unknown address produced none |
+| Sender | `no-reply@potriv.local` (local identity, not the production domain) |
+| Reset link host | `http://localhost:5173` — the configured `app.frontend-url` |
+| Password hash / refresh token / credential in body | none |
+| Raw token in the backend log | **0 occurrences** |
+| Reset completed through the real endpoint | `204` |
+| Old password / new password | `400` / `200` |
+| Token reuse | `400` (single-use) |
+| Stack torn down | yes |
+
+Read through Mailpit's REST API (`/api/v1/messages`), never by parsing HTML.
+
+## 5. Production flow — PARTIALLY VERIFIED
+
+Executed locally against the real image:
+
+| Check | Result |
+| --- | --- |
+| Stack starts with persistent named volumes | **VERIFIED** |
+| Runs as non-root | **VERIFIED** — `uid=2000(stalwart)` |
+| Bootstrap credential pinned via `STALWART_RECOVERY_ADMIN` | **VERIFIED** — the random password is no longer printed |
+| `/healthz/live` | **VERIFIED** — 200 |
+| Restart idempotent, volumes survive | **VERIFIED** |
+| Mailbox ports (110/143/993/995/4190/465) closed | **VERIFIED** |
+| Management reachable on loopback only | **VERIFIED** |
+| Backend readiness while mail is stopped | **VERIFIED** — `UP`, container `healthy` |
+| Aggregate health while mail is stopped | **VERIFIED** — `DOWN` (intended diagnostics) |
+| Password reset with mail down | **VERIFIED** — still `202`, still anti-enumerating |
+| Credentials in backend/mail logs | **VERIFIED** — 0 occurrences |
+| SMTP AUTH accept/reject matrix | **NOT VERIFIED** — requires provisioning |
+| STARTTLS negotiation | **NOT VERIFIED** — same |
+| Open-relay rejection | **NOT VERIFIED** — mail listeners stay closed in bootstrap mode |
+
+## 6. Files changed
+
+`docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.mail.yml`,
+`.env.prod.example`, `.env.mail.example`, `.gitignore`,
+`apps/backend/src/main/resources/application-prod.yml`,
+`RecordingMailSender`, `PasswordResetMailDeliveryIntegrationTest`,
+`ProductionMailTransportTest`, `infra/mail/**`, `README.md`, and the four backend
+docs.
+
+## 7. Ports and 8. Environment variables
+
+See §4 and §5 above, plus `docs/backend/environment.md`. Added:
+`MAIL_CONNECTION_TIMEOUT_MS`, `MAIL_READ_TIMEOUT_MS`, `MAIL_WRITE_TIMEOUT_MS`,
+and the `.env.mail` set. Existing `SMTP_*` / `MAIL_FROM` names were reused rather
+than renamed.
+
+## 9. Secret storage
+
+Placeholders only in `.env.mail.example`. `.gitignore` was verified by
+attempting `git add`: `.env.mail` and a live `config.json` are **refused**, while
+the `.example` files are addable. No DKIM or TLS private key exists in this
+repository.
+
+## 10. Health behaviour
+
+Unchanged from PR #65 and re-proven here: readiness `db, ping`; mail visible in
+the aggregate only.
+
+## 11–17. Relay, TLS, DNS, PTR, port 25, external delivery
+
+| Item | Status |
+| --- | --- |
+| Relay test matrix | **NOT VERIFIED** — needs provisioning |
+| TLS | **NOT VERIFIED** |
+| DNS records required | documented in `infra/mail/dns/records.example.md` |
+| DNS records verified | **NOT RUN** — none published |
+| PTR | **BLOCKED BY PTR** — provider-managed, no host |
+| Outbound port 25 | **BLOCKED BY PORT 25** — unverified from any host |
+| External delivery | **NOT RUN** — no message was sent to any external address |
+
+## 18. Backup/restore
+
+Scripts written, syntax-checked, and guarded (restore refuses live volumes
+without `I_MEAN_IT=yes`). A full backup→restore cycle was **NOT executed**,
+because there is no provisioned datastore worth restoring yet.
+
+## 20. Known limitations
+
+- Provisioning (domain, accounts, DKIM, relay policy) is a **documented one-time
+  setup**, not automated: `stalwart-cli apply` is the vendor's declarative path
+  but the CLI ships in neither the `v0.16.16` image nor its release assets.
+- Delivery stays synchronous; bounded by 5s timeouts rather than a queue.
+- No retry, no bounce processing.
+- Public deliverability unproven — see §8.
+
+## 22. Rollback
+
+The mail stack is additive. To remove it: stop the overlay
+(`docker compose … -f docker-compose.mail.yml down`), drop
+`-f docker-compose.mail.yml` from the deployment command, and point `SMTP_HOST`
+back at the previous relay. The backend needs no change — it only ever knows
+"an authenticated SMTP server". Reverting the branch also restores the previous
+(unbounded-timeout) mail configuration, which is **not** recommended.
