@@ -33,36 +33,38 @@
 
     <section class="admin-card">
         <h2 class="admin-card-title">Manageable roles</h2>
-        <table class="admin-table">
-            <thead><tr><th>Role</th><th>Held</th><th></th></tr></thead>
-            <tbody>
-            <tr th:each="row : ${roleRows}">
-                <td><span class="tag" th:text="${row.role}">ROLE</span></td>
-                <td><span class="signal" th:classappend="${row.held} ? 'signal--ok' : 'signal--idle'"
-                          th:text="${row.held} ? 'Yes' : 'No'">No</span></td>
-                <td class="num">
-                    <!-- Grant when not held (only for active users in an organization). -->
-                    <form th:if="${!row.held}" method="post" style="display:inline"
-                          th:action="@{'/admin/users/' + ${user.id} + '/roles/grant'}">
-                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                        <input type="hidden" name="role" th:value="${row.role}">
-                        <button type="submit" class="admin-btn"
-                                th:disabled="${user.status != 'ACTIVE'}">Grant</button>
-                    </form>
-                    <!-- Revoke when held, unless a domain dependency blocks it. -->
-                    <span th:if="${row.held and row.revokeBlocked}" class="admin-field-hint"
-                          th:title="${row.revokeBlockReason}">Locked by dependencies</span>
-                    <form th:if="${row.held and !row.revokeBlocked}" method="post" style="display:inline"
-                          th:action="@{'/admin/users/' + ${user.id} + '/roles/revoke'}">
-                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                        <input type="hidden" name="role" th:value="${row.role}">
-                        <button type="submit" class="admin-btn admin-btn--danger"
-                                th:disabled="${user.status != 'ACTIVE'}">Revoke</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="admin-table-scroll">
+            <table class="admin-table">
+                <thead><tr><th>Role</th><th>Held</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="row : ${roleRows}">
+                    <td><span class="tag" th:text="${row.role}">ROLE</span></td>
+                    <td><span class="signal" th:classappend="${row.held} ? 'signal--ok' : 'signal--idle'"
+                              th:text="${row.held} ? 'Yes' : 'No'">No</span></td>
+                    <td class="num">
+                        <!-- Grant when not held (only for active users in an organization). -->
+                        <form th:if="${!row.held}" method="post" style="display:inline"
+                              th:action="@{'/admin/users/' + ${user.id} + '/roles/grant'}">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <input type="hidden" name="role" th:value="${row.role}">
+                            <button type="submit" class="admin-btn"
+                                    th:disabled="${user.status != 'ACTIVE'}">Grant</button>
+                        </form>
+                        <!-- Revoke when held, unless a domain dependency blocks it. -->
+                        <span th:if="${row.held and row.revokeBlocked}" class="admin-field-hint"
+                              th:title="${row.revokeBlockReason}">Locked by dependencies</span>
+                        <form th:if="${row.held and !row.revokeBlocked}" method="post" style="display:inline"
+                              th:action="@{'/admin/users/' + ${user.id} + '/roles/revoke'}">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <input type="hidden" name="role" th:value="${row.role}">
+                            <button type="submit" class="admin-btn admin-btn--danger"
+                                    th:disabled="${user.status != 'ACTIVE'}">Revoke</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
         <p th:if="${user.status != 'ACTIVE'}" class="admin-field-hint">
             The user is not active, so roles cannot be changed. Activate the account first.
         </p>

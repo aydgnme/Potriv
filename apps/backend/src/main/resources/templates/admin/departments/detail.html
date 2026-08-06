@@ -46,15 +46,17 @@
         <h2 class="admin-card-title">Members</h2>
         <div th:if="${department.members.isEmpty()}"
              th:replace="~{admin/fragments/empty-state :: empty('No members.')}"></div>
-        <table th:unless="${department.members.isEmpty()}" class="admin-table">
-            <thead><tr><th>Name</th><th>Email</th></tr></thead>
-            <tbody>
-            <tr th:each="member : ${department.members}">
-                <td><a th:href="@{'/admin/users/' + ${member.id}}" th:text="${member.name}">Name</a></td>
-                <td th:text="${member.email}">email</td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="admin-table-scroll">
+            <table th:unless="${department.members.isEmpty()}" class="admin-table">
+                <thead><tr><th>Name</th><th>Email</th></tr></thead>
+                <tbody>
+                <tr th:each="member : ${department.members}">
+                    <td><a th:href="@{'/admin/users/' + ${member.id}}" th:text="${member.name}">Name</a></td>
+                    <td th:text="${member.email}">email</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <section class="admin-card">

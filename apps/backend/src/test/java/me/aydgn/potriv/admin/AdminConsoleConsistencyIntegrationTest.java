@@ -98,6 +98,43 @@ class AdminConsoleConsistencyIntegrationTest extends AbstractAdminIntegrationTes
         assertThat(html.contains("<label") || html.contains("aria-label")).isTrue();
     }
 
+    // ------------------------------------------- Accessibility & layout
+
+    @ParameterizedTest
+    @MethodSource("listRoutes")
+    void everyPageOffersASkipLinkToItsContent(String route) throws Exception {
+        String html = render(route);
+
+        assertThat(html).contains("admin-skip-link", "href=\"#admin-content\"");
+        assertThat(html).contains("id=\"admin-content\"");
+    }
+
+    /**
+     * A narrow viewport must scroll the table, not the page — so every data table
+     * sits inside a scroll container.
+     */
+    @ParameterizedTest
+    @MethodSource("listRoutes")
+    void everyDataTableCanScrollIndependently(String route) throws Exception {
+        String html = render(route);
+        if (!html.contains("class=\"admin-table\"")) {
+            return;
+        }
+        assertThat(html.indexOf("admin-table-scroll"))
+            .as("%s must wrap its table in a scroll container", route)
+            .isGreaterThanOrEqualTo(0)
+            .isLessThan(html.indexOf("class=\"admin-table\""));
+    }
+
+    /** Flash banners announce themselves; the shared fragment supplies the roles. */
+    @Test
+    void flashMessagesCarryTheirAlertSemantics() throws Exception {
+        String messages = new String(getClass().getClassLoader()
+            .getResourceAsStream("templates/admin/layout/messages.html").readAllBytes());
+
+        assertThat(messages).contains("role=\"status\"", "role=\"alert\"");
+    }
+
     // ------------------------------------------------ Relationship links
 
     @Test

@@ -14,21 +14,23 @@
         <div th:replace="~{admin/fragments/empty-state :: empty('No skill categories found.')}"></div>
     </div>
 
-    <table th:unless="${list.items.isEmpty()}" class="admin-table">
-        <thead>
-        <tr><th>Name</th><th>Organization</th><th>Status</th>
-            <th class="num">Skills</th><th>Created</th></tr>
-        </thead>
-        <tbody>
-        <tr th:each="cat : ${list.items}">
-            <td><a th:href="@{'/admin/skill-categories/' + ${cat.id}}" th:text="${cat.name}">Cat</a></td>
-            <td th:text="${cat.organizationName}">Org</td>
-            <td><span th:replace="~{admin/fragments/badges :: badge(${cat.active} ? 'Active' : 'Inactive')}"></span></td>
-            <td class="num" th:text="${cat.skillCount}">0</td>
-            <td th:text="${@adminFormat.dateTime(cat.createdAt)}">date</td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="admin-table-scroll">
+        <table th:unless="${list.items.isEmpty()}" class="admin-table">
+            <thead>
+            <tr><th>Name</th><th>Organization</th><th>Status</th>
+                <th class="num">Skills</th><th>Created</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="cat : ${list.items}">
+                <td><a th:href="@{'/admin/skill-categories/' + ${cat.id}}" th:text="${cat.name}">Cat</a></td>
+                <td th:text="${cat.organizationName}">Org</td>
+                <td><span th:replace="~{admin/fragments/badges :: badge(${cat.active} ? 'Active' : 'Inactive')}"></span></td>
+                <td class="num" th:text="${cat.skillCount}">0</td>
+                <td th:text="${@adminFormat.dateTime(cat.createdAt)}">date</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 
     <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
 </div>

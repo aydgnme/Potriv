@@ -469,6 +469,30 @@ signed-in admin's name, a `SYSTEM_ADMIN` badge, and a logout button.
 - `dashboard/index.html`, `<entity>/list.html`, `<entity>/detail.html`,
   `error/{403,404,500}.html`.
 
+## Accessibility and layout
+
+- **Skip link.** Every page starts with a visually-hidden "Skip to content" link
+  that becomes visible on focus and jumps to `<main id="admin-content">`.
+- **Labelled controls.** Grid filter bars use `<label for>`; the single-box search
+  fragment uses `aria-label`. Asserted for every list route.
+- **Announced feedback.** Success banners are `role="status"`, errors are
+  `role="alert"`.
+- **Tables scroll, pages do not.** Every data table sits in an
+  `.admin-table-scroll` container, so a narrow viewport scrolls the table rather
+  than the document. The container is focusable so its content is reachable
+  without a pointer.
+- **Long values wrap.** UUIDs, emails and token-shaped strings use
+  `overflow-wrap: anywhere` in tables, spec lists and inline `code`, so one long
+  value never stretches a row.
+- **Narrow screens** (≤860px) stack the spec-list label column, collapse the
+  filter grid to one control per row, and wrap page/form action rows.
+- **Reduced motion** is respected globally via `prefers-reduced-motion`.
+- **Focus.** Buttons use `:focus-visible` (no ring on mouse click); text inputs
+  and selects use `:focus`, which is the behaviour a typist expects.
+
+No frontend build system was introduced — this is still Thymeleaf plus three
+stylesheets and one optional progressive-enhancement script.
+
 ## CSS structure (`src/main/resources/static/admin/css/`)
 
 `admin.css` (shell, topbar, sidebar, base type), `components.css` (cards,

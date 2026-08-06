@@ -35,14 +35,16 @@
         <h2 class="admin-card-title">Departments</h2>
         <div th:if="${organization.departments.isEmpty()}"
              th:replace="~{admin/fragments/empty-state :: empty('No departments.')}"></div>
-        <table th:unless="${organization.departments.isEmpty()}" class="admin-table">
-            <thead><tr><th>Name</th></tr></thead>
-            <tbody>
-            <tr th:each="dept : ${organization.departments}">
-                <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="admin-table-scroll">
+            <table th:unless="${organization.departments.isEmpty()}" class="admin-table">
+                <thead><tr><th>Name</th></tr></thead>
+                <tbody>
+                <tr th:each="dept : ${organization.departments}">
+                    <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <section class="admin-card">

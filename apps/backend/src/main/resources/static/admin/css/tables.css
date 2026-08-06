@@ -3,6 +3,25 @@
    Depends on tokens in admin.css.
    ========================================================================== */
 
+/* A narrow viewport scrolls the table, never the page. The container is only
+   scrollable when it needs to be, and is keyboard-focusable so the content is
+   reachable without a pointer. */
+.admin-table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+    margin-bottom: 16px;
+}
+
+.admin-table-scroll:focus-visible {
+    outline: none;
+    box-shadow: var(--ring);
+    border-radius: var(--r-md);
+}
+
+.admin-table-scroll .admin-table {
+    margin-bottom: 0;
+}
+
 .admin-table {
     width: 100%;
     border-collapse: collapse;
@@ -41,11 +60,17 @@
     background: var(--surface-sunken);
 }
 
-/* Machine values in tables read as machine values. */
+/* Machine values in tables read as machine values. A UUID, email or token-shaped
+   string breaks inside itself rather than stretching the row. */
 .admin-table td.mono,
 .admin-table td code {
     font-family: var(--mono);
     font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+.admin-table tbody td {
+    overflow-wrap: break-word;
 }
 
 .admin-table th.num,

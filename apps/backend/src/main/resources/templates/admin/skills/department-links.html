@@ -14,21 +14,23 @@
         <h2 class="admin-card-title">Linked departments</h2>
         <div th:if="${skill.departments.isEmpty()}"
              th:replace="~{admin/fragments/empty-state :: empty('No departments linked yet.')}"></div>
-        <table th:unless="${skill.departments.isEmpty()}" class="admin-table">
-            <thead><tr><th>Department</th><th></th></tr></thead>
-            <tbody>
-            <tr th:each="dept : ${skill.departments}">
-                <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
-                <td class="num">
-                    <form method="post" style="display:inline"
-                          th:action="@{'/admin/skills/' + ${skill.id} + '/department-links/' + ${dept.id} + '/remove'}">
-                        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
-                        <button type="submit" class="admin-btn admin-btn--ghost">Remove</button>
-                    </form>
-                </td>
-            </tr>
-            </tbody>
-        </table>
+        <div class="admin-table-scroll">
+            <table th:unless="${skill.departments.isEmpty()}" class="admin-table">
+                <thead><tr><th>Department</th><th></th></tr></thead>
+                <tbody>
+                <tr th:each="dept : ${skill.departments}">
+                    <td><a th:href="@{'/admin/departments/' + ${dept.id}}" th:text="${dept.name}">Dept</a></td>
+                    <td class="num">
+                        <form method="post" style="display:inline"
+                              th:action="@{'/admin/skills/' + ${skill.id} + '/department-links/' + ${dept.id} + '/remove'}">
+                            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+                            <button type="submit" class="admin-btn admin-btn--ghost">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
     </section>
 
     <section class="admin-card admin-card--form">

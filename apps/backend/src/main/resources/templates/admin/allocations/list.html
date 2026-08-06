@@ -67,25 +67,27 @@
              ? 'No allocations match these filters.' : 'No allocations found.')}"></div>
     </div>
 
-    <table th:unless="${list.items.isEmpty()}" class="admin-table">
-        <thead>
-        <tr><th>Employee</th><th>Project</th><th>Review Department</th>
-            <th class="num">Hours/day</th><th>Status</th><th>Allocated</th><th>Deallocated</th></tr>
-        </thead>
-        <tbody>
-        <tr th:each="allocation : ${list.items}">
-            <td><a th:href="@{'/admin/allocations/' + ${allocation.id}}"
-                   th:text="${allocation.employeeName}">Employee</a></td>
-            <td th:text="${allocation.projectName}">Project</td>
-            <td th:text="${allocation.reviewDepartmentName}">Dept</td>
-            <td class="num" th:text="${allocation.workHoursPerDay}">0</td>
-            <td><span th:replace="~{admin/fragments/badges :: badge(${allocation.status})}"></span></td>
-            <td th:text="${@adminFormat.dateTime(allocation.allocatedAt)}">date</td>
-            <td th:text="${allocation.deallocatedAt != null
-                          ? @adminFormat.dateTime(allocation.deallocatedAt) : '—'}">—</td>
-        </tr>
-        </tbody>
-    </table>
+    <div class="admin-table-scroll">
+        <table th:unless="${list.items.isEmpty()}" class="admin-table">
+            <thead>
+            <tr><th>Employee</th><th>Project</th><th>Review Department</th>
+                <th class="num">Hours/day</th><th>Status</th><th>Allocated</th><th>Deallocated</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="allocation : ${list.items}">
+                <td><a th:href="@{'/admin/allocations/' + ${allocation.id}}"
+                       th:text="${allocation.employeeName}">Employee</a></td>
+                <td th:text="${allocation.projectName}">Project</td>
+                <td th:text="${allocation.reviewDepartmentName}">Dept</td>
+                <td class="num" th:text="${allocation.workHoursPerDay}">0</td>
+                <td><span th:replace="~{admin/fragments/badges :: badge(${allocation.status})}"></span></td>
+                <td th:text="${@adminFormat.dateTime(allocation.allocatedAt)}">date</td>
+                <td th:text="${allocation.deallocatedAt != null
+                              ? @adminFormat.dateTime(allocation.deallocatedAt) : '—'}">—</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
 
     <div th:replace="~{admin/fragments/pagination :: pagination(${list})}"></div>
 </div>
