@@ -3,6 +3,7 @@ package me.aydgn.potriv.project.teamfinder;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -104,13 +105,28 @@ class TeamFinderAvailabilityIntegrationTest extends AbstractTeamFinderIntegratio
         assertThat(eveRow.get("score").get("availabilityScore").asInt()).isZero();
     }
 
+    /**
+     * The date the <em>service</em> reasons about.
+     *
+     * <p>{@code TeamFinderService} resolves "today" through the injected
+     * {@code Clock}, which is {@code Clock.systemUTC()}. A test that built its
+     * fixtures from a zone-less {@code LocalDate.now()} agreed with it only while
+     * the machine's local date happened to match UTC — so between midnight and
+     * the UTC offset, a deadline meant to be "yesterday" was still today in UTC
+     * and the candidate qualified as close-to-finish. Reading the same zone the
+     * service reads removes the boundary entirely.
+     */
+    private static LocalDate serviceToday() {
+        return LocalDate.now(ZoneOffset.UTC);
+    }
+
     @Test
     void closeToFinishDetectionAndAvailabilityFloor() throws Exception {
         Workspace workspace = newWorkspace();
         SkillSetup skills = javaSkill(workspace);
         Member frank = javaEmployee(workspace, skills, "frank");
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = serviceToday();
         UUID endingSoon = fixedConsumingProject(workspace, uniqueName("EndingSoon"),
             today.minusDays(30), today.plusDays(7));
         allocate(workspace, endingSoon, frank.userId(), 8);
@@ -142,7 +158,7 @@ class TeamFinderAvailabilityIntegrationTest extends AbstractTeamFinderIntegratio
     void closeToFinishIgnoresFarPastOngoingAndNonConsumingDeadlines() throws Exception {
         Workspace workspace = newWorkspace();
         SkillSetup skills = javaSkill(workspace);
-        LocalDate today = LocalDate.now();
+        LocalDate today = serviceToday();
 
         // Deadline outside the 2-week window.
         Member far = javaEmployee(workspace, skills, "far");
