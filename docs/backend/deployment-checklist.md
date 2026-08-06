@@ -37,6 +37,10 @@ Run through this list for every production deployment of `apps/backend`.
       credential at the next deploy — and suspending the account will not stick.
       See [`environment.md`](environment.md#system-administrator-bootstrap).
 - [ ] `SWAGGER_ENABLED` is unset or `false`.
+- [ ] Orchestrator liveness/readiness probes point at
+      `/api/actuator/health/readiness` (db + ping), **not** the aggregate
+      `/api/actuator/health`, which also reports outbound mail and would take a
+      serving instance out of rotation during an SMTP outage.
 - [ ] If the console **is** enabled, confirm what it grants: a `SYSTEM_ADMIN`
       can rename organizations, manage departments and the skill catalog, edit
       user names, activate/suspend/unlock accounts, grant manageable roles,

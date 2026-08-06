@@ -4,6 +4,27 @@ State of the backend's production posture after the PROD-READY-01 hardening
 pass. Product behavior is unchanged; this page records what production enforces
 and what still needs work before the first real deployment.
 
+## Health probes
+
+The container healthcheck and `scripts/backend-prod-smoke.sh` probe
+**`/api/actuator/health/readiness`**, not the aggregate `/api/actuator/health`.
+
+The aggregate includes Spring Boot's mail contributor, so an unreachable or
+misconfigured SMTP server made it report `DOWN` — and with the shipped
+`.env.prod.example` placeholders that is the normal state. A backend that was
+serving every request was therefore marked `unhealthy`, and an orchestrator would
+restart or de-route it on any mail blip. The readiness group answers the question
+a probe actually asks — *can this instance serve requests?* — and includes `db`
+and `ping` only.
+
+Outbound mail is still reported in the full aggregate, so its state stays visible
+to an operator and to the admin monitor without gating traffic. Health responses
+carry no component detail: `show-details` is left at Spring's default `never`,
+which is why `/actuator/health/**` can remain anonymous for probes.
+
+Verified on a fresh stack: container `healthy`, readiness `{"status":"UP"}`,
+aggregate `DOWN` while SMTP is a placeholder, second boot idempotent.
+
 ## Continuous integration
 
 `.github/workflows/backend-ci.yml` ("Backend CI") is the automated gate. It runs
