@@ -1,0 +1,18 @@
+{
+  "_comment": [
+    "Stalwart v0.16 on-disk configuration. As of v0.16 this file describes ONLY",
+    "the datastore; domains, accounts, DKIM keys, relay policy and rate limits",
+    "live inside that datastore and are managed through the server's own",
+    "management interface (see infra/mail/README.md).",
+    "",
+    "This is a TEMPLATE. On first start Stalwart runs in bootstrap mode when no",
+    "config.json exists and writes its own; adopt that file rather than pasting",
+    "this one blindly, then keep it under configuration management."
+  ],
+  "store": {
+    "db": {
+      "type": "rocksdb",
+      "path": "/var/lib/stalwart/data"
+    }
+  }
+}

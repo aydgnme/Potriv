@@ -1,0 +1,78 @@
+# Potriv production mail stack — Stalwart Mail Server.
+#
+# Overlays docker-compose.prod.yml so the backend can reach the mail service by
+# name on a shared network:
+#
+#   docker compose --env-file .env.prod --env-file .env.mail \
+#     -f docker-compose.prod.yml -f docker-compose.mail.yml up -d
+#
+# Read docs/backend/mail-infrastructure.md before deploying: a container and an
+# MX record alone do not produce deliverable mail.
+
+services:
+  potriv-mail:
+    # Pinned. Never `latest` in production — an unattended mail-server upgrade
+    # is an outage waiting for a bad night.
+    image: stalwartlabs/stalwart:v0.16.16
+    container_name: potriv-mail
+    environment:
+      # One-time bootstrap credential, supplied from the env file rather than
+      # read out of the container log. Rotate once provisioning is complete.
+      STALWART_RECOVERY_ADMIN: ${STALWART_RECOVERY_ADMIN:?STALWART_RECOVERY_ADMIN is required}
+      # The image's own healthcheck reads this. Point it at the plain-HTTP
+      # management listener so the probe does not depend on a certificate.
+      STALWART_HEALTHCHECK_URL: http://127.0.0.1:8080/healthz/live
+    volumes:
+      # Named volumes, not bind mounts: the config datastore and the DKIM
+      # private key live here and must survive a container replacement.
+      - potriv_mail_config:/etc/stalwart
+      - potriv_mail_data:/var/lib/stalwart
+    ports:
+      # 587 — authenticated submission with STARTTLS. The backend uses this over
+      # the internal network; it is published only if submission must cross the
+      # host boundary.
+      - "${MAIL_PUBLIC_BIND:-127.0.0.1}:587:587"
+      # 25 — server-to-server delivery and receipt. Keep on loopback until DNS,
+      # PTR and outbound port 25 are actually in place.
+      - "${MAIL_PUBLIC_BIND:-127.0.0.1}:25:25"
+      # 8080 — management and bootstrap. Loopback only, always.
+      - "${MAIL_ADMIN_BIND:-127.0.0.1}:8080:8080"
+      # Deliberately NOT published: 110/143/993/995 (POP3/IMAP), 4190
+      # (ManageSieve), 465 (implicit TLS submission), 443 (JMAP/ACME).
+      # Potriv is a sender, not a mailbox host. Publish 443 only when Stalwart
+      # terminates ACME itself — see infra/mail/README.md.
+    networks:
+      - potriv-mail-net
+    # The image already runs as non-root (uid 2000) and grants the binary
+    # cap_net_bind_service, so privileged mode is never needed to bind :25.
+    privileged: false
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    restart: unless-stopped
+
+  # The backend joins the mail network and submits over it by service name.
+  potriv-backend:
+    networks:
+      - default
+      - potriv-mail-net
+    depends_on:
+      potriv-db:
+        condition: service_healthy
+      # Started, not healthy: mail must never gate the backend's availability.
+      potriv-mail:
+        condition: service_started
+
+networks:
+  potriv-mail-net:
+    name: potriv-mail-net
+    driver: bridge
+    # Not internal: the mail server needs outbound access to deliver.
+
+volumes:
+  potriv_mail_config:
+  potriv_mail_data:
