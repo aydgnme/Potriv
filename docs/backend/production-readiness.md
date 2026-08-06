@@ -128,6 +128,7 @@ actions. See `docs/backend/environment.md` for usage.
 | `V2__create_application_schema.sql` | The real baseline: every application table, UUID primary key, foreign key, unique constraint, index, and enum `CHECK` constraint for the current entity model. |
 | `V3__refresh_audit_event_type_check.sql` | Refreshes the `security_audit_events.event_type` `CHECK` constraint for the two `SYSTEM_ADMIN_BOOTSTRAP_*` events — a worked example of the enum rule below. |
 | `V4__refresh_audit_event_type_check_invitations.sql` | Same refresh for the two `ADMIN_INVITATION_*` events (ADMIN-UI-07). |
+| `V5__refresh_audit_event_type_check_projects.sql` | Same refresh for the three `ADMIN_PROJECT_*` events added with safe project administration actions. |
 
 A fresh production database boots cleanly: Flyway applies `V1` then `V2`, and
 Hibernate `validate` then accepts the result. This is covered automatically by
@@ -136,7 +137,7 @@ PostgreSQL, runs the migrations under the real `prod` profile, and asserts the
 context starts.
 
 **Changing the entity model requires a new migration.** Never edit a migration
-that has already been applied anywhere — add `V3`, `V4`, … instead. This applies
+that has already been applied anywhere — add `V3`, `V4`, `V5`, … instead. This applies
 equally to enum changes: an `@Enumerated(EnumType.STRING)` column carries a
 `CHECK` constraint listing every constant, so adding a constant needs a
 migration that refreshes that constraint. `ProductionSchemaMigrationIntegrationTest`

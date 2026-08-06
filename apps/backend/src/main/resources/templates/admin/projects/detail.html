@@ -2,7 +2,36 @@
 <html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
 <body>
 <div th:fragment="content">
-    <div class="admin-page-head"><h1 th:text="${project.name}">Project</h1></div>
+    <div class="admin-page-head">
+        <h1 th:text="${project.name}">Project</h1>
+        <div class="admin-page-actions">
+            <!-- Offered only while history still permits it; the service enforces
+                 the same rule regardless of what this page shows. -->
+            <a th:if="${project.deletable}" class="admin-btn admin-btn--danger"
+               th:href="@{'/admin/projects/' + ${project.id} + '/delete'}">Delete project</a>
+        </div>
+    </div>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Lifecycle</h2>
+        <form method="post" class="admin-inline-form"
+              th:action="@{'/admin/projects/' + ${project.id} + '/status'}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <label for="project-status">Move to status</label>
+            <select id="project-status" name="status">
+                <option th:each="option : ${statusOptions}" th:value="${option}"
+                        th:text="${option}" th:selected="${option.name() == project.status}">
+                    STATUS
+                </option>
+            </select>
+            <button type="submit" class="admin-btn">Apply status</button>
+        </form>
+        <p class="admin-field-hint">
+            Activating a project runs the same capacity checks the product applies:
+            if an allocated employee would exceed their daily hours the change is
+            refused and nothing is recorded.
+        </p>
+    </section>
 
     <section class="admin-card">
         <h2 class="admin-card-title">General</h2>
@@ -82,6 +111,24 @@
                 <td th:text="${member.reviewDepartmentName}">Dept</td>
                 <td class="num" th:text="${member.workHoursPerDay}">0</td>
                 <td th:text="${@adminFormat.dateTime(member.deallocatedAt)}">date</td>
+            </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-card">
+        <h2 class="admin-card-title">Status History</h2>
+        <div th:if="${project.statusHistory.isEmpty()}"
+             th:replace="~{admin/fragments/empty-state :: empty('No recorded status changes.')}"></div>
+        <table th:unless="${project.statusHistory.isEmpty()}" class="admin-table">
+            <thead><tr><th>When</th><th>From</th><th>To</th><th>Changed by</th></tr></thead>
+            <tbody>
+            <tr th:each="change : ${project.statusHistory}">
+                <td th:text="${@adminFormat.dateTime(change.changedAt)}">date</td>
+                <td><code th:text="${change.fromStatus}">FROM</code></td>
+                <td><span th:replace="~{admin/fragments/badges :: badge(${change.toStatus})}"></span></td>
+                <td><a th:href="@{'/admin/users/' + ${change.changedById}}"
+                       th:text="${change.changedByName}">Actor</a></td>
             </tr>
             </tbody>
         </table>

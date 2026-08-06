@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html th:replace="~{admin/layout/base :: page(~{::content})}" xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="content">
+    <div class="admin-page-head">
+        <h1>Delete project</h1>
+        <p class="admin-page-sub" th:text="${project.name}">Project</p>
+    </div>
+
+    <!-- Blocked: the project has progressed beyond planning at some point, so the
+         record is kept. This mirrors the product's own deletion rule exactly. -->
+    <section class="admin-card" th:unless="${project.deletable}">
+        <h2 class="admin-card-title">Cannot delete</h2>
+        <p>
+            <strong th:text="${project.name}">Project</strong> has been
+            <code>IN_PROGRESS</code>, <code>CLOSING</code> or <code>CLOSED</code> at
+            some point in its history, so it can no longer be deleted — the record of
+            work that actually happened is kept. Its current status does not change
+            this. Nothing is deleted or changed by going back.
+        </p>
+        <dl class="admin-dl">
+            <dt>Current status</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${project.status})}"></span></dd>
+            <dt>Recorded status changes</dt>
+            <dd class="mono" th:text="${project.statusHistory.size()}">0</dd>
+        </dl>
+        <div class="admin-form-actions">
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/projects/' + ${project.id}}">Back to project</a>
+        </div>
+    </section>
+
+    <!-- Safe: still in planning, deletion is permitted with an explicit confirmation. -->
+    <section class="admin-card" th:if="${project.deletable}">
+        <h2 class="admin-card-title">Confirm deletion</h2>
+        <p>
+            You are about to permanently delete
+            <strong th:text="${project.name}">Project</strong> from
+            <span th:text="${project.organizationName}">Organization</span>.
+            This project never progressed beyond planning. Its technology stack, team
+            role requirements, status history and any pending assignment proposals are
+            removed with it; allocated employees and their accounts are not touched.
+            This action cannot be undone.
+        </p>
+        <dl class="admin-dl">
+            <dt>Current status</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${project.status})}"></span></dd>
+            <dt>Project Manager</dt>
+            <dd th:text="${project.projectManagerName}">PM</dd>
+            <dt>Active members</dt>
+            <dd class="mono" th:text="${project.activeMembers.size()}">0</dd>
+            <dt>Pending assignment proposals</dt>
+            <dd class="mono" th:text="${project.pendingAssignmentProposals}">0</dd>
+        </dl>
+        <form method="post" class="admin-form-actions"
+              th:action="@{'/admin/projects/' + ${project.id} + '/delete'}">
+            <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}">
+            <button type="submit" class="admin-btn admin-btn--danger">Delete project</button>
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/projects/' + ${project.id}}">Cancel</a>
+        </form>
+    </section>
+</div>
+</body>
+</html>

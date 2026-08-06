@@ -13,6 +13,9 @@ public enum ProjectStatus {
     CLOSING,
     CLOSED;
 
+    private static final Set<ProjectStatus> DELETION_BLOCKING_STATUSES =
+        Collections.unmodifiableSet(EnumSet.of(IN_PROGRESS, CLOSING, CLOSED));
+
     private static final Set<ProjectStatus> CAPACITY_CONSUMING_STATUSES =
         Collections.unmodifiableSet(Arrays.stream(values())
             .filter(ProjectStatus::consumesAllocationCapacity)
@@ -33,5 +36,16 @@ public enum ProjectStatus {
      */
     public static Set<ProjectStatus> capacityConsumingStatuses() {
         return CAPACITY_CONSUMING_STATUSES;
+    }
+
+    /**
+     * Statuses whose presence anywhere in a project's history makes it
+     * undeletable: once work has actually started, the record is kept.
+     *
+     * <p>Lives here rather than in a service so the product's own deletion path
+     * and the administration console read the same rule and cannot drift apart.
+     */
+    public static Set<ProjectStatus> deletionBlockingStatuses() {
+        return DELETION_BLOCKING_STATUSES;
     }
 }

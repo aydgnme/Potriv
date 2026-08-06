@@ -43,6 +43,8 @@ are reached externally at `/api/admin/**`:
 | `GET /admin/organizations` , `/{id}` | `/api/admin/organizations…` |
 | `GET /admin/departments` , `/{id}` | `/api/admin/departments…` |
 | `GET /admin/projects` , `/{id}` | `/api/admin/projects…` |
+| `POST /admin/projects/{id}/status` | `/api/admin/projects/{id}/status` |
+| `GET/POST /admin/projects/{id}/delete` | `/api/admin/projects/{id}/delete` |
 | `GET /admin/allocations` , `/{id}` | `/api/admin/allocations…` |
 | `GET /admin/invitations` , `/{id}` | `/api/admin/invitations…` |
 | `POST /admin/invitations/{id}/revoke` , `/regenerate` | `/api/admin/invitations/{id}/…` |
@@ -302,6 +304,54 @@ Audited via `ADMIN_INVITATION_REVOKED` and `ADMIN_INVITATION_REGENERATED`
 - Used/accepted-invitation rules do not apply: that state does not exist in this
   model.
 
+## Safe project administration actions
+
+**Read the constraint first: the console cannot call `ProjectService`.** Every
+mutation there goes through `requireOwnedProject`, which requires the caller to be
+in the project's organization **and** to be that project's manager. A
+`SYSTEM_ADMIN` is a platform actor and is neither, so the product service is
+unreachable from the console — the same situation that already produced dedicated
+admin write services for organizations, departments, skills and users.
+
+`AdminProjectWriteService` therefore changes only **who may act**. Every
+*lifecycle* rule is reused rather than reimplemented:
+
+| Concern | Where the rule lives | How the console uses it |
+| --- | --- | --- |
+| Transition veto | `ProjectStatusChangeGuard` beans (today: `AllocationProjectStatusChangeGuard`) | The same injected bean list runs before any change; a veto aborts and reports the domain's own message |
+| Transition record | `ProjectStatusHistory` | The same row is written, with the **acting administrator** as `changedBy` |
+| Deletability | `ProjectStatus.deletionBlockingStatuses()` | Moved out of `ProjectService` into the enum so both paths read one source of truth |
+| Pre-delete cleanup | `ProjectDeletionContributor` beans | The same injected bean list runs first |
+| Delete scope | Explicit bounded delete | Technologies, role requirements, status history, then the project — never a cascade onto users or allocations |
+
+Two actions, both `POST` + CSRF + redirect-after-POST:
+
+| Action | Effect |
+| --- | --- |
+| **Change status** | Moves the project to another `ProjectStatus`. A no-op when the status already matches; an unknown submitted value is rejected without changing anything. |
+| **Delete** | Permitted only while the project never reached `IN_PROGRESS`, `CLOSING` or `CLOSED` — a **historical** rule, so moving a started project back to planning does not make it deletable again. Behind a confirmation page that states the reason when blocked. |
+
+The detail page also gained a **Status History** section (newest first, with the
+actor linked) — the operational context an admin actually needs to review a
+project.
+
+Audited via `ADMIN_PROJECT_STATUS_CHANGED`, `ADMIN_PROJECT_DELETED` and
+`ADMIN_PROJECT_ACTION_BLOCKED` (`V5` refreshes the `CHECK` constraint).
+
+### Deliberately not implemented
+
+- **Project metadata edit** (name, schedule, description, technology stack, team
+  role requirements). The task's own condition was to add it *only if the PM
+  update rules can be reused without an admin-specific bypass* — they cannot.
+  `ProjectService.update` validates replacement technology and team-role lists
+  against the organization inside the same ownership-gated transaction;
+  reproducing that in the console would duplicate substantial cross-entity
+  validation with real drift risk, for the low-value ability to rename another
+  organization's project.
+- **Force-approve / force-reject / force-deallocate** for allocations and
+  proposals — no domain service exposes an administrative override, and inventing
+  one would bypass the review workflow the product is built around.
+
 ## Audit event review filters (OPS-02)
 
 `GET /admin/audit-logs` is a **read-only, GET-only** review page over
@@ -510,6 +560,17 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   repeated and hostile `page`/`size` all render a list; the hostile text is neither
   executed nor echoed; the effective size is what the operator sees; audit filters
   still apply under malformed pagination; anonymous is still turned away.
+- `AdminProjectActionsIntegrationTest` — anonymous/non-SYSTEM_ADMIN/CSRF-less
+  blocked, GET confirmation does not mutate, unknown id `404`, status change
+  applied and recorded with the **administrator** as actor, no-op and unusable
+  status values change nothing, the product's guard/contributor beans are the ones
+  injected, planning project deletes (with its technologies, requirements and
+  history), a project that ever reached `IN_PROGRESS` can never be deleted even
+  after moving back, people and accounts survive deletion, audit details carry no
+  secrets.
+- `AdminPathVariableHardeningIntegrationTest` — every admin id route answers the
+  admin `404` for a malformed id instead of a 500, security is still evaluated
+  first, and firewall-rejected shapes stay a `400`.
 - `AdminAuditFiltersIntegrationTest` — anonymous/non-SYSTEM_ADMIN blocked,
   newest-first stable ordering under equal timestamps, per-filter isolation
   (event type, organization, outcome, actor by email and by user id, IP, date
