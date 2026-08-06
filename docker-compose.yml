@@ -11,12 +11,31 @@ services:
     volumes:
       - potriv_postgres_data:/var/lib/postgresql/data
 
+  # Local SMTP sink. Mailpit accepts every message and transmits none, so the
+  # real password-reset flow can be exercised end to end with no risk of mailing
+  # a real person. Never used in production — see docs/backend/mail-infrastructure.md.
   mailpit:
-    image: axllent/mailpit
+    image: axllent/mailpit:v1.30.6
     container_name: potriv-mailpit
+    environment:
+      # Bounded store: a long-running dev box cannot fill the disk.
+      MP_MAX_MESSAGES: 500
+      MP_DATABASE: /data/mailpit.db
+      MP_SMTP_BIND_ADDR: 0.0.0.0:1025
+      MP_UI_BIND_ADDR: 0.0.0.0:8025
     ports:
-      - "1025:1025"
-      - "8025:8025"
+      # Loopback only: a developer tool, not a service on the network.
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    volumes:
+      - potriv_mailpit_data:/data
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
 
 volumes:
   potriv_postgres_data:
+  potriv_mailpit_data:
