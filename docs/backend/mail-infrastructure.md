@@ -143,7 +143,7 @@ Every published port, and why:
 | `587` | prod | internal network only by default | Authenticated submission with STARTTLS — what the backend uses |
 | `25` | prod | public **only when public mail is enabled** | Server-to-server delivery/receipt |
 | `443` | prod | public only if Stalwart terminates ACME/HTTPS itself | TLS certificate issuance |
-| `8080` | prod | `127.0.0.1` | Management/bootstrap |
+| `8081` → container `8080` | prod | `127.0.0.1` | Management/bootstrap. Not host 8080 — the backend owns that. |
 
 Not exposed, deliberately: IMAP (143/993), POP3 (110/995), ManageSieve (4190),
 JMAP. Potriv is a sender, not a mailbox host; opening a mailbox protocol would

@@ -14,7 +14,7 @@ ENV_PROD=${ENV_PROD:-.env.prod}
 ENV_MAIL=${ENV_MAIL:-.env.mail}
 COMPOSE=(docker compose --env-file "$ENV_PROD" --env-file "$ENV_MAIL"
          -f docker-compose.prod.yml -f docker-compose.mail.yml)
-ADMIN_URL=${ADMIN_URL:-http://127.0.0.1:8080}
+ADMIN_URL=${ADMIN_URL:-http://127.0.0.1:8081}
 
 for f in "$ENV_PROD" "$ENV_MAIL"; do
   if [ ! -f "$f" ]; then
@@ -46,7 +46,7 @@ if "${COMPOSE[@]}" logs potriv-mail 2>&1 | grep -q "bootstrap mode"; then
 
 ==> The server is in BOOTSTRAP MODE — initial provisioning is not done.
 
-    Sign in at http://127.0.0.1:8080/admin with the credential pinned in
+    Sign in at http://127.0.0.1:8081/admin with the credential pinned in
     STALWART_RECOVERY_ADMIN (never the password printed in the log), then
     provision, in this order:
 

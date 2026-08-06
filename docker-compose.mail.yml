@@ -35,8 +35,10 @@ services:
       # 25 — server-to-server delivery and receipt. Keep on loopback until DNS,
       # PTR and outbound port 25 are actually in place.
       - "${MAIL_PUBLIC_BIND:-127.0.0.1}:25:25"
-      # 8080 — management and bootstrap. Loopback only, always.
-      - "${MAIL_ADMIN_BIND:-127.0.0.1}:8080:8080"
+      # Management and bootstrap. Loopback only, always. Published on 8081 by
+      # default because the backend already owns host 8080 — colliding here
+      # prevents the whole stack from starting.
+      - "${MAIL_ADMIN_BIND:-127.0.0.1}:${MAIL_ADMIN_PORT:-8081}:8080"
       # Deliberately NOT published: 110/143/993/995 (POP3/IMAP), 4190
       # (ManageSieve), 465 (implicit TLS submission), 443 (JMAP/ACME).
       # Potriv is a sender, not a mailbox host. Publish 443 only when Stalwart

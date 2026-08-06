@@ -92,13 +92,26 @@ smoke_relay() {
 
   # Attempt to relay to an external domain with no AUTH. A correctly configured
   # server rejects with 5xx. Nothing is delivered either way.
+  #
+  # A published Docker port answers TCP even when nothing inside is listening,
+  # so a successful connect proves nothing on its own. Require an SMTP greeting
+  # before drawing any conclusion — "no service answered" is BLOCKED, never a
+  # pass and never a relay failure.
   local out
   out=$(printf 'EHLO smoke.test\r\nMAIL FROM:<relay-test@example.invalid>\r\nRCPT TO:<relay-target@example.invalid>\r\nQUIT\r\n' \
         | timeout 15 openssl s_client -starttls smtp -connect "${host}:${port}" -quiet 2>/dev/null)
+
+  if ! printf '%s' "$out" | grep -qE '^220|^250'; then
+    ext "no SMTP service answered on ${host}:${port} — the server is not"
+    ext "  provisioned yet (mail listeners stay closed in bootstrap mode)."
+    ext "  Relay policy NOT VERIFIED; re-run after provisioning."
+    return
+  fi
+
   if printf '%s' "$out" | grep -qE '^5[0-9][0-9]'; then
     ok "unauthenticated relay to an external domain refused"
   else
-    bad "unauthenticated relay was NOT clearly refused — inspect the relay policy"
+    bad "unauthenticated relay was NOT refused — inspect the relay policy"
   fi
 }
 
