@@ -18,9 +18,13 @@
             <dd><a th:href="@{'/admin/organizations/' + ${category.organizationId}}"
                    th:text="${category.organizationName}">Org</a></dd>
             <dt>Status</dt>
-            <dd><span class="signal" th:classappend="${category.active} ? 'signal--ok' : 'signal--idle'"
-                      th:text="${category.active} ? 'Active' : 'Inactive'">Active</span></dd>
-            <dt>Skills</dt><dd class="mono" th:text="${category.skillCount}">0</dd>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${category.active} ? 'Active' : 'Inactive')}"></span></dd>
+            <dt>Skills</dt>
+            <dd>
+                <span class="mono" th:text="${category.skillCount}">0</span>
+                <a class="admin-inline-link"
+                   th:href="@{/admin/skills(category=${category.id})}">Browse skills</a>
+            </dd>
         </dl>
     </section>
 

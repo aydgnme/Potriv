@@ -117,6 +117,16 @@
     </section>
 
     <section class="admin-card">
+        <h2 class="admin-card-title">Related</h2>
+        <p>
+            <a class="admin-btn admin-btn--ghost"
+               th:href="@{/admin/allocations(projectId=${project.id})}">Allocations</a>
+            <a th:if="${project.projectManagerId}" class="admin-btn admin-btn--ghost"
+               th:href="@{'/admin/users/' + ${project.projectManagerId}}">Project manager</a>
+        </p>
+    </section>
+
+    <section class="admin-card">
         <h2 class="admin-card-title">Status History</h2>
         <div th:if="${project.statusHistory.isEmpty()}"
              th:replace="~{admin/fragments/empty-state :: empty('No recorded status changes.')}"></div>

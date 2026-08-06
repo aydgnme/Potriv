@@ -513,6 +513,34 @@ tables + pagination). `js/admin.js` is optional progressive enhancement only
   (`AdminPaging.likePattern`) rather than a nullable bind inside `concat(...)`,
   which avoids the `lower(bytea)` type-inference error.
 
+## Cross-page consistency
+
+The console is one tool, not nine pages that happen to share a stylesheet. The
+rules below are asserted by `AdminConsoleConsistencyIntegrationTest` against
+every list route, so they cannot quietly drift.
+
+- **One status vocabulary.** A record's own status is always the `badges`
+  fragment (`badge--active`, `badge--suspended`, `badge--success`, …). `.signal`
+  is reserved for *system* state — health, Flyway, readiness, environment, and a
+  computed account condition such as login-locked. Skill and skill-category
+  active/inactive were rendering as `.signal` and now use the badge like every
+  other entity status.
+- **Every filter control is labelled.** Grid filter bars use `<label for>`; the
+  single-box search fragment uses `aria-label`.
+- **Relationship links resolve.** Detail pages pivot into *filtered* lists rather
+  than dead counts — organization → skills / allocations / audit events, user →
+  allocations / audit events, project → allocations, department → allocations it
+  reviews, skill category → its skills. The test follows each pivot and requires a
+  `200`.
+- **No page renders a credential field**, a stack trace, or an exception class
+  name.
+
+### Known gaps left in place
+
+- The users and projects lists have no organization filter, so an organization's
+  user and project counts stay plain numbers rather than pivots. Adding one is a
+  filter change, not a consistency fix, and was kept out of this pass.
+
 ## Sensitive-data policy
 
 View models exclude, and templates never render: password hashes, failed-login
@@ -601,6 +629,10 @@ Integration tests (MockMvc, real security chain, Testcontainers PostgreSQL):
   repeated and hostile `page`/`size` all render a list; the hostile text is neither
   executed nor echoed; the effective size is what the operator sees; audit filters
   still apply under malformed pagination; anonymous is still turned away.
+- `AdminConsoleConsistencyIntegrationTest` — across every list route: the shared
+  shell renders, no stack trace or exception name leaks, entity status never uses
+  the system `.signal` vocabulary, every filter control is labelled, no credential
+  field appears; plus detail-page pivots that are followed and must answer `200`.
 - `AdminAllocationReviewIntegrationTest` — anonymous blocked, non-SYSTEM_ADMIN
   cannot authenticate, the pages expose no mutation (`405` on POST, repeated GETs
   change nothing), each filter narrows to its own row, AND semantics, pagination

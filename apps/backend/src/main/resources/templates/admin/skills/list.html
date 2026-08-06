@@ -48,8 +48,7 @@
             <td th:text="${skill.categoryName}">Category</td>
             <td th:text="${skill.organizationName}">Org</td>
             <td th:text="${skill.authorName}">Author</td>
-            <td><span class="signal" th:classappend="${skill.active} ? 'signal--ok' : 'signal--idle'"
-                      th:text="${skill.active} ? 'Active' : 'Inactive'">Active</span></td>
+            <td><span th:replace="~{admin/fragments/badges :: badge(${skill.active} ? 'Active' : 'Inactive')}"></span></td>
             <td class="num" th:text="${skill.linkedDepartments}">0</td>
             <td th:text="${@adminFormat.dateTime(skill.createdAt)}">date</td>
         </tr>

@@ -23,8 +23,7 @@
         <tr th:each="cat : ${list.items}">
             <td><a th:href="@{'/admin/skill-categories/' + ${cat.id}}" th:text="${cat.name}">Cat</a></td>
             <td th:text="${cat.organizationName}">Org</td>
-            <td><span class="signal" th:classappend="${cat.active} ? 'signal--ok' : 'signal--idle'"
-                      th:text="${cat.active} ? 'Active' : 'Inactive'">Active</span></td>
+            <td><span th:replace="~{admin/fragments/badges :: badge(${cat.active} ? 'Active' : 'Inactive')}"></span></td>
             <td class="num" th:text="${cat.skillCount}">0</td>
             <td th:text="${@adminFormat.dateTime(cat.createdAt)}">date</td>
         </tr>

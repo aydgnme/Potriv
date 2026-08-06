@@ -340,6 +340,7 @@
 .signal--idle,
 .badge--not_started,
 .badge--past,
+.badge--inactive,
 .badge--suspended,
 .badge--closed {
     background: var(--idle-tint);
