@@ -6,6 +6,9 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.health.HealthComponent;
+import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.actuate.health.Status;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
@@ -30,6 +33,10 @@ import me.aydgn.potriv.security.repository.SecurityAuditEventRepository;
  *
  * <p>The only differences from a real deployment are the injected datasource,
  * SMTP, and secret values, which have no schema effect.
+ *
+ * <p>It also pins the production <em>boot posture</em> that surrounds the schema:
+ * the readiness probe the container healthcheck uses must stay UP on an instance
+ * that can serve requests, even when outbound mail cannot be reached.
  */
 @SpringBootTest
 @ActiveProfiles("prod")
@@ -135,5 +142,42 @@ class ProductionSchemaMigrationIntegrationTest {
             .build();
 
         assertThat(securityAuditEventRepository.save(event).getId()).isNotNull();
+    }
+
+    // ------------------------------------------------- Production boot probe
+
+    @Autowired
+    private HealthEndpoint healthEndpoint;
+
+    /**
+     * Regression for a real production defect: the container healthcheck hit the
+     * <em>aggregate</em> health endpoint, which includes Spring Boot's mail
+     * contributor. With the shipped `.env.prod.example` the SMTP placeholder
+     * cannot authenticate, so a backend that was serving every request — Flyway
+     * applied, `/api/auth/login` answering — was reported DOWN and the container
+     * marked unhealthy. An orchestrator would restart or de-route a healthy
+     * instance on any SMTP blip.
+     *
+     * <p>This test runs the real prod profile with an unreachable SMTP host, the
+     * same condition that produced the failure.
+     */
+    @Test
+    void readinessProbeStaysUpWhenOutboundMailIsUnreachable() {
+        HealthComponent readiness = healthEndpoint.healthForPath("readiness");
+
+        assertThat(readiness)
+            .as("the prod profile must define the readiness group the container probes")
+            .isNotNull();
+        assertThat(readiness.getStatus()).isEqualTo(Status.UP);
+    }
+
+    /**
+     * The counterpart: mail is still *reported*, just not allowed to gate the
+     * probe. If this ever stops being DOWN here the test above proves less, so the
+     * two are asserted together.
+     */
+    @Test
+    void theAggregateStillReportsOutboundMailSoItsStateRemainsVisible() {
+        assertThat(healthEndpoint.health().getStatus()).isEqualTo(Status.DOWN);
     }
 }

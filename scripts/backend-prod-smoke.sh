@@ -16,7 +16,8 @@ cd "$(dirname "$0")/.."
 
 ENV_FILE=.env.prod
 COMPOSE=(docker compose --env-file "$ENV_FILE" -f docker-compose.prod.yml)
-HEALTH_URL=http://localhost:8080/api/actuator/health
+# Matches the container healthcheck: readiness, not the mail-inclusive aggregate.
+HEALTH_URL=http://localhost:8080/api/actuator/health/readiness
 
 if [ ! -f "$ENV_FILE" ]; then
   echo "Missing $ENV_FILE."
