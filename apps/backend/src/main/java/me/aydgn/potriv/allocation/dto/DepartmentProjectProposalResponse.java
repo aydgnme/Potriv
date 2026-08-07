@@ -17,6 +17,9 @@ import me.aydgn.potriv.project.entity.ProjectStatus;
  * {@code workHoursPerDay} and {@code teamRoles} are populated for both (for
  * deallocation rows they come from the allocation and its approved assignment
  * proposal's role snapshot).
+ *
+ * <p>{@code capacity} carries the reviewer's decision context and is present only
+ * where it means something — see {@link ProposalCapacityContext}.
  */
 public record DepartmentProjectProposalResponse(
     String proposalType,
@@ -33,7 +36,13 @@ public record DepartmentProjectProposalResponse(
     UserSummary proposedBy,
     OffsetDateTime createdAt,
     UserSummary reviewedBy,
-    OffsetDateTime reviewedAt
+    OffsetDateTime reviewedAt,
+    /**
+     * Current capacity context for the employee, on pending assignment rows only.
+     * Null for deallocation rows, which free capacity rather than consume it, and
+     * for rows that have already been decided.
+     */
+    ProposalCapacityContext capacity
 ) {
 
     public static final String TYPE_ASSIGNMENT = "ASSIGNMENT";

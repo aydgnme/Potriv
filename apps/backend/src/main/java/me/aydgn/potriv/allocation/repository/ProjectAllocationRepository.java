@@ -122,6 +122,18 @@ public interface ProjectAllocationRepository extends JpaRepository<ProjectAlloca
         @Param("employeeId") UUID employeeId,
         @Param("statuses") Collection<ProjectStatus> statuses);
 
+    // Batch form of the above: one row per employee that has any capacity-consuming
+    // hours. Employees with none are simply absent, so callers default them to 0.
+    // Exists so the review queue can price a whole page of proposals in one query.
+    @Query("select a.employee.id, coalesce(sum(a.workHoursPerDay), 0) from ProjectAllocation a "
+        + "where a.employee.id in :employeeIds "
+        + "and a.deallocatedAt is null "
+        + "and a.project.status in :statuses "
+        + "group by a.employee.id")
+    List<Object[]> sumActiveCapacityHoursByEmployee(
+        @Param("employeeIds") Collection<UUID> employeeIds,
+        @Param("statuses") Collection<ProjectStatus> statuses);
+
     // Same as above but excluding a given project (used by the activation guard).
     @Query("select coalesce(sum(a.workHoursPerDay), 0) from ProjectAllocation a "
         + "where a.employee.id = :employeeId "

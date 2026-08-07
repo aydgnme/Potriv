@@ -118,7 +118,9 @@ public class DeallocationProposalMapper {
             userSummary(proposal.getProposedBy()),
             proposal.getCreatedAt(),
             userSummary(proposal.getReviewedBy()),
-            proposal.getReviewedAt());
+            proposal.getReviewedAt(),
+            // Accepting a removal frees capacity; it can never fail on it.
+            null);
     }
 
     private static UserSummary userSummary(User user) {
