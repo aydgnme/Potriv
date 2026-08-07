@@ -74,6 +74,11 @@ the architecture and [infra/mail/README.md](infra/mail/README.md) for the
 runbook. Real public deliverability additionally requires DNS, PTR and outbound
 port 25, none of which live in this repository.
 
+Black-box endpoint automation lives in
+[tools/api-e2e](tools/api-e2e/README.md): `npm run e2e` boots an isolated
+backend, exercises every OpenAPI operation, runs the anonymous/role/tenant
+security matrices, and fails when endpoint coverage drifts.
+
 Backend logs are colour-coded per level in development and plain ISO-8601 in
 production, with an `X-Request-ID` correlation id on every request — see
 [docs/backend/logging.md](docs/backend/logging.md).

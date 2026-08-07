@@ -1,0 +1,21 @@
+{
+  "name": "@potriv/api-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Black-box HTTP automation and endpoint-coverage gate for the Potriv backend.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "tsx src/runner/run.ts",
+    "e2e:existing": "tsx src/runner/run.ts --existing"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8",
+    "zod": "^3.24.1"
+  }
+}
