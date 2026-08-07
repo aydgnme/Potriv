@@ -48,6 +48,54 @@ authenticates nothing on `/api/**`, and a Bearer token authenticates nothing on
 - `SYSTEM_ADMIN` itself cannot be granted or revoked from the console, and an
   admin cannot suspend their own account or the last active `SYSTEM_ADMIN`.
 
+### Self-role changes, and the one exception
+
+A user cannot rewrite their own authorization. `PATCH /users/{userId}/roles`
+rejects a self-targeted request with `400 You cannot update your own roles.`, and
+the admin console enforces its own unconditional equivalent in
+`AdminUserRoleWriteService` — a platform user has no organization and can never
+reach the exception below.
+
+The exception exists because without it a **one-person organization cannot be set
+up at all**. Appointing a department manager requires the target to already hold
+`DEPARTMENT_MANAGER`, and creating a project requires `PROJECT_MANAGER`; a
+founder who is their organization's only member has nobody to grant either.
+
+A self-targeted role update therefore succeeds only when **every** one of these
+holds:
+
+| Condition | Enforced by |
+| --- | --- |
+| the caller is the target | `updateUserRoles` |
+| the target already holds `ORGANIZATION_ADMIN` | `requireSoloOrganizationSetup` |
+| the target belongs to an organization | same |
+| that organization contains **exactly one user** | same, via `UserRepository.countByOrganization_Id` |
+| the change removes nothing — it is strictly additive | same |
+| the only roles added are `DEPARTMENT_MANAGER` and/or `PROJECT_MANAGER` | same |
+| `SYSTEM_ADMIN` is not requested | `validateRoleUpdate`, which runs first |
+| `EMPLOYEE` survives | `normalizeRequestedRoles`, which always re-adds it |
+| the last `ORGANIZATION_ADMIN` is not removed | `preventLastOrganizationAdminRemoval` |
+
+Anything outside that returns the unchanged `You cannot update your own roles.`,
+so for every organization with more than one member the rule is exactly what it
+was. `RoleManagementIntegrationTest` runs against a two-user organization and was
+not modified — if the exception ever widened, that suite would fail.
+
+Successful bootstraps are distinguishable in the audit trail: the
+`USER_ROLES_CHANGED` event's details end with `Solo organization setup.`
+
+**Concurrency, stated honestly.** The organization size is read inside the
+transaction and re-read after the roles are written, which catches a concurrent
+registration that has already committed — PostgreSQL's read-committed isolation
+makes it visible to the second statement. A lock would not help: employee
+registration does not touch the organization row, so nothing would serialize
+against it. The residual window is a registration that commits *after* the second
+count and *before* this transaction commits. Its worst outcome is that a founder
+who was alone when they pressed the button keeps `DEPARTMENT_MANAGER` or
+`PROJECT_MANAGER` in a now two-person organization — both roles an
+`ORGANIZATION_ADMIN` may grant to anyone in their organization anyway, and
+neither grants any cross-organization or platform authority.
+
 ### CSRF policy
 
 CSRF protection is enabled exactly where it is meaningful: the cookie/session
