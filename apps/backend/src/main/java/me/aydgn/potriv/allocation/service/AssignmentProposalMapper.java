@@ -12,6 +12,8 @@ import me.aydgn.potriv.allocation.dto.AssignmentProposalResponse.DepartmentSumma
 import me.aydgn.potriv.allocation.dto.AssignmentProposalResponse.TeamRoleSummary;
 import me.aydgn.potriv.allocation.dto.AssignmentProposalResponse.UserSummary;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse;
+import me.aydgn.potriv.allocation.dto.ProposalCapacityContext;
+import me.aydgn.potriv.allocation.entity.AssignmentProposalStatus;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse.ProjectSummary;
 import me.aydgn.potriv.allocation.dto.ProjectProposalStatusFilter;
 import me.aydgn.potriv.allocation.entity.ProjectAssignmentProposal;
@@ -30,11 +32,14 @@ import me.aydgn.potriv.project.entity.Project;
 public class AssignmentProposalMapper {
 
     private final ProjectAssignmentProposalRoleRepository proposalRoleRepository;
+    private final ProposalCapacityContextFactory capacityContextFactory;
 
     public AssignmentProposalMapper(
-        ProjectAssignmentProposalRoleRepository proposalRoleRepository
+        ProjectAssignmentProposalRoleRepository proposalRoleRepository,
+        ProposalCapacityContextFactory capacityContextFactory
     ) {
         this.proposalRoleRepository = proposalRoleRepository;
+        this.capacityContextFactory = capacityContextFactory;
     }
 
     public AssignmentProposalResponse toResponse(ProjectAssignmentProposal proposal) {
@@ -58,10 +63,37 @@ public class AssignmentProposalMapper {
                 role -> role.getProposal().getId(),
                 Collectors.mapping(AssignmentProposalMapper::teamRoleSummary, Collectors.toList())));
 
+        // One capacity query for the whole page, not one per row. Only pending rows
+        // need it: a decided proposal has nothing left to check.
+        List<UUID> pendingEmployeeIds = proposals.stream()
+            .filter(proposal -> proposal.getStatus() == AssignmentProposalStatus.PENDING)
+            .map(proposal -> proposal.getEmployee().getId())
+            .distinct()
+            .toList();
+        Map<UUID, Integer> allocatedHours = capacityContextFactory.allocatedHoursFor(
+            pendingEmployeeIds);
+
         return proposals.stream()
             .map(proposal -> buildDepartmentResponse(
-                proposal, rolesByProposal.getOrDefault(proposal.getId(), List.of())))
+                proposal,
+                rolesByProposal.getOrDefault(proposal.getId(), List.of()),
+                capacityFor(proposal, allocatedHours)))
             .toList();
+    }
+
+    /**
+     * Capacity context belongs to a decision that is still open. A proposal that
+     * has already been accepted or rejected gets none rather than a figure that
+     * looks actionable.
+     */
+    private ProposalCapacityContext capacityFor(
+        ProjectAssignmentProposal proposal, Map<UUID, Integer> allocatedHours) {
+        if (proposal.getStatus() != AssignmentProposalStatus.PENDING) {
+            return null;
+        }
+        return capacityContextFactory.build(
+            allocatedHours.getOrDefault(proposal.getEmployee().getId(), 0),
+            proposal.getWorkHoursPerDay());
     }
 
     private AssignmentProposalResponse buildResponse(
@@ -83,7 +115,9 @@ public class AssignmentProposalMapper {
     }
 
     private DepartmentProjectProposalResponse buildDepartmentResponse(
-        ProjectAssignmentProposal proposal, List<TeamRoleSummary> teamRoles) {
+        ProjectAssignmentProposal proposal,
+        List<TeamRoleSummary> teamRoles,
+        ProposalCapacityContext capacity) {
         Project project = proposal.getProject();
         Department department = proposal.getReviewDepartment();
         return new DepartmentProjectProposalResponse(
@@ -101,7 +135,8 @@ public class AssignmentProposalMapper {
             userSummary(proposal.getProposedBy()),
             proposal.getCreatedAt(),
             userSummary(proposal.getReviewedBy()),
-            proposal.getReviewedAt());
+            proposal.getReviewedAt(),
+            capacity);
     }
 
     private static UserSummary userSummary(User user) {
