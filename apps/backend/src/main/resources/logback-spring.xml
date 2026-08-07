@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Potriv backend logging.
+
+  One appender, one root, three profile-scoped patterns. Colour exists only in
+  the dev pattern and is produced through Spring Boot's AnsiOutput, so
+  `spring.output.ansi.enabled=never` (which prod and test set) yields plain text
+  and no escape sequence can reach a log collector.
+
+  Everything goes to stdout: Docker already collects and rotates it, and the
+  production Compose file caps it. No application log files are written.
+-->
+<configuration>
+
+    <!-- Spring Boot's converters (%clr, %wEx) and default properties. -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <conversionRule conversionWord="levelcolor"
+                    class="me.aydgn.potriv.common.logging.LevelColorConverter"/>
+
+    <!--
+      Development: compact and scannable. Time, coloured level, thread, request
+      id, abbreviated logger, message. Package names are shortened so the message
+      starts at a predictable column.
+    -->
+    <springProfile name="dev">
+        <property name="POTRIV_LOG_PATTERN"
+                  value="%clr(%d{HH:mm:ss.SSS}){faint} %levelcolor(%-5level) %clr([%15.15thread]){faint} %clr([req=%X{requestId:--------}]){magenta} %clr(%-36.36logger{36}){cyan} %clr(-){faint} %m%n%wEx"/>
+    </springProfile>
+
+    <!--
+      Test: deterministic and quiet. No colour, no thread, no request id — none
+      of it helps when reading a failed assertion, and ANSI in captured output
+      makes string assertions brittle.
+    -->
+    <springProfile name="test">
+        <property name="POTRIV_LOG_PATTERN"
+                  value="%d{HH:mm:ss.SSS} %-5level %logger{28} - %m%n%wEx"/>
+    </springProfile>
+
+    <!--
+      Production: machine-parseable. ISO-8601 in UTC, full logger name, no
+      colour. Matches what `docker logs potriv-backend` should show.
+    -->
+    <springProfile name="prod">
+        <property name="POTRIV_LOG_PATTERN"
+                  value="%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z', UTC} %-5level [%thread] [req=%X{requestId:-}] %logger - %m%n%wEx"/>
+    </springProfile>
+
+    <!-- Any other profile (or none) gets the production-safe format. -->
+    <springProfile name="!dev &amp; !test &amp; !prod">
+        <property name="POTRIV_LOG_PATTERN"
+                  value="%d{yyyy-MM-dd'T'HH:mm:ss.SSS'Z', UTC} %-5level [%thread] [req=%X{requestId:-}] %logger - %m%n%wEx"/>
+    </springProfile>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${POTRIV_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <!--
+      Framework noise. Deliberately conservative: Spring Security at DEBUG leaks
+      authentication detail, and Hibernate SQL logging is opt-in per developer
+      (application-dev.yml sets show-sql), never a default.
+    -->
+    <logger name="org.springframework.security" level="INFO"/>
+    <logger name="org.hibernate.SQL" level="INFO"/>
+    <logger name="org.hibernate.orm.jdbc.bind" level="INFO"/>
+
+</configuration>

@@ -1,4 +1,9 @@
 spring:
+  # Captured test output must stay plain so assertions on it are not brittle.
+  output:
+    ansi:
+      enabled: never
+
   jpa:
     hibernate:
       ddl-auto: create-drop

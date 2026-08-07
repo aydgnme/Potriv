@@ -74,6 +74,10 @@ the architecture and [infra/mail/README.md](infra/mail/README.md) for the
 runbook. Real public deliverability additionally requires DNS, PTR and outbound
 port 25, none of which live in this repository.
 
+Backend logs are colour-coded per level in development and plain ISO-8601 in
+production, with an `X-Request-ID` correlation id on every request — see
+[docs/backend/logging.md](docs/backend/logging.md).
+
 See `docs/backend/environment.md`, `docs/backend/production-readiness.md`, and
 `docs/backend/deployment-checklist.md` for the full production documentation, and
 [docs/backend/final-audit.md](docs/backend/final-audit.md) for the end-to-end
