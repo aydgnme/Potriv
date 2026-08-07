@@ -3,3 +3,4 @@ reports/*
 !reports/.gitkeep
 .env
 *.log
+npm-audit.json
