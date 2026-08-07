@@ -212,7 +212,10 @@ async function main(): Promise<number> {
   console.log(`Operations:  ${summary.PASS + summary.FAIL}/${summary.operations} executed, `
     + `accounting ${summary.accountingPercent}%, success path ${summary.successPathPercent}%`);
   console.log(`Scenarios:   ${summary.scenariosPassed} passed / ${summary.scenariosFailed} failed`);
-  console.log(`Admin routes:${adminSummary.routesExecuted}/${adminSummary.routesDiscovered}`);
+  // Spelled out rather than "executed/discovered": the two numbers count
+  // different things and a slash implies a ratio, so 15/14 read like a bug.
+  console.log(`Admin routes: ${adminSummary.routesDiscovered} discovered, `
+    + `${adminSummary.routesExecuted} checks executed`);
   console.log(`Result:      ${verdict}`);
   console.log(`Report:      ${runDir}/report.html`);
 
