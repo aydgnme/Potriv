@@ -9,7 +9,16 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
-    show-sql: true
+    # Hibernate's show-sql writes straight to System.out: no timestamp, no level,
+    # no request id, and logback cannot format or colour it. In a normal dev run
+    # it produced more output than every real log line combined. SQL diagnostics
+    # are still one property away, but they go *through* the logging system:
+    #
+    #   ./mvnw spring-boot:run \
+    #     -Dspring-boot.run.jvmArguments="-Dlogging.level.org.hibernate.SQL=DEBUG"
+    #
+    # See docs/backend/logging.md.
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
