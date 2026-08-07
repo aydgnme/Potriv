@@ -101,3 +101,65 @@ per-department utilisation, and no historical trend — the context is scoped to
 the decision a reviewer is about to make. A department manager still has no
 endpoint that reports their whole team's load, which remains a known gap rather
 than something this document quietly implies is solved.
+
+---
+
+## Rejection reasons
+
+Separate from capacity, but the same screen. When a reviewer declines, they may
+say why:
+
+```
+POST /department/project-proposals/assignments/{proposalId}/reject
+POST /department/project-proposals/deallocations/{proposalId}/reject
+
+{ "reason": "Requested hours exceed current team capacity." }
+```
+
+**The body is optional and so is the field.** A reject with no body at all is
+still valid, which is what keeps existing clients working. A blank or
+whitespace-only reason is normalised to none, so "no reason given" has exactly
+one representation rather than two.
+
+Maximum 5 000 characters, matching the existing free-text convention on these
+tables.
+
+### Two different reasons, never merged
+
+`project_deallocation_proposals` already had a `reason`, and it means something
+else:
+
+| Field | Written by | Means |
+| --- | --- | --- |
+| `reason` (deallocation proposal) | the project manager | why removal is being asked for |
+| `rejectionReason` | the department manager | why the reviewer declined |
+
+They are different statements by different people. The column is called
+`rejection_reason` precisely so the two can never be confused, and a test asserts
+that rejecting a removal leaves the proposer's `reason` untouched.
+
+### It belongs to the rejection, and only to it
+
+`rejectionReason` is null while pending, null when approved, and null for a
+rejection made without one — including every rejection recorded before the field
+existed. Those rows were left `NULL` rather than backfilled with invented text: a
+reason nobody gave is not a reason.
+
+The transition is immutable. A rejected proposal cannot be rejected again to
+rewrite it — the review services lock and reject a non-pending proposal with
+`409 This proposal has already been reviewed.` There is deliberately no endpoint
+to edit a reason after the fact.
+
+### Where it is readable
+
+Stored text that cannot be read back is worse than no feature, so it appears on
+every surface a rejected proposal reaches: the reviewer's queue
+(`DepartmentProjectProposalResponse`), the assignment review response, and the
+deallocation review response.
+
+### Audit logging
+
+Not duplicated into the security audit trail. The existing audit design records
+that a review happened; the domain entity is the authoritative home for the text,
+and copying free-form user input into a second store would spread it without
+adding anything.
