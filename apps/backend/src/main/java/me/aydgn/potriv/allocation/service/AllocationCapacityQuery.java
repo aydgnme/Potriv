@@ -1,5 +1,7 @@
 package me.aydgn.potriv.allocation.service;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -11,4 +13,11 @@ import java.util.UUID;
 public interface AllocationCapacityQuery {
 
     int sumCapacityConsumingHours(UUID employeeId);
+
+    /**
+     * The same rule applied to many employees in one query. Employees with no
+     * capacity-consuming allocation are absent from the result rather than mapped
+     * to zero, so callers must default them.
+     */
+    Map<UUID, Integer> sumCapacityConsumingHoursByEmployee(Collection<UUID> employeeIds);
 }
