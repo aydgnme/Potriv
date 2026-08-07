@@ -13,14 +13,13 @@ a real answer.
 
 ---
 
-## BACKEND PREREQUISITES — before frontend implementation starts
+## BACKEND PREREQUISITES — DELIVERED
 
-Three enhancements were approved by the product owner and are ordered **ahead of**
-frontend work. They are not "backend incomplete" — the agreed backend scope was
+Three enhancements were approved, built and merged **ahead of** frontend work. They are not "backend incomplete" — the agreed backend scope was
 delivered and verified. Designing the UI simply exposed contract data the review
 and onboarding flows need, which is exactly what a discovery phase is for.
 
-### B1 — Capacity context on the proposal review response (from Q1)
+### B1 — Capacity context on the proposal review response — **MERGED, PR #73**
 
 **Problem.** A department manager accepts or rejects staffing requests without
 being able to see the employee's load. Team Finder computes and returns exactly
@@ -38,11 +37,16 @@ Team Finder sums an employee's **all** active allocations. Putting the computed
 figure on the review response reuses the correct calculation and gives it to the
 one screen that needs it, without inventing a broader contract.
 
-**Frontend effect.** PR-A and PR-B gain a real capacity block. The department
-capacity dashboard card stays rejected — this is review context, not a
-department-wide view.
+**Delivered as.** `capacity` on each pending assignment row: `maxHoursPerDay`,
+`allocatedHoursPerDay`, `availableHoursPerDay`, `requestedHoursPerDay`,
+`projectedAllocatedHoursPerDay`, `projectedAvailableHoursPerDay`,
+`currentlyAcceptableByCapacity`. Null on removal rows and decided rows. Computed
+with the acceptance rule, one batched query per page.
 
-### B2 — Rejection reason (from Q2)
+**Frontend effect, applied.** PR-A and PR-B render a real capacity block. The
+department-wide capacity dashboard card stays rejected — still no endpoint.
+
+### B2 — Rejection reason — **MERGED, PR #74**
 
 **Problem.** Accept and reject take a path variable and no body, so a rejected
 project manager receives a bare refusal and cannot tell a capacity constraint
@@ -51,11 +55,15 @@ from a disagreement.
 **Approved shape.** An explanatory reason on both assignment and deallocation
 reject, persisted.
 
-**Frontend effect.** The reject flow gains a reason input; the copy rule
-"Rejecting does not send a reason" is removed; the proposal history gains
-somewhere to show it.
+**Delivered as.** An **optional** `{reason}` body on both reject endpoints, max
+5000, blank normalised to null, readable on all three proposal surfaces,
+immutable after the decision. Named `rejectionReason` so it can never merge with
+a deallocation proposal's own `reason`.
 
-### B3 — Single-person organization onboarding (from Q4)
+**Frontend effect, applied.** PR-D is the reject dialog; the "no reason is sent"
+copy is gone; rejected proposals without one render "No reason given".
+
+### B3 — Single-person organization onboarding — **MERGED, PR #72**
 
 **Problem, verified in the code.** `UserRoleManagementService.updateUserRoles`
 rejects self-modification outright:
@@ -80,8 +88,13 @@ fix needs to preserve those protections rather than delete the guard.
 **Explicitly rejected:** solving this with frontend copy. Wording that explains
 why the product cannot be used is not a solution.
 
-**Frontend effect.** The organization admin's setup path stops having to say
-"someone else finishes this", and journey B1's closing note is rewritten.
+**Delivered as.** A strictly additive self-role extension, permitted only while
+the organization has exactly one member and only for `DEPARTMENT_MANAGER` /
+`PROJECT_MANAGER`. Everything else returns the unchanged refusal.
+
+**Frontend effect, applied.** W-22 is the solo setup step, shown only while the
+organization has one member and worded in capability terms. Journey B1 now
+branches instead of dead-ending.
 
 ---
 

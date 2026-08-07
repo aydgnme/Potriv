@@ -99,19 +99,19 @@ Read from the code, not assumed:
 - **Capacity is omitted wherever the API does not supply it.** A quietly wrong
   number is worse than none
 
-## The three findings that became backend work
+## The three findings that became backend work — all merged
 
-All eight product decisions have been ruled on. Three require backend changes
-**before** frontend implementation starts. None means "the backend is
-incomplete" — the agreed scope was delivered and verified; designing the UI
-exposed contract data the review and onboarding flows need, which is what a
-discovery phase is for.
+All eight product decisions were ruled on, and the three that needed backend
+changes were built and merged **before** frontend implementation. None meant "the
+backend is incomplete" — the agreed scope was delivered and verified; designing
+the UI exposed contract data the review and onboarding flows need, which is what
+a discovery phase is for.
 
-| | Finding | Approved fix |
+| | Finding | Delivered |
 | --- | --- | --- |
-| **B1** | A department manager approves staffing **without being able to see the employee's load**. Team Finder computes exactly that figure — for project managers only. The role *deciding* has less information than the role *asking* | Capacity context (`allocatedHours` / `availableHours` / `requestedHours`) **on the review response** — not a generic capacity dashboard. It reuses the correct calculation and gives it to the one screen that needs it |
-| **B2** | A rejected project manager receives a **bare refusal** — accept and reject take no request body | A persisted reason on assignment and deallocation reject |
-| **B3** | A **single-person organization cannot bootstrap itself.** `UserRoleManagementService` refuses self-role-modification with a `400`, so a founding admin can create departments and team roles and then stop — they cannot staff a project or place anyone into a department | Make solo setup possible in the backend, preserving the guard's original protections. Explicitly **not** solved with frontend copy |
+| **B1** | A department manager approves staffing **without being able to see the employee's load**. Team Finder computes exactly that figure — for project managers only. The role *deciding* has less information than the role *asking* | **PR #73.** `capacity` on each pending assignment row — allocated, available, requested, projected, plus `maxHoursPerDay` and `currentlyAcceptableByCapacity`. Null on removal and decided rows. One batched query per page |
+| **B2** | A rejected project manager receives a **bare refusal** — accept and reject take no request body | **PR #74.** Optional `{reason}` on both reject endpoints, max 5000, blank normalised to null, readable on all three proposal surfaces, immutable after the decision |
+| **B3** | A **single-person organization cannot bootstrap itself.** `UserRoleManagementService` refuses self-role-modification with a `400`, so a founding admin can create departments and team roles and then stop — they cannot staff a project or place anyone into a department | **PR #72.** A strictly additive self-role extension, permitted only while the organization has exactly one member and only for the two operational roles. Everything else returns the unchanged refusal |
 
 Everything else was ruled out of MVP (organization project overview, employee
 capacity, dark mode) or confirmed as designed (`/skills?q=` is enough search;
@@ -146,41 +146,47 @@ pack had wrong, and both changed the wireframes:
 | All 25 wireframes required by the brief | covered |
 | Ideas marked `FUTURE / BACKEND NOT AVAILABLE` | 11 |
 | Decisions made | 20 design + 8 product, all resolved |
-| Approved backend prerequisites | 3 (B1, B2, B3) |
+| Backend prerequisites | 3, **all merged** (#72, #73, #74) |
 | Technical questions | 8, all closed against the code |
 | Corrections applied from that verification | 2 (invite expiry, score arithmetic) |
-| New questions raised by it | 2 (Q9 level weighting, Q10 account status) |
+| Blocking items remaining | **0** |
+| Non-blocking items | 3 (Q9 ranking weight, Q10 account status, T7 pagination) |
 
 ## What happens next
 
 ```text
-1. Backend enhancements  B1 capacity context · B2 rejection reason · B3 solo onboarding
-2. Update this pack      review wireframes, reject copy, org-admin setup path
-3. Merge                 the discovery pack lands once it matches the contract
+1. Backend enhancements  ✅ B3 #72 · B1 #73 · B2 #74 — all merged
+2. Update this pack      ✅ review wireframes, reject dialog, solo setup step
+3. Merge this pack       ← you are here
 4. Lock the wireframes
 5. Begin frontend implementation
 ```
 
-The pack stops at the **STOP GATE**. It currently describes the system **as it
-is**, not as it will be after B1–B3 — every place that changes is already
-identified in [11-open-questions.md](11-open-questions.md) §"What changes once
-Q1, Q2 and Q4 land", so the update is one pass rather than a rediscovery.
+The pack describes the system **as it is on merged `main`**. Every contract was
+re-read from source after the merges rather than copied from the original
+assumptions — which is how the invite-expiry and Team Finder scoring corrections
+were caught in the first place.
 
 ---
 
 ## Verdict
 
-**`READY WITH OPEN PRODUCT DECISIONS`**
+**`READY TO IMPLEMENT`**
 
-The discovery itself is complete and the decisions are locked. The verdict stays
-as it is for one honest reason: **three approved backend changes (B1, B2, B3) sit
-between this pack and implementation**, and two of them alter the review screens —
-the most important screens in the product.
+Not because three pull requests merged — that alone would prove nothing. The
+decision register was re-read in full and every remaining item classified:
 
-Calling it `READY FOR PRODUCT REVIEW` would suggest nothing further is pending.
-Calling it `READY TO IMPLEMENT` would be plainly wrong: a frontend built against
-today's contract would have to be reworked in exactly the places that matter
-most.
+- **Blocking: none.** No open product or backend decision prevents building the
+  frontend
+- **Non-blocking: three.** Q9 (should skill level weight the ranking) changes
+  numbers inside a panel that already renders them, not the shape of any screen.
+  Q10 (`GET /users` exposes no account status) is handled by the pack's standing
+  rule of omitting what the API does not supply. T7 (pagination may arrive some
+  day) cannot be designed for against a contract that does not exist
+- **Future: three,** all ruled out of MVP by the product owner and all requiring
+  endpoints that do not exist
 
-The pack is accurate about the system as it stands today, and it names precisely
-what changes when B1–B3 land.
+The screens that were genuinely blocked are the ones that changed: the review
+queue now renders real capacity, rejection carries a reason, and a one-person
+organization can finish setup. Those were the reasons the earlier verdict was
+withheld, and they are gone.

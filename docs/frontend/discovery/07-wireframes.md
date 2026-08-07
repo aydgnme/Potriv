@@ -230,14 +230,21 @@ screen with back, not a cramped drawer.
 **Reject is not styled as destruction.** It is a legitimate outcome. Accept is
 primary; Reject is a secondary control of equal prominence but lower emphasis.
 
-**There is no rejection reason field, and the UI says so** rather than staying
-silent — a reviewer who expects to explain themselves should learn it before
-pressing, not after ([00-repository-reality.md](00-repository-reality.md) §C-5).
+**Rejecting takes an optional reason** ([00-repository-reality.md](00-repository-reality.md) §C-5).
+The dialog (PR-D) offers the field without demanding it and names who will see
+it. Because it is optional — and because every rejection recorded before the
+field existed has none — a rejected proposal without one renders as
+**"No reason given"**, never as blank space that reads like a loading failure.
+
+**Capacity is shown, not computed.** Every figure comes from the response's
+`capacity` block, including the denominator (§C-19). Where `capacity` is null —
+removal rows, decided rows — nothing is rendered rather than a zeroed
+placeholder.
 
 ## State after decision
 
 The row leaves the `PENDING` filter and is reachable under `APPROVED`/`REJECTED`
-with `reviewedBy` and `reviewedAt`. The queue re-reads so a proposal decided
+with `reviewedBy`, `reviewedAt` and `rejectionReason`. The queue re-reads so a proposal decided
 elsewhere cannot be acted on twice.
 
 ```
@@ -257,29 +264,45 @@ GOAL:          Decide staffing requests with enough context to be accountable.
 │           2 days ago                 │                                     │
 │ ──────────────────────────────────── │ Project    Apollo   IN PROGRESS     │
 │ Assign    Mehmet K.  Vega      4     │ Roles      Backend, Reviewer        │
-│           4 hours ago                │ Hours      6 per day                │
+│           4 hours ago                │ Requested  6 h/day                  │
 │ ──────────────────────────────────── │                                     │
-│ Removal   Elif D.    Orion     —     │ After accepting: 6 of 8 h allocated │
-│           1 day ago                  │                                     │
+│ Removal   Elif D.    Orion     —     │ Capacity          Fits              │
+│           1 day ago                  │  Allocated now    2 of 8 h  ██░░░░░░│
+│                                      │  Available now    6 h               │
+│                                      │  After accepting  8 of 8 h  ████████│
+│                                      │                   0 h left          │
+│                                      │                                     │
 │                                      │ "Needs someone on the migration     │
 │                                      │  before the April freeze."          │
 │                                      │  — Deniz Ak, 2 days ago             │
 │                                      │                                     │
-│                                      │ [ Accept ]   [ Reject ]             │
-│                                      │ Rejecting does not send a reason.   │
+│                                      │ [ Accept ]   [ Reject… ]            │
 └──────────────────────────────────────┴─────────────────────────────────────┘
 
 PRIMARY ACTION:    Accept
 SECONDARY ACTIONS: Reject · filter by status · open the project · next item
 DATA REQUIRED:     GET /department/project-proposals?status=PENDING
                    → proposalType, employee, project, teamRoles,
-                     workHoursPerDay, comments, reason, proposedBy, createdAt
-                   POST …/assignments/{id}/accept|reject
+                     workHoursPerDay, comments, reason, proposedBy, createdAt,
+                     capacity{maxHoursPerDay, allocatedHoursPerDay,
+                              availableHoursPerDay, requestedHoursPerDay,
+                              projectedAllocatedHoursPerDay,
+                              projectedAvailableHoursPerDay,
+                              currentlyAcceptableByCapacity}
+                   POST …/assignments/{id}/accept
+                   POST …/assignments/{id}/reject   { "reason"?: string }
 EMPTY STATE:       "No proposals waiting." — a good state, worded as one.
 ERROR STATE:       409 already reviewed → show who decided, refresh the queue.
                    409 already allocated on this project → explain, offer reject.
                    409 capacity exhausted → see PR-B. 403 → permission screen.
 NEXT SCREENS:      A06 project overview · A07 project team
+NOTES:             Every figure is rendered from `capacity`, never computed in
+                   the client. `maxHoursPerDay` supplies the denominator, so 8
+                   is not hard-coded. Capacity is null on removal rows and on
+                   decided rows — render nothing there, not a placeholder.
+                   The capacity shown is current at response time and is not a
+                   reservation; the wireframe never implies acceptance is
+                   guaranteed.
 ```
 
 ```
@@ -295,21 +318,30 @@ GOAL:          Represent the state the backend actually produces when capacity
 │ Ayşe Yılmaz · Platform Engineering  │
 │ Project   Apollo   IN PROGRESS      │
 │ Roles     Backend, Reviewer         │
-│ Hours     6 per day                 │
+│ Requested 6 h/day                   │
+│                                     │
+│ Capacity     No longer fits         │
+│  Allocated now   6 of 8 h  ██████░░ │
+│  Available now   2 h                │
+│  Requested       6 h                │
 │                                     │
 │ ┌─────────────────────────────────┐ │
-│ │ Cannot be accepted right now    │ │
-│ │ Ayşe has 2 of 8 hours free.     │ │
-│ │ This request needs 6.           │ │
+│ │ Cannot be accepted right now.   │ │
+│ │ Ayşe has 2 hours free and this  │ │
+│ │ request needs 6.                │ │
 │ │ It stays pending — you can      │ │
 │ │ still reject it.                │ │
 │ └─────────────────────────────────┘ │
 │                                     │
-│ [ Accept ]  ← disabled  [ Reject ]  │
+│ [ Accept ]  ← disabled  [ Reject… ] │
 └─────────────────────────────────────┘
 
-NOTES: This is not an error toast. The backend deliberately leaves the proposal
-PENDING so the manager can still reject it, and the UI mirrors that intent.
+NOTES: Driven by capacity.currentlyAcceptableByCapacity = false, so the state is
+read from the response rather than inferred by comparing numbers in the client.
+This is not an error toast: the backend deliberately leaves the proposal PENDING
+so the manager can still reject it, and the UI mirrors that intent. "After
+accepting" is omitted here because it would describe something that cannot
+happen.
 ```
 
 ```
@@ -336,10 +368,101 @@ GOAL:          Decide a removal, with the stated reason as the substance.
 │ Accepting moves Elif to past members│
 │ and frees 4 hours of capacity.      │
 │                                     │
-│ [ Accept ]   [ Reject ]             │
+│ [ Accept ]   [ Reject… ]            │
 └─────────────────────────────────────┘
 
-NOTES: The reason is shown in full, never truncated — it is the decision.
+NOTES: The proposer's reason is shown in full, never truncated — it is the
+decision. No capacity block: `capacity` is null on removal rows because
+accepting frees capacity and can never fail on it, and inventing a figure here
+would be decoration. Reject opens the same optional-reason dialog as PR-A, and
+the reviewer's reason is stored separately from the proposer's — the two are
+never merged.
+```
+
+```
+WIREFRAME ID:  PR-D
+SCREEN:        Reject a proposal — optional reason
+ROLE(S):       DEPARTMENT_MANAGER
+GOAL:          Let a reviewer explain without forcing them to.
+
+┌─────────────────────────────────────────────┐
+│ Reject this request?                        │
+│ ─────────────────────────────────────────── │
+│ Ayşe Yılmaz → Apollo · Backend · 6 h/day    │
+│                                             │
+│ Reason  (optional)                          │
+│ ┌─────────────────────────────────────────┐ │
+│ │ Only 2 hours free this sprint — happy   │ │
+│ │ to revisit after Orion closes.          │ │
+│ └─────────────────────────────────────────┘ │
+│ Deniz Ak will see this on the proposal.     │
+│                                             │
+│           [ Cancel ]   [ Reject request ]   │
+└─────────────────────────────────────────────┘
+
+PRIMARY ACTION:    Reject request
+SECONDARY ACTIONS: Cancel
+DATA REQUIRED:     POST …/assignments/{id}/reject   { "reason"?: string }
+                   POST …/deallocations/{id}/reject { "reason"?: string }
+EMPTY STATE:       n/a
+ERROR STATE:       400 when the reason exceeds 5000 characters — shown inline,
+                   with the dialog and the typed text kept.
+                   409 when someone already decided it: close, refresh the queue,
+                   and say who decided.
+NEXT SCREENS:      PR-A (the next item in the queue)
+NOTES:             Genuinely optional. Reject request stays enabled with the box
+                   empty — no fake mandatory validation. Blank and whitespace are
+                   normalised to no reason server-side, so the client does not
+                   special-case them.
+                   Reject is NOT styled as destruction: it is a routine outcome,
+                   and colouring it as damage would bias the decision.
+                   The reviewer's reason is stored separately from a deallocation
+                   proposal's own reason; this dialog never edits the latter.
+                   Immutable once submitted — there is no edit-reason flow,
+                   because the API has no endpoint for one.
+```
+
+```
+WIREFRAME ID:  W-22
+SCREEN:        Organization setup — while you are the only member
+ROLE(S):       ORGANIZATION_ADMIN, solo
+GOAL:          Let one person complete setup without waiting for a second.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│ Set up Northwind Co                                                        │
+├────────────────────────────────────────────────────────────────────────────┤
+│ ✓ 1. Create your first department            Platform Engineering          │
+│ ✓ 2. Add the team roles projects staff       Backend, Frontend, QA         │
+│                                                                            │
+│   3. Take on department and project setup                                  │
+│      ┌──────────────────────────────────────────────────────────────────┐  │
+│      │ You are the only person here, so you can run setup yourself:     │  │
+│      │  · manage a department and review staffing requests              │  │
+│      │  · create and staff projects                                     │  │
+│      │ You can hand either of these to someone else once they join.     │  │
+│      │                                          [ Take these on ]       │  │
+│      └──────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│   4. Invite your team                        [ Copy invite link ]          │
+└────────────────────────────────────────────────────────────────────────────┘
+
+PRIMARY ACTION:    Take these on
+SECONDARY ACTIONS: Copy invite link · skip to any area
+DATA REQUIRED:     GET /users (is anyone else here yet?)
+                   PATCH /users/{selfId}/roles
+                     { "roles": ["EMPLOYEE","ORGANIZATION_ADMIN",
+                                 "DEPARTMENT_MANAGER","PROJECT_MANAGER"] }
+                   GET /organizations/current/invite
+EMPTY STATE:       This screen IS the empty organization.
+ERROR STATE:       400 if someone joined between rendering and pressing — the
+                   step is replaced by the ordinary role-management path and the
+                   list re-reads. Not an error the user caused.
+NEXT SCREENS:      W-07 departments · W-16 invite · W-13 projects
+NOTES:             Step 3 renders only while the organization has one member. It
+                   describes capabilities ("manage a department"), never the role
+                   model or anything about permissions design.
+                   Once a second person joins, roles are granted the ordinary way
+                   and this step is gone — a branch, not a fallback.
 ```
 
 ---

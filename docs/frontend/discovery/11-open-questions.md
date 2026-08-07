@@ -156,39 +156,39 @@ These are settled unless the product owner overrules them.
 | D19 | Employee home is a **status page**, not a queue | The role has no pending work |
 | D20 | Deallocation's entry point is the overflow menu on an active member row | The only place `allocationId` is exposed |
 
-## Product decisions — RESOLVED
+## Product decisions — RESOLVED, and the three backend items are MERGED
 
-All eight were ruled on by the product owner. Three require backend work **before**
-frontend implementation begins; the rest are settled as scope.
+All eight were ruled on by the product owner. The three that required backend
+work were built and merged before frontend implementation: **B3 → PR #72**,
+**B1 → PR #73**, **B2 → PR #74**.
 
 | # | Question | Ruling | When |
 | --- | --- | --- | --- |
-| **Q1** | A department manager approves staffing without seeing their team's load | **Add to the backend.** The reviewer must see the candidate's `allocatedHours` / `availableHours` / `requestedHours`. Delivered as **current capacity context on the review API response**, not as a generic capacity dashboard endpoint — the review screen is the only place that needs it, and scoping it there keeps the contract honest | **Before frontend** |
-| **Q2** | A rejected project manager receives no reason | **Add to the backend.** An explanatory reason on assignment and deallocation reject, persisted | **Before frontend** |
+| **Q1** ✅ | A department manager approves staffing without seeing their team's load | **DONE — PR #73.** The reviewer must see the candidate's `allocatedHours` / `availableHours` / `requestedHours`. Delivered as **current capacity context on the review API response**, not as a generic capacity dashboard endpoint — the review screen is the only place that needs it, and scoping it there keeps the contract honest | **Before frontend** |
+| **Q2** ✅ | A rejected project manager receives no reason | **DONE — PR #74.** An explanatory reason on assignment and deallocation reject, persisted | **Before frontend** |
 | **Q3** | An organization admin cannot see the organization's projects | **Out of MVP.** Do not turn the organization admin into an operations dashboard | Future |
-| **Q4** | A single-person organization cannot bootstrap itself (§C-17) | **Fix in the backend.** One person must be able to complete organization setup. Solving this with frontend copy would be hiding it | **Before frontend** |
+| **Q4** ✅ | A single-person organization cannot bootstrap itself (§C-17) | **DONE — PR #72.** One person must be able to complete organization setup. Solving this with frontend copy would be hiding it | **Before frontend** |
 | **Q5** | Should an employee see their own capacity? | Useful, not a blocker | Future |
 | **Q6** | Is `/skills?q=` enough search for launch? | **Yes** | MVP as designed |
 | **Q7** | Dark mode at launch? | **No** | Future |
 | **Q8** | Invite link on Home? | **Yes, but only during setup/onboarding** | MVP |
 
-### What changes in this pack once Q1, Q2 and Q4 land
+### What changed in this pack once Q1, Q2 and Q4 landed
 
-Recorded now so the wireframes can be updated in one pass rather than
-rediscovered:
+Applied, not planned:
 
-- **Q1** — PR-A and PR-B gain a real capacity block sourced from the response
-  instead of the current deliberate omission. The dashboard card rejected in
-  [04-information-architecture.md](04-information-architecture.md) stays
-  rejected: this is review context, not a department-wide capacity view
-- **Q2** — the reject flow gains a reason input, and
-  [06-ux-patterns.md](06-ux-patterns.md)'s copy rule "Rejecting does not send a
-  reason" is removed. The project manager's proposal history gains somewhere to
-  display it
-- **Q4** — the organization admin's setup path stops having to say "someone else
-  finishes this", and journey B1's closing note is rewritten
+- **Q1** — PR-A renders a real capacity block from the payload and PR-B is driven
+  by `currentlyAcceptableByCapacity` rather than by client-side comparison. The
+  department-wide dashboard card rejected in
+  [04-information-architecture.md](04-information-architecture.md) **stays
+  rejected**: this is review context, and no endpoint supplies the wider view
+- **Q2** — **PR-D** is the reject dialog with its optional reason; the "no reason
+  is sent" copy is gone; a rejection without one renders "No reason given"
+- **Q4** — **W-22** is the solo setup step, shown only while the organization has
+  one member and worded in capability terms; journey B1 now branches instead of
+  dead-ending
 
-Until then the pack describes the system **as it is**, not as it will be.
+The pack again describes the system **as it is**.
 
 ## Technical questions — RESOLVED
 
@@ -220,6 +220,28 @@ change what the UI may claim:
 | --- | --- | --- |
 | **Q9** | Should skill **level** and **experience** influence the Team Finder score? Today they are returned but ignored | Worth a decision, not a blocker. Weighting them would make the ranking match what a manager assumes it already does. Until then the UI states the truth plainly |
 | **Q10** | `GET /users` cannot distinguish an active account from a suspended or disabled one (§C-18) | **`FUTURE / BACKEND GAP`**, not an MVP blocker — as ruled. Worth noting that an organization admin can currently grant roles to a suspended user, and a project manager can propose someone who cannot sign in |
+
+## Remaining items, classified
+
+Re-read in full after the three merges rather than assumed resolved by them.
+
+### BLOCKING
+
+**None.** No open product or backend decision prevents frontend implementation.
+
+### NON-BLOCKING
+
+| # | Item | Why it does not block |
+| --- | --- | --- |
+| **Q9** | Should skill level and experience weight the Team Finder score? | The UI already states the truth: the detail panel shows the three components with their evidence and says levels are context, not weight. If weighting is added later, the same panel renders the new numbers — **no screen changes shape**. A ranking decision, not an interface one |
+| **Q10** | `GET /users` cannot distinguish an active account from a suspended one (§C-18) | The People list simply omits status, which is the pack's standing rule for data the API does not supply. Worth knowing that an admin can currently grant roles to a user who cannot sign in; not worth blocking a frontend over |
+| **T7** | Pagination cannot be guaranteed absent forever | D10 holds against today's API. If pagination arrives, list patterns change — but designing for a contract that does not exist would be worse |
+
+### FUTURE
+
+Ruled out of MVP by the product owner and requiring backend work that does not
+exist: **Q3** organization-wide project overview · **Q5** employee's own capacity
+· **Q7** dark mode.
 
 ## Future ideas intentionally deferred
 
