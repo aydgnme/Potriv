@@ -52,7 +52,7 @@ IDs (`W-`, `TF-`, `PR-`) to [07-wireframes.md](07-wireframes.md).
 | --- | --- | --- | :-: | --- |
 | `GET /users` | O01 / W-05, O06 | ORG_ADMIN | R | No pagination; client-side filter with a stated total (P6) |
 | `GET /users/{userId}` | O02 / W-06 | ORG_ADMIN | R | The only source of another user's display name |
-| `PATCH /users/{userId}/roles` | O02 / W-06 | ORG_ADMIN | W | At least one role required — enforced client-side |
+| `PATCH /users/{userId}/roles` | O02 / W-06, W-22 | ORG_ADMIN | W | At least one role required — enforced client-side. Also the solo-setup step (W-22), permitted only while the organization has one member (§C-17) |
 | `GET /departments/unassigned-employees` | D05 / W-09 | **DEPT_MGR** | R | Not available to the org admin — onboarding is split between roles |
 | `GET /departments/{departmentId}/members` | D04 / W-10 | DEPT_MGR | R | Department id resolved via `GET /department/projects` (§C-4) |
 | `POST /departments/{departmentId}/members/{userId}` | D05 / W-09 | DEPT_MGR | W | Returns **`200`, not `201`** |
@@ -101,11 +101,11 @@ IDs (`W-`, `TF-`, `PR-`) to [07-wireframes.md](07-wireframes.md).
 | `POST /projects/{projectId}/team-finder` | M04 / TF-A | PROJ_MGR | R | A `POST` that reads. Returns a decomposed score **plus its evidence** (§C-6) |
 | `POST /projects/{projectId}/assignment-proposals` | M06 / TF-C | PROJ_MGR | W | Three capacity `409`s, all preventable client-side from `availableHours` |
 | `POST /projects/{projectId}/allocations/{allocationId}/deallocation-proposals` | M07 / TF-C | PROJ_MGR | W | Reason is **required** and stored permanently |
-| `GET /department/project-proposals` | D01 / PR-A | DEPT_MGR | R | `?status=`. Merged feed; `proposalType` distinguishes the two kinds |
+| `GET /department/project-proposals` | D01 / PR-A | DEPT_MGR | R | `?status=`. Merged feed; `proposalType` distinguishes the two kinds. Pending assignment rows carry `capacity`; all rows carry `rejectionReason` |
 | `POST …/assignments/{proposalId}/accept` | D02 / PR-A | DEPT_MGR | W | Capacity **recalculated**; on failure the proposal stays `PENDING` (PR-B) |
-| `POST …/assignments/{proposalId}/reject` | D02 / PR-A | DEPT_MGR | W | **No reason field** — the UI says so before the click (§C-5) |
+| `POST …/assignments/{proposalId}/reject` | D02 / PR-A / PR-D | DEPT_MGR | W | Takes an **optional** `{reason}` body; a bodyless reject stays valid (§C-5) |
 | `POST …/deallocations/{proposalId}/accept` | D03 / PR-C | DEPT_MGR | W | Moves the member to past with the stored reason |
-| `POST …/deallocations/{proposalId}/reject` | D03 / PR-C | DEPT_MGR | W | The person stays allocated |
+| `POST …/deallocations/{proposalId}/reject` | D03 / PR-C / PR-D | DEPT_MGR | W | The person stays allocated. Optional `{reason}`, stored **separately** from the proposer's own `reason` |
 
 ## Deliberately outside the product frontend — 2 operations
 
@@ -132,6 +132,11 @@ IDs (`W-`, `TF-`, `PR-`) to [07-wireframes.md](07-wireframes.md).
 **Every product operation has a screen.** The 2 excluded are system-admin
 operations already served by an existing console.
 
+**Three backend prerequisites were delivered before frontend work began** — B3
+(#72), B1 (#73), B2 (#74). They added no operations: the count is still 68,
+because all three evolved existing endpoints additively rather than introducing
+new ones.
+
 Nothing is deferred to post-MVP, and that is a deliberate finding rather than an
 oversight: the backend was built to a scope, that scope is coherent, and shipping
 a frontend that exposes only part of it would leave capabilities unreachable.
@@ -149,10 +154,10 @@ none may quietly become a requirement.
 | --- | --- | --- |
 | **Global search** | Only `GET /skills?q=` exists. No search for users, projects, departments or proposals | Shell — rejected in [04-information-architecture.md](04-information-architecture.md) |
 | **Organization-wide project overview** | No endpoint returns all projects; `GET /projects/managed` is caller-scoped and `@ProjectManagerOnly` (§C-3) | Organization admin dashboard |
-| ~~Department capacity on the review screen~~ | **Approved backend work (B1)** — capacity context moves onto the review response | Proposal review. The department-wide *dashboard* card stays rejected |
+| ~~Department capacity on the review screen~~ | **DELIVERED — B1, PR #73.** `capacity` on each pending assignment row | Proposal review. The department-wide *dashboard* card stays rejected: no endpoint supplies it |
 | **Employee's own capacity** | Same gap from the other side: an employee cannot see their own `availableHours` | Employee home |
 | **In-app notifications** | `README.md` names a Notification module, but **no notification endpoints exist** | Everywhere; replaced by the single pending count on Staffing |
-| ~~Rejection reason~~ | **Approved backend work (B2)** | Proposal review. Until it lands, the UI states the absence |
+| ~~Rejection reason~~ | **DELIVERED — B2, PR #74.** Optional `reason` on both reject endpoints, readable on all three proposal surfaces | Proposal review |
 | **Authenticated change password** | Only the emailed reset flow exists | Account screen — links to reset, and says so |
 | **Analytics, utilisation trends, skill-gap reports** | No aggregate endpoints | Rejected as vanity metrics regardless |
 | **Skill endorsement or validation** | `EmployeeSkill` is self-declared; no endorsement endpoint | Would have justified Direction B; its absence is why that direction was rejected |

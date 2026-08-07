@@ -92,9 +92,12 @@ Always **hours out of eight**, from real `allocatedHours` / `availableHours`
 values (§C-7). A compact eight-segment bar with the numbers beside it
 ("6 / 8 h"). No percentages, no "utilisation", no invented index.
 
-Where capacity is unavailable — notably anywhere a department manager looks at
-their own members — **nothing is shown**. No placeholder, no estimate. The
-absence is honest; a wrong number is not.
+Where capacity is unavailable — a department manager looking at their own
+members, or a queue row whose `capacity` is null — **nothing is shown**. No
+placeholder, no estimate. The absence is honest; a wrong number is not.
+
+On the review screen the denominator comes from `maxHoursPerDay` in the payload,
+so eight is never hard-coded.
 
 ### Project timelines
 
@@ -114,8 +117,10 @@ before any decision is possible:
 3. **Why** — the PM's `comments` (assignment) or the required `reason` (removal),
    shown in full and never truncated
 4. **Who asked and when** — `proposedBy`, `createdAt`, with elapsed time
-5. **What it costs** — the hours requested; and where capacity is knowable, the
-   remaining capacity after acceptance
+5. **What it costs** — the hours requested, and the capacity block the response
+   now supplies (§C-19): allocated now, available now, and the projection after
+   acceptance. Rendered from the payload, never computed in the client, and
+   omitted entirely on rows where `capacity` is null
 
 Two decisions, unequal in weight: **Accept** is primary; **Reject** is a
 secondary control, not a red destructive button. Rejecting is a legitimate
@@ -299,12 +304,10 @@ One sentence: what will happen, to what, and whether it can be undone.
 > Rotate the invite link? The current link stops working immediately, and anyone
 > part-way through signing up with it will need a new one.
 
-> Reject this proposal? **No reason is sent to the requester** — the system does
-> not support one.
+> Reject this request? Add a reason if you want to — **optional**.
 
-*This wording is temporary.* A rejection reason is approved backend work
-(**B2** in [10-mvp-prioritization.md](10-mvp-prioritization.md)); once it lands
-the sentence is replaced by a reason input.
+The reason field is genuinely optional, so the confirm button stays enabled with
+it empty. Never fake mandatory validation on a field the API does not require.
 
 ### Permission errors
 

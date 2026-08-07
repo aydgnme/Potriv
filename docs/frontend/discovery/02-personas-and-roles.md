@@ -72,11 +72,11 @@ Owns people. The only role that can say yes to staffing.
 | **Daily actions** | Review assignment and deallocation proposals: accept or reject. |
 | **Occasional actions** | Add or remove department members; maintain the skill catalogue and skill↔department links; review the department's project portfolio. |
 | **Should never see** | Other departments' member lists; organization-wide user administration; role granting. |
-| **Highest-risk mistakes** | **Accepting a proposal that over-allocates someone** — the decision is irreversible from the UI's point of view; undoing it requires a whole deallocation proposal round trip. **Rejecting without reading** — because there is no rejection reason field, the PM receives a bare refusal with no explanation. **Removing a member** who is allocated to projects. |
-| **Needs more context before confirming** | Accept: the employee's current allocated hours, remaining capacity after this assignment, the project's status, the requested role and hours. Reject: today, an explicit statement that the requester will not receive a reason; once B2 lands, a reason input instead. |
+| **Highest-risk mistakes** | **Accepting a proposal that over-allocates someone** — the decision is irreversible from the UI's point of view; undoing it requires a whole deallocation proposal round trip. **Rejecting without reading** — the reason field is optional, so a hurried refusal still reaches the requester with no explanation at all. **Removing a member** who is allocated to projects. |
+| **Needs more context before confirming** | Accept: the employee's current allocated hours, remaining capacity after this assignment, the project's status, the requested role and hours. Reject: an optional reason field, offered without being demanded, naming who will see it. |
 | **Surface prominently** | The pending count, everywhere in the shell. This is the only justified pending-action indicator in the product. |
 | **Backend workflows** | `GET /department/project-proposals` (+`?status=`), assignment accept/reject, deallocation accept/reject, `/departments/{id}/members`, `/departments/unassigned-employees`, `/department/projects`, skill catalogue writes, skill↔department links. |
-| **Dashboard priority** | 1) pending proposals, 2) unassigned employees, 3) department projects. Department-wide capacity is **not** a card — no endpoint supplies it; per-proposal capacity arrives with B1. |
+| **Dashboard priority** | 1) pending proposals, 2) unassigned employees, 3) department projects. Department-wide capacity is **not** a card — no endpoint supplies it. Per-proposal capacity is on the review screen (§C-19). |
 
 **Constraint that shapes the design.** A department manager manages exactly one
 department, but `GET /departments` is organization-admin-only — so the UI learns
@@ -84,12 +84,11 @@ the manager's own `departmentId` from `GET /department/projects`
 (§C-4). Every department-manager screen therefore depends on that one call
 resolving first. This is worth stating in the frontend architecture task.
 
-**Capacity caveat — resolved as approved backend work.** `allocatedHours` per
-employee is exposed by Team Finder, which is `@ProjectManagerOnly`. A department
-manager today has **no endpoint that returns their members' current allocation**.
-Capacity context on the *review response* is approved (**B1** in
-[10-mvp-prioritization.md](10-mvp-prioritization.md)); a department-wide capacity
-view remains `FUTURE / BACKEND NOT AVAILABLE`; what a DM can see today is
+**Capacity caveat — half resolved.** A department manager now sees the
+employee's load **on the proposal they are deciding** (§C-19, delivered by
+PR #73). What they still cannot see is their **whole team's** load: no endpoint
+returns it, and a department-wide capacity view remains
+`FUTURE / BACKEND NOT AVAILABLE`; what a DM can see today is
 membership and the department's projects with their teams. This is a significant
 finding and is carried into the open questions.
 

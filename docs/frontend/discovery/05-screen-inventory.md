@@ -314,7 +314,7 @@ here rather than repeated. Where a screen deviates, the deviation is spelled out
 
 - **Purpose** Decide on a staffing request with enough context to be accountable.
 - **Entry** D01
-- **Content** employee, their department, project and its status, requested team roles, `workHoursPerDay`, the PM's `comments`, who proposed it and when
+- **Content** employee, their department, project and its status, requested team roles, `workHoursPerDay`, the PM's `comments`, who proposed it and when, and the **capacity block** the response supplies — allocated now, available now, and the projection after acceptance
 - **Primary CTA** Accept · **Secondary** Reject · Back to queue
 - **Data** `GET /department/project-proposals`, `POST …/assignments/{id}/accept|reject`
 - **Empty** n/a
@@ -323,14 +323,16 @@ here rather than repeated. Where a screen deviates, the deviation is spelled out
 - **Permission** `403` → A09
 - **Mobile** full-screen detail
 - **Desktop** right-hand drawer over the queue, so the next item stays visible
-- **Note** Reject explicitly states that **no reason is sent to the requester**, because the API has no field for one (P4).
+- **Note** Reject opens PR-D and takes an **optional** reason. Genuinely optional: the confirm button stays enabled with the box empty. Capacity figures come from the payload and are absent — not zeroed — where `capacity` is null.
 
 ### D03 — Deallocation review
 
 - As D02, with the PM's **required** `reason` shown in full and never truncated —
   it is the substance of the decision. Accept moves the person from active to past
   on the project; the reason is stored permanently and appears on
-  `ProjectPastMemberResponse`.
+  `ProjectPastMemberResponse`. **No capacity block**: `capacity` is null on
+  removal rows because accepting frees capacity and can never fail on it. Reject
+  takes its own optional reason, stored separately from the proposer's.
 
 ### D04 — My department · D05 — Unassigned employees
 

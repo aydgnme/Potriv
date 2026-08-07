@@ -126,7 +126,9 @@ confirmation points · success feedback · next action.**
   empty at once: **1)** create departments (`POST /departments`) → **2)** create
   team roles (`POST /team-roles`) → **3)** share the invite link → **4)** as
   people arrive, grant roles (`PATCH /users/{id}/roles`) and appoint department
-  managers (`PUT /departments/{id}/manager`)
+  managers (`PUT /departments/{id}/manager`). A founder still on their own can
+  take the department- and project-management capabilities themselves and
+  complete every step without a second person
 - **Alternative path** — the admin skips ahead; each area's own empty state
   repeats what is missing and why it matters
 - **Validation errors** — `400` blank names; `409` duplicate department name
@@ -135,14 +137,22 @@ confirmation points · success feedback · next action.**
   treats them as the onboarding path
 - **Confirmation points** — none in setup; creation is additive
 - **Success feedback** — the setup path visibly advances
-- **Next action** — as the backend stands, **the org admin cannot finish
-  onboarding alone**, and cannot even grant themselves the roles that would let
-  them: `PATCH /users/{id}/roles` refuses self-modification with a `400`
-  (§C-17). So a one-person organization can create departments and team roles
-  and then stop. This is approved for a backend fix (**B3** in
-  [10-mvp-prioritization.md](10-mvp-prioritization.md)); until it lands the setup
-  path's final step reads "appoint a department manager — they add people to the
-  department", and that wording is a description of a limitation, not a solution
+- **Next action** — depends on whether anyone else has joined yet, and the setup
+  path branches accordingly:
+
+  **While you are the only person here.** You can take on the setup
+  responsibilities yourself: the setup path offers *"Take on department and
+  project setup"*, which adds those capabilities to your own account. You can then
+  create a department, make yourself its manager, and create a project — the whole
+  workflow without waiting for anyone. The copy stays in capability terms
+  ("manage a department", "manage projects"), never in role-model or security
+  wording
+
+  **Once someone else has joined.** That offer disappears, because roles are then
+  granted the ordinary way — you assign them to people, and someone assigns yours.
+  The UI does not present a control that would fail: the setup step is shown only
+  while the organization has one member. This is a genuine branch, not an error
+  path, and both sides are designed rather than one being a fallback
 
 ## B2 — Invite URL discovery and rotation
 
@@ -483,8 +493,10 @@ confirmation points · success feedback · next action.**
 - **Empty state** — "No proposals waiting." — for this role the *good* state, and
   it should read that way rather than as an error
 - **Confirmation points** — **both decisions.** Accept: the employee, the project,
-  the requested hours and roles. Reject: **state explicitly that no reason is
-  sent**, because the API has no field for one (§C-5, P4)
+  the requested hours and roles, and the **capacity context** the response now
+  carries — allocated, available, requested, and what remains afterwards (§C-19).
+  Reject: an **optional** reason field. It is genuinely optional, so the UI must
+  not fake mandatory validation; rejecting with nothing typed stays valid
 - **Success feedback** — the row leaves the pending queue; the decision and
   `reviewedAt` are shown
 - **Next action** — the next pending proposal; the queue is a work list

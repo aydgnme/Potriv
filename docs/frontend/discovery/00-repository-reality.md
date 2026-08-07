@@ -225,16 +225,33 @@ find their own id**. The id arrives through `GET /department/projects`, whose
 response carries `department.departmentId`. That is a non-obvious data
 dependency and the design must account for it.
 
-### C-5 — Deallocation requires a reason; rejection cannot carry one
+### C-5 — Three different reasons, and they are not interchangeable — RESOLVED
 
-- `CreateDeallocationProposalRequest.reason` — `@NotBlank`, max 5000. Required.
-- `CreateAssignmentProposalRequest.comments` — optional, max 5000.
-- Accept and reject take **only a path variable**. There is no request body, so
-  **there is no rejection reason field**.
+| Field | Written by | Means | Required? |
+| --- | --- | --- | --- |
+| `CreateDeallocationProposalRequest.reason` | project manager | why removal is being asked for | **yes**, `@NotBlank`, max 5000 |
+| `CreateAssignmentProposalRequest.comments` | project manager | context for the request | no, max 5000 |
+| `RejectProposalRequest.reason` → `rejectionReason` | department manager | **why the reviewer declined** | no, max 5000 |
 
-**Consequence:** the review UI must not present a "reason for rejection" input.
-Designing one would either silently discard what the reviewer typed or require a
-backend change that is not in scope.
+The third was added by **B2** (PR #74). Both reject endpoints now accept an
+**optional** body:
+
+```
+POST /department/project-proposals/assignments/{proposalId}/reject
+POST /department/project-proposals/deallocations/{proposalId}/reject
+{ "reason": "Requested hours exceed current team capacity." }
+```
+
+**Consequence for the UI:** the reject flow has a reason input, labelled as
+optional — it must not fake mandatory validation. A blank entry is normalised to
+none server-side, so the client need not special-case whitespace. Because the
+field is optional and every pre-migration rejection has none, **the UI must
+render "No reason given"** for a rejected proposal without one.
+
+`rejectionReason` is readable on all three surfaces a rejected proposal reaches:
+`DepartmentProjectProposalResponse`, `AssignmentProposalResponse` and
+`DeallocationProposalResponse`. It is null while pending and null when approved,
+and the transition is immutable — there is no endpoint to edit it afterwards.
 
 ### C-6 — Team Finder ranking is deterministic, and the exact arithmetic is this
 
@@ -279,6 +296,31 @@ The response returns the **evidence** for each component:
 **Consequence:** the UI can explain *why* a candidate ranks where they do using
 only returned data. No AI explanation endpoint is needed, and none must be
 invented.
+
+### C-19 — The reviewer now sees capacity — RESOLVED
+
+**B1 (PR #73).** Each **pending assignment** row of
+`GET /department/project-proposals` carries a `capacity` object:
+
+```json
+{ "maxHoursPerDay": 8, "allocatedHoursPerDay": 6, "availableHoursPerDay": 2,
+  "requestedHoursPerDay": 6, "projectedAllocatedHoursPerDay": 12,
+  "projectedAvailableHoursPerDay": 0, "currentlyAcceptableByCapacity": false }
+```
+
+`maxHoursPerDay` is published so the client never hard-codes eight.
+
+It is **current state at response time, not a reservation**: nothing is held
+back, and acceptance revalidates transactionally. `currentlyAcceptableByCapacity`
+exists so a reviewer can see the pending-but-unacceptable state (§C-7) *before*
+pressing Accept rather than by receiving a `409`.
+
+`capacity` is `null` on **deallocation rows** (accepting a removal frees capacity
+and can never fail on it) and on **decided rows** (nothing left to check). Null
+means "not applicable", never "unknown" — so the UI must not render a placeholder
+figure there.
+
+Computed with the same rule acceptance uses, in one batched query per page.
 
 ### C-7 — Capacity is 8 hours per day, and it is enforced at three separate moments
 
@@ -435,12 +477,28 @@ A **`400`**, not a `403`. Two further rules live in the same service:
 - `SYSTEM_ADMIN` may only be assigned by a system admin, and only to platform
   users — irrelevant to the product frontend but present
 
-**Consequence, and it is a real one:** a newly founded single-person organization
-**cannot bootstrap itself**. The founding admin cannot grant themselves
-`DEPARTMENT_MANAGER` or `PROJECT_MANAGER`, so they can create departments and
-team roles but can never staff a project or place a person into a department
-without a second human. This is not a copy problem and must not be hidden with
-wording — see [11-open-questions.md](11-open-questions.md) Q4.
+**RESOLVED by B3 (PR #72).** The general rule is unchanged — a user cannot
+rewrite their own authorization — but a founder whose organization still contains
+nobody else may **extend** their own roles. Every condition must hold:
+
+| Condition |
+| --- |
+| the caller is the target |
+| the target already holds `ORGANIZATION_ADMIN` |
+| the organization contains **exactly one user** |
+| the change removes nothing — strictly additive |
+| the only roles added are `DEPARTMENT_MANAGER` and/or `PROJECT_MANAGER` |
+| `SYSTEM_ADMIN` is not requested |
+| `EMPLOYEE` survives (always re-added) |
+| the last `ORGANIZATION_ADMIN` is not removed |
+
+Anything else still returns `400 You cannot update your own roles.`, and the
+exception closes the instant a second person joins.
+
+**Consequence for the UI:** a one-person organization can complete setup on its
+own. The setup path no longer has to say "someone else finishes this" — see
+[03-user-journeys.md](03-user-journeys.md) B1. Multi-person organizations follow
+ordinary role management with no change whatsoever.
 
 ### C-18 — `GET /users` exposes no account status
 
