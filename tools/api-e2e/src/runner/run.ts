@@ -13,6 +13,7 @@ import { runSuccessScenarios } from '../scenarios/success.js';
 import { runMailScenarios } from '../scenarios/mail.js';
 import { runAdminConsoleScenarios } from '../scenarios/admin-console.js';
 import { runCapacityScenarios } from '../scenarios/capacity.js';
+import { runRejectionScenarios } from '../scenarios/rejection.js';
 import { runBootstrapScenarios } from '../scenarios/bootstrap.js';
 import {
   runCorrelationScenarios, runCorsScenarios, runMailResilienceProbe,
@@ -100,6 +101,7 @@ async function main(): Promise<number> {
     console.log('Password-reset mail…');
     await runMailScenarios(client, prober, context, config);
     await runCapacityScenarios(client, prober, context);
+    await runRejectionScenarios(client, prober, context);
     await runBootstrapScenarios(client, prober, context);
     console.log('Validation, not-found, pagination…');
     await runValidationScenarios(prober, context);

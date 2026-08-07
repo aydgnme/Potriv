@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import me.aydgn.potriv.allocation.dto.CreateDeallocationProposalRequest;
 import me.aydgn.potriv.allocation.dto.DeallocationProposalResponse;
 import me.aydgn.potriv.allocation.dto.DeallocationReviewResponse;
+import me.aydgn.potriv.allocation.dto.RejectProposalRequest;
 import me.aydgn.potriv.allocation.entity.DeallocationProposalStatus;
 import me.aydgn.potriv.allocation.entity.ProjectAllocation;
 import me.aydgn.potriv.allocation.entity.ProjectDeallocationProposal;
@@ -131,7 +132,8 @@ public class DeallocationProposalService {
     }
 
     @Transactional
-    public DeallocationReviewResponse reject(AuthenticatedUser currentUser, UUID proposalId) {
+    public DeallocationReviewResponse reject(
+        AuthenticatedUser currentUser, UUID proposalId, RejectProposalRequest request) {
         currentOrganizationResolver.requireOrganizationId(currentUser);
         DepartmentManagerAssignment assignment = requireManagedAssignment(currentUser);
 
@@ -139,7 +141,8 @@ public class DeallocationProposalService {
             lockPendingProposalInDepartment(proposalId, assignment.getDepartment().getId());
 
         // The allocation remains active; only the proposal records the decision.
-        proposal.reject(assignment.getManager(), OffsetDateTime.now(clock));
+        proposal.reject(assignment.getManager(), OffsetDateTime.now(clock),
+            RejectProposalRequest.normalizedReason(request));
 
         return new DeallocationReviewResponse(
             mapper.toResponse(proposal), mapper.toAllocationResponse(proposal.getAllocation()));

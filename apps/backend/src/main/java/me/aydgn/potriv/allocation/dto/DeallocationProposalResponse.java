@@ -19,7 +19,12 @@ public record DeallocationProposalResponse(
     UserSummary proposedBy,
     OffsetDateTime createdAt,
     UserSummary reviewedBy,
-    OffsetDateTime reviewedAt
+    OffsetDateTime reviewedAt,
+    /**
+     * Why the reviewer declined. Distinct from {@code reason}, which is why the
+     * removal was proposed in the first place.
+     */
+    String rejectionReason
 ) {
 
 }

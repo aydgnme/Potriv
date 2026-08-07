@@ -111,7 +111,8 @@ public class AssignmentProposalMapper {
             userSummary(proposal.getProposedBy()),
             proposal.getCreatedAt(),
             userSummary(proposal.getReviewedBy()),
-            proposal.getReviewedAt());
+            proposal.getReviewedAt(),
+            proposal.getRejectionReason());
     }
 
     private DepartmentProjectProposalResponse buildDepartmentResponse(
@@ -136,7 +137,8 @@ public class AssignmentProposalMapper {
             proposal.getCreatedAt(),
             userSummary(proposal.getReviewedBy()),
             proposal.getReviewedAt(),
-            capacity);
+            capacity,
+            proposal.getRejectionReason());
     }
 
     private static UserSummary userSummary(User user) {

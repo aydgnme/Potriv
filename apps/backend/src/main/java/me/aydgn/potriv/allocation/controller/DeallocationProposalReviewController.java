@@ -5,12 +5,16 @@ import java.util.UUID;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+
 import me.aydgn.potriv.allocation.dto.DeallocationReviewResponse;
+import me.aydgn.potriv.allocation.dto.RejectProposalRequest;
 import me.aydgn.potriv.allocation.service.DeallocationProposalService;
 import me.aydgn.potriv.common.config.OpenApiConfig;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
@@ -49,8 +53,11 @@ public class DeallocationProposalReviewController {
     @PostMapping("/{proposalId}/reject")
     public DeallocationReviewResponse reject(
         @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-        @PathVariable UUID proposalId
+        @PathVariable UUID proposalId,
+        // Optional, as on the assignment side. This is the reviewer's reason for
+        // declining, never the proposer's reason for asking.
+        @RequestBody(required = false) @Valid RejectProposalRequest request
     ) {
-        return deallocationProposalService.reject(authenticatedUser, proposalId);
+        return deallocationProposalService.reject(authenticatedUser, proposalId, request);
     }
 }

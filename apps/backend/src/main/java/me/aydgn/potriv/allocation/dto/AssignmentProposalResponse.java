@@ -18,7 +18,9 @@ public record AssignmentProposalResponse(
     UserSummary proposedBy,
     OffsetDateTime createdAt,
     UserSummary reviewedBy,
-    OffsetDateTime reviewedAt
+    OffsetDateTime reviewedAt,
+    /** Why the reviewer declined. Null unless this proposal was rejected with one. */
+    String rejectionReason
 ) {
 
     /** Safe user projection — never exposes password/session/token internals. */

@@ -7,13 +7,17 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+
 import me.aydgn.potriv.allocation.dto.AssignmentReviewResponse;
+import me.aydgn.potriv.allocation.dto.RejectProposalRequest;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse;
 import me.aydgn.potriv.allocation.dto.ProjectProposalStatusFilter;
 import me.aydgn.potriv.allocation.service.AssignmentProposalReviewService;
@@ -60,8 +64,11 @@ public class AssignmentProposalReviewController {
     @PostMapping("/assignments/{proposalId}/reject")
     public AssignmentReviewResponse reject(
         @AuthenticationPrincipal AuthenticatedUser authenticatedUser,
-        @PathVariable UUID proposalId
+        @PathVariable UUID proposalId,
+        // Optional: rejecting without explaining stays valid, so clients that send
+        // no body at all keep working exactly as before.
+        @RequestBody(required = false) @Valid RejectProposalRequest request
     ) {
-        return reviewService.reject(authenticatedUser, proposalId);
+        return reviewService.reject(authenticatedUser, proposalId, request);
     }
 }

@@ -64,6 +64,14 @@ public class ProjectDeallocationProposal extends BaseEntity {
     @Column(name = "reviewed_at", nullable = true)
     private OffsetDateTime reviewedAt;
 
+    /**
+     * Why this proposal was rejected. Null while pending, null when approved, and
+     * null for a rejection that carried no reason — including every rejection made
+     * before the field existed.
+     */
+    @Column(name = "rejection_reason", nullable = true, length = 5000)
+    private String rejectionReason;
+
     protected ProjectDeallocationProposal() {
     }
 
@@ -119,9 +127,18 @@ public class ProjectDeallocationProposal extends BaseEntity {
         this.reviewedAt = reviewedAt;
     }
 
-    public void reject(User reviewedBy, OffsetDateTime reviewedAt) {
+    /**
+     * @param rejectionReason why the reviewer declined, already normalized;
+     *                        null when none was given
+     */
+    public void reject(User reviewedBy, OffsetDateTime reviewedAt, String rejectionReason) {
         this.status = DeallocationProposalStatus.REJECTED;
         this.reviewedBy = reviewedBy;
         this.reviewedAt = reviewedAt;
+        this.rejectionReason = rejectionReason;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
     }
 }
