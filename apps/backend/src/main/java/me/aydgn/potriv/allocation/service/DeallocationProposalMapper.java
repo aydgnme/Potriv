@@ -54,7 +54,8 @@ public class DeallocationProposalMapper {
             userSummary(proposal.getProposedBy()),
             proposal.getCreatedAt(),
             userSummary(proposal.getReviewedBy()),
-            proposal.getReviewedAt());
+            proposal.getReviewedAt(),
+            proposal.getRejectionReason());
     }
 
     public ProjectAllocationResponse toAllocationResponse(ProjectAllocation allocation) {
@@ -120,7 +121,8 @@ public class DeallocationProposalMapper {
             userSummary(proposal.getReviewedBy()),
             proposal.getReviewedAt(),
             // Accepting a removal frees capacity; it can never fail on it.
-            null);
+            null,
+            proposal.getRejectionReason());
     }
 
     private static UserSummary userSummary(User user) {

@@ -42,7 +42,12 @@ public record DepartmentProjectProposalResponse(
      * Null for deallocation rows, which free capacity rather than consume it, and
      * for rows that have already been decided.
      */
-    ProposalCapacityContext capacity
+    ProposalCapacityContext capacity,
+    /**
+     * Why this proposal was declined. Null while pending, null when approved, and
+     * null for a rejection made without one.
+     */
+    String rejectionReason
 ) {
 
     public static final String TYPE_ASSIGNMENT = "ASSIGNMENT";

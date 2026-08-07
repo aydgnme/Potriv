@@ -197,7 +197,8 @@ public class AssignmentProposalService {
             new UserSummary(proposedBy.getId(), proposedBy.getName(), proposedBy.getEmail()),
             proposal.getCreatedAt(),
             reviewedBySummary(proposal),
-            proposal.getReviewedAt());
+            proposal.getReviewedAt(),
+            proposal.getRejectionReason());
     }
 
     private UserSummary reviewedBySummary(ProjectAssignmentProposal proposal) {

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import me.aydgn.potriv.allocation.dto.AssignmentProposalResponse.UserSummary;
 import me.aydgn.potriv.allocation.dto.AssignmentReviewResponse;
+import me.aydgn.potriv.allocation.dto.RejectProposalRequest;
 import me.aydgn.potriv.allocation.dto.DepartmentProjectProposalResponse;
 import me.aydgn.potriv.allocation.dto.ProjectAllocationResponse;
 import me.aydgn.potriv.allocation.dto.ProjectProposalStatusFilter;
@@ -139,14 +140,16 @@ public class AssignmentProposalReviewService {
     }
 
     @Transactional
-    public AssignmentReviewResponse reject(AuthenticatedUser currentUser, UUID proposalId) {
+    public AssignmentReviewResponse reject(
+        AuthenticatedUser currentUser, UUID proposalId, RejectProposalRequest request) {
         currentOrganizationResolver.requireOrganizationId(currentUser);
         DepartmentManagerAssignment assignment = requireManagedAssignment(currentUser);
 
         ProjectAssignmentProposal proposal =
             lockPendingProposalInDepartment(proposalId, assignment.getDepartment().getId());
 
-        proposal.reject(assignment.getManager(), OffsetDateTime.now(clock));
+        proposal.reject(assignment.getManager(), OffsetDateTime.now(clock),
+            RejectProposalRequest.normalizedReason(request));
 
         return new AssignmentReviewResponse(mapper.toResponse(proposal), null);
     }
