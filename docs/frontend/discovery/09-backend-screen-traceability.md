@@ -149,14 +149,16 @@ none may quietly become a requirement.
 | --- | --- | --- |
 | **Global search** | Only `GET /skills?q=` exists. No search for users, projects, departments or proposals | Shell — rejected in [04-information-architecture.md](04-information-architecture.md) |
 | **Organization-wide project overview** | No endpoint returns all projects; `GET /projects/managed` is caller-scoped and `@ProjectManagerOnly` (§C-3) | Organization admin dashboard |
-| **Department capacity / team availability** | No endpoint gives a department manager their members' allocated hours. Team Finder exposes it, and it is `@ProjectManagerOnly` | Department manager dashboard — rejected, because a quietly wrong number is worse than none |
+| ~~Department capacity on the review screen~~ | **Approved backend work (B1)** — capacity context moves onto the review response | Proposal review. The department-wide *dashboard* card stays rejected |
 | **Employee's own capacity** | Same gap from the other side: an employee cannot see their own `availableHours` | Employee home |
 | **In-app notifications** | `README.md` names a Notification module, but **no notification endpoints exist** | Everywhere; replaced by the single pending count on Staffing |
-| **Rejection reason** | Accept and reject take a path variable and no body (§C-5) | Proposal review — the UI states the absence instead |
+| ~~Rejection reason~~ | **Approved backend work (B2)** | Proposal review. Until it lands, the UI states the absence |
 | **Authenticated change password** | Only the emailed reset flow exists | Account screen — links to reset, and says so |
 | **Analytics, utilisation trends, skill-gap reports** | No aggregate endpoints | Rejected as vanity metrics regardless |
 | **Skill endorsement or validation** | `EmployeeSkill` is self-declared; no endorsement endpoint | Would have justified Direction B; its absence is why that direction was rejected |
 | **Multi-organization switching** | One `organizationId` per user; no endpoint changes it | Shell — no switcher designed |
+| **Account status visibility** | `UserSummaryResponse` carries no status and `GET /users` has no filter (§C-18) | People list — `FUTURE / BACKEND GAP`; the frontend cannot mark a suspended account |
+| **Level- and experience-weighted ranking** | `skillScore` ignores both (F2) | Team Finder — the detail panel states that levels are context, not score |
 | **Server-side pagination** | Only the system-admin audit endpoint paginates (§C-1) | Every list; replaced by virtualisation and stated totals |
 
 ---

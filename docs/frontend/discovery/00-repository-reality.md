@@ -236,11 +236,39 @@ dependency and the design must account for it.
 Designing one would either silently discard what the reviewer typed or require a
 backend change that is not in scope.
 
-### C-6 — Team Finder ranking is deterministic and fully explainable
+### C-6 — Team Finder ranking is deterministic, and the exact arithmetic is this
 
-`TeamFinderScore` is `skillScore` (max 60) + `pastProjectScore` (max 20) +
-`availabilityScore` (max 20) = `totalScore` (max 100), and the response returns
-the **evidence** for each component:
+The service's own comment states the intent: *"exact-normalized skill matches
+against the project's technologies, and past project similarity. No AI, no fuzzy
+matching."* The three components are computed as:
+
+```java
+skillScore        = round(60.0 * matchedTechnologyCount / technologyCount)
+pastProjectScore  = pastMatches.isEmpty() ? 0 : 20        // binary
+availabilityScore = round(20.0 * availableHours / 8)      // floored at 10 if closeToFinish
+                    clamped to 0..20
+```
+
+Three consequences the UI must respect, each non-obvious:
+
+1. **`pastProjectScore` is binary.** It is exactly `0` or `20` — never `18`,
+   never graduated by how many past projects matched. A UI that renders it on a
+   continuous bar invents precision that does not exist.
+2. **Skill level and experience do not affect the score at all.** `skillScore` is
+   purely *what proportion of the project's technologies this person claims*. A
+   `LEARNS` / `ZERO_TO_SIX_MONTHS` match contributes exactly as much as
+   `TEACHES` / `MORE_THAN_SEVEN_YEARS`. Level and experience are returned as
+   **evidence for the human**, not as inputs to the ranking — and the UI must not
+   imply otherwise.
+3. **Team-role requirements are not part of the skill score.** They feed
+   past-project similarity only. So the empty state for "this project has nothing
+   to match on" must name **technologies**, not team roles: the service returns
+   early when `targetTechnologies.isEmpty()`.
+
+Tie-breaking is fully specified and stable: total, then skill, then past project,
+then availability, then `availableHours`, then name, then id.
+
+The response returns the **evidence** for each component:
 
 - `skillMatches[]` — matched technology, skill, category, level, experience
 - `pastProjectMatches[]` — project, `matchedTechnologies[]`, `matchedTeamRoles[]`
@@ -351,6 +379,83 @@ domain views like `GET /me/projects` (`userName`, `userEmail`).
 **Consequence:** the app shell cannot greet an employee by name from `/auth/me`
 alone. `GET /me/projects` is the cheapest authenticated source of the current
 user's own name. This is recorded as an open question.
+
+### C-14 — The invite link never expires
+
+`InviteTokenService` creates every invite as
+`new InviteToken(organization, generateToken(), null)` — the third argument is
+`expiresAt`, and it is **always `null`**. `EmployeeInviteResponse.expiresAt` is
+therefore always null in practice.
+
+`rotateInvite` is `@Transactional`, takes a pessimistic lock on the organization,
+and deactivates **every** active invite before issuing the new one, so at most
+one invite is active once the transaction commits.
+
+**Consequence:** an invite link is valid indefinitely until someone rotates it.
+The invite screen must not render an expiry date or an "expires soon" warning —
+there is nothing to render. Rotation is the only revocation mechanism, which
+makes it the more important control, not the lesser one.
+
+### C-15 — Token lifetimes, and refresh tokens rotate
+
+`application.yml`: `access-token-minutes: 15`, `refresh-token-days: 7`. A refresh
+issues a new refresh token and marks the previous one used, so **reuse is
+detectable** — `REFRESH_TOKEN_REUSE_DETECTED` is a real audit event type.
+
+**Consequence:** the API client needs a silent-refresh interceptor with a
+single-flight guard. Two concurrent 401s must not both refresh, because the
+second would present an already-used token and trip reuse detection.
+
+### C-16 — `technologyStack` is free text
+
+`CreateProjectRequest.technologyStack` is `List<String>` (each entry `@NotBlank`,
+max 160), and `ProjectResponse.technologyStack` is `List<String>`. There is **no
+technology catalogue and no foreign key** — the skill catalogue is a separate
+concept.
+
+**Consequence:** project creation uses a tag/chip input, not a picker. And since
+Team Finder matches these strings **exact-normalized** against employees' skill
+names (C-6), a typo silently produces zero matches. The input should suggest
+existing skill names from `GET /skills` as a convenience, while still accepting
+free text — the backend does.
+
+### C-17 — An organization admin cannot change their own roles
+
+`UserRoleManagementService.updateUserRoles`:
+
+```java
+if (targetUser.getId().equals(currentUser.userId())) {
+    throw new BadRequestException("You cannot update your own roles.");
+}
+```
+
+A **`400`**, not a `403`. Two further rules live in the same service:
+
+- `"Cannot remove the last organization admin."` — `400`
+- `SYSTEM_ADMIN` may only be assigned by a system admin, and only to platform
+  users — irrelevant to the product frontend but present
+
+**Consequence, and it is a real one:** a newly founded single-person organization
+**cannot bootstrap itself**. The founding admin cannot grant themselves
+`DEPARTMENT_MANAGER` or `PROJECT_MANAGER`, so they can create departments and
+team roles but can never staff a project or place a person into a department
+without a second human. This is not a copy problem and must not be hidden with
+wording — see [11-open-questions.md](11-open-questions.md) Q4.
+
+### C-18 — `GET /users` exposes no account status
+
+`UserSummaryResponse` is `userId`, `organizationId`, `name`, `email`, `roles[]`.
+There is no `status` field, and the endpoint takes no filter — so suspended and
+disabled accounts are returned indistinguishably from active ones.
+
+`AccessAccountStatus` exists and `PATCH /admin/users/{userId}/status` can change
+it, but that endpoint is `@SystemAdminOnly`.
+
+**Consequence:** the product frontend **cannot tell a disabled account from an
+active one**. An organization admin may grant roles to a suspended user, and a
+project manager may propose someone who cannot sign in. Recorded as
+`FUTURE / BACKEND GAP` rather than designed around, because there is no data to
+design with.
 
 ### C-12 — Context path
 

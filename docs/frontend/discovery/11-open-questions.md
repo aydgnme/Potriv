@@ -156,36 +156,70 @@ These are settled unless the product owner overrules them.
 | D19 | Employee home is a **status page**, not a queue | The role has no pending work |
 | D20 | Deallocation's entry point is the overflow menu on an active member row | The only place `allocationId` is exposed |
 
-## Decisions needing product-owner approval
+## Product decisions — RESOLVED
 
-Genuine product choices, not technical ones. Each has a recommendation, because
-an open question without one is just a delay.
+All eight were ruled on by the product owner. Three require backend work **before**
+frontend implementation begins; the rest are settled as scope.
 
-| # | Question | Recommendation |
+| # | Question | Ruling | When |
+| --- | --- | --- | --- |
+| **Q1** | A department manager approves staffing without seeing their team's load | **Add to the backend.** The reviewer must see the candidate's `allocatedHours` / `availableHours` / `requestedHours`. Delivered as **current capacity context on the review API response**, not as a generic capacity dashboard endpoint — the review screen is the only place that needs it, and scoping it there keeps the contract honest | **Before frontend** |
+| **Q2** | A rejected project manager receives no reason | **Add to the backend.** An explanatory reason on assignment and deallocation reject, persisted | **Before frontend** |
+| **Q3** | An organization admin cannot see the organization's projects | **Out of MVP.** Do not turn the organization admin into an operations dashboard | Future |
+| **Q4** | A single-person organization cannot bootstrap itself (§C-17) | **Fix in the backend.** One person must be able to complete organization setup. Solving this with frontend copy would be hiding it | **Before frontend** |
+| **Q5** | Should an employee see their own capacity? | Useful, not a blocker | Future |
+| **Q6** | Is `/skills?q=` enough search for launch? | **Yes** | MVP as designed |
+| **Q7** | Dark mode at launch? | **No** | Future |
+| **Q8** | Invite link on Home? | **Yes, but only during setup/onboarding** | MVP |
+
+### What changes in this pack once Q1, Q2 and Q4 land
+
+Recorded now so the wireframes can be updated in one pass rather than
+rediscovered:
+
+- **Q1** — PR-A and PR-B gain a real capacity block sourced from the response
+  instead of the current deliberate omission. The dashboard card rejected in
+  [04-information-architecture.md](04-information-architecture.md) stays
+  rejected: this is review context, not a department-wide capacity view
+- **Q2** — the reject flow gains a reason input, and
+  [06-ux-patterns.md](06-ux-patterns.md)'s copy rule "Rejecting does not send a
+  reason" is removed. The project manager's proposal history gains somewhere to
+  display it
+- **Q4** — the organization admin's setup path stops having to say "someone else
+  finishes this", and journey B1's closing note is rewritten
+
+Until then the pack describes the system **as it is**, not as it will be.
+
+## Technical questions — RESOLVED
+
+All eight answered against the repository. Four changed the design and the
+affected documents have been corrected.
+
+| # | Question | Answer | Effect on the pack |
+| --- | --- | --- | --- |
+| **T1** | Does `GET /department/projects` return the department summary when the department has no projects? | **Yes.** The summary is always returned | **Closed, no risk.** The `departmentId` resolution path (§C-4) is safe |
+| **T2** | Invite lifetime and rotation semantics | **Invites never expire** — `expiresAt` is always `null`. Rotation deactivates every active invite inside a transaction with a pessimistic organization lock | **Correction applied.** W-16 no longer shows an expiry date or an "expires soon" warning; rotation is documented as the only revocation mechanism (§C-14) |
+| **T3** | Token lifetimes and refresh rotation | Access **15 minutes**, refresh **7 days**; refresh tokens **rotate**, the old one is marked used, and reuse is audited | **Added as §C-15.** The API client needs a single-flight silent refresh — two concurrent refreshes would trip reuse detection |
+| **T4** | Is `technologyStack` a catalogue reference? | **No** — `List<String>` free text | **Added as §C-16.** Project creation uses a tag/chip input that *suggests* skill names but accepts free text. A typo silently produces zero Team Finder matches |
+| **T5** | What does the skill score match against? | **Project technologies only**, exact-normalized. Team-role requirements feed past-project similarity, not the skill score | **Correction applied.** TF-A's empty state (b) now names *technologies*, not team roles |
+| **T6** | Rate limits on Team Finder? | **None in the repository** | Debounce or manual re-run regardless — a `POST` per keystroke is wrong even when permitted |
+| **T7** | Will product endpoints stay unpaginated? | **No pagination today**, and the repository cannot guarantee the future | D10 holds for now and is flagged as revisitable. If pagination arrives, list patterns change everywhere |
+| **T8** | Does `GET /users` expose account status? | **No.** No filter parameter, and `UserSummaryResponse` carries no status field | **Added as §C-18 and recorded as `FUTURE / BACKEND GAP`** — see below |
+
+### New findings from resolving these questions
+
+Two facts surfaced during verification that were not in the original pack and
+change what the UI may claim:
+
+| # | Finding | Consequence |
 | --- | --- | --- |
-| Q1 | **A department manager approves staffing without seeing their team's load.** Ship this way, or fund a capacity endpoint first? | **Fund the endpoint.** This is the pack's most significant finding: the role making the decision has strictly less information than the role making the request, and the data already exists in Team Finder |
-| Q2 | **A rejected project manager receives no reason.** Accept, or add a reason field to reject? | **Add it.** The cost is one optional string; the cost of not having it is a manager who cannot tell a capacity refusal from a disagreement |
-| Q3 | **An organization admin cannot see the organization's projects.** Intended, or a gap? | Confirm intent. If unintended, an org-admin-readable project list is small work with real value |
-| Q4 | **Onboarding is split**: an org admin creates departments and grants roles, but only a department manager can place people into one. Intended? | Assume intended and design for it — the setup path names who finishes the job — but confirm, because it means a one-person organization cannot fully onboard anyone |
-| Q5 | Should an employee see their own capacity? | **Yes, eventually.** It is the clearest explanation of why Team Finder does or does not surface them |
-| Q6 | Is `/skills?q=` enough search, or is global search needed for launch? | **Enough for launch.** Revisit when an organization exceeds a few hundred users |
-| Q7 | Does the product frontend need dark mode at launch? | **No.** The chosen direction inverts cleanly, so it stays cheap to add later |
-| Q8 | Should the invite link be shown on the org admin's Home, or only under Organization? | Both, during setup only — it is the bottleneck for a new organization |
+| **F1** | **`pastProjectScore` is binary — exactly `0` or `20`**, never graduated | Rendering it on a continuous scale would invent precision. Wireframe values corrected |
+| **F2** | **Skill level and experience do not affect the score at all.** `skillScore = round(60 × matchedTechnologies / projectTechnologies)` | A `LEARNS` / `0-6 months` match scores identically to `TEACHES` / `7+ years`. Level and experience are **evidence for the human**, not ranking inputs, and the Team Finder detail panel now says so. This is arguably a product question in its own right — see Q9 |
 
-## Technical questions requiring repository or API confirmation
-
-Answerable from the repository or by the backend owner; none blocks the design.
-
-| # | Question | Why it matters |
+| # | New question raised | Recommendation |
 | --- | --- | --- |
-| T1 | Is `GET /department/projects` guaranteed to return the department summary even when the department has **no projects**? | Every department-manager screen resolves `departmentId` from it (§C-4). If it can return no department, the frontend has no way to learn it |
-| T2 | What is the invite token's lifetime, and does rotation immediately invalidate the old one or allow a grace period? | The rotation confirmation copy states "immediately" |
-| T3 | What is the access token's lifetime, and does `POST /auth/refresh` rotate the refresh token? | Determines whether a silent refresh interceptor is enough |
-| T4 | Are `technologyStack` entries free text matched by name, or resolved to a catalogue? | Determines whether project creation offers autocomplete or a plain input |
-| T5 | Does Team Finder's skill score match on **project technology stack** only, or also on team-role requirements? | The empty state tells a manager what to add; it must name the right thing |
-| T6 | Are there rate limits on `POST /projects/{id}/team-finder`? | The criteria form re-runs on every change if unthrottled |
-| T7 | Confirm no product list endpoint will gain pagination soon | D10 assumes not. A late addition changes list patterns everywhere |
-| T8 | Does `GET /users` include suspended and disabled accounts? | If so, the people list needs an account-status column that this pack has not designed |
+| **Q9** | Should skill **level** and **experience** influence the Team Finder score? Today they are returned but ignored | Worth a decision, not a blocker. Weighting them would make the ranking match what a manager assumes it already does. Until then the UI states the truth plainly |
+| **Q10** | `GET /users` cannot distinguish an active account from a suspended or disabled one (§C-18) | **`FUTURE / BACKEND GAP`**, not an MVP blocker — as ruled. Worth noting that an organization admin can currently grant roles to a suspended user, and a project manager can propose someone who cannot sign in |
 
 ## Future ideas intentionally deferred
 

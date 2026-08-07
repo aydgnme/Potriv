@@ -38,8 +38,8 @@ confirmation points · success feedback · next action.**
 
 - **Actor** — an invited person
 - **Trigger** — opens the invite URL (`…?token=…`)
-- **Preconditions** — the invite is active and unexpired
-  (`EmployeeInviteResponse.active`, `expiresAt`)
+- **Preconditions** — the invite is active. **Invites never expire** — `expiresAt`
+  is always null (§C-14) — so the only way a link dies is rotation
 - **Happy path** — token is read from the URL → `POST /auth/register-employee/{inviteToken}`
   with name, email, password → `201` → sent to sign in
 - **Alternative path** — the URL is opened with no token, or a malformed one:
@@ -135,10 +135,14 @@ confirmation points · success feedback · next action.**
   treats them as the onboarding path
 - **Confirmation points** — none in setup; creation is additive
 - **Success feedback** — the setup path visibly advances
-- **Next action** — the honest one: **the org admin cannot finish onboarding
-  alone.** Placing people into departments is `@DepartmentManagerOnly`, so the
-  final step of the setup path reads "appoint a department manager — they add
-  people to the department" ([02-personas-and-roles.md](02-personas-and-roles.md))
+- **Next action** — as the backend stands, **the org admin cannot finish
+  onboarding alone**, and cannot even grant themselves the roles that would let
+  them: `PATCH /users/{id}/roles` refuses self-modification with a `400`
+  (§C-17). So a one-person organization can create departments and team roles
+  and then stop. This is approved for a backend fix (**B3** in
+  [10-mvp-prioritization.md](10-mvp-prioritization.md)); until it lands the setup
+  path's final step reads "appoint a department manager — they add people to the
+  department", and that wording is a description of a limitation, not a solution
 
 ## B2 — Invite URL discovery and rotation
 
@@ -146,7 +150,7 @@ confirmation points · success feedback · next action.**
 - **Trigger** — Organization → Invite
 - **Preconditions** — org admin role
 - **Happy path** — `GET /organizations/current/invite` → `inviteUrl`, `active`,
-  `createdAt`, `expiresAt` → copy to clipboard
+  `createdAt` → copy to clipboard. No expiry is shown, because there is none
 - **Alternative path** — rotate: `POST /organizations/current/invite/rotate` → a
   new `inviteUrl`
 - **Validation errors** — none

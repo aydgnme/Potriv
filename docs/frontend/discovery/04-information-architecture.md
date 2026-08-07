@@ -207,7 +207,7 @@ number that changes nothing.
 | Card | Data | Actionable? |
 | --- | --- | --- |
 | **Departments without a manager** | `GET /departments` → `manager == null` | Yes — such a department cannot review staffing at all |
-| **Invite status** | `GET /organizations/current/invite` → `active`, `expiresAt` | Yes — an expired invite silently blocks all onboarding |
+| **Invite status** | `GET /organizations/current/invite` → `active` | Yes, **during setup only** (Q8). Invites never expire (§C-14), so this is the link itself, not an expiry warning |
 | **People without a role beyond EMPLOYEE** | `GET /users` → `roles` | Yes — leads to role assignment |
 | **Organization counts** | departments, users, team roles, skills | **Borderline.** Kept only as a compact single line, and only because during setup "0 team roles" explains why project creation is awkward |
 

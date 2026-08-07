@@ -302,6 +302,10 @@ One sentence: what will happen, to what, and whether it can be undone.
 > Reject this proposal? **No reason is sent to the requester** — the system does
 > not support one.
 
+*This wording is temporary.* A rejection reason is approved backend work
+(**B2** in [10-mvp-prioritization.md](10-mvp-prioritization.md)); once it lands
+the sentence is replaced by a reason input.
+
 ### Permission errors
 
 Say what capability is missing, in role terms, and stop:

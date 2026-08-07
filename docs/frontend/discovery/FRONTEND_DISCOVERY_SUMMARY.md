@@ -73,8 +73,12 @@ Read from the code, not assumed:
    departments — the id arrives via `GET /department/projects`
 5. **Deallocation requires a reason; rejection cannot carry one** → the review UI
    states the absence rather than faking a field
-6. **Team Finder's score is deterministic and fully evidenced** → the UI explains
-   rankings from returned data, and never calls them intelligent
+6. **Team Finder's score is deterministic, fully evidenced — and narrower than it
+   looks.** `skillScore = round(60 × matchedTechnologies / projectTechnologies)`,
+   `pastProjectScore` is binary `0|20`, `availabilityScore = round(20 × availableHours / 8)`.
+   Level and experience are returned but **do not affect the score** → the UI
+   explains rankings from returned data, never calls them intelligent, and says
+   plainly that levels are context rather than weight
 7. **Capacity is 8h/day, enforced at three moments** — including a recalculation
    at accept time that leaves the proposal `PENDING` → a designed UI state, not
    an error
@@ -95,16 +99,39 @@ Read from the code, not assumed:
 - **Capacity is omitted wherever the API does not supply it.** A quietly wrong
   number is worse than none
 
-## The most significant finding
+## The three findings that became backend work
 
-**A department manager approves staffing requests without being able to see
-their own team's allocated hours.** Team Finder exposes exactly that figure — to
-project managers only. So the role *making* the decision has strictly less
-information than the role *requesting* it.
+All eight product decisions have been ruled on. Three require backend changes
+**before** frontend implementation starts. None means "the backend is
+incomplete" — the agreed scope was delivered and verified; designing the UI
+exposed contract data the review and onboarding flows need, which is what a
+discovery phase is for.
 
-This is not designed around. No capacity card is built from partial data, and no
-figure is estimated. It is recorded as **Q1**, the pack's top recommendation for
-backend work, and the data already exists.
+| | Finding | Approved fix |
+| --- | --- | --- |
+| **B1** | A department manager approves staffing **without being able to see the employee's load**. Team Finder computes exactly that figure — for project managers only. The role *deciding* has less information than the role *asking* | Capacity context (`allocatedHours` / `availableHours` / `requestedHours`) **on the review response** — not a generic capacity dashboard. It reuses the correct calculation and gives it to the one screen that needs it |
+| **B2** | A rejected project manager receives a **bare refusal** — accept and reject take no request body | A persisted reason on assignment and deallocation reject |
+| **B3** | A **single-person organization cannot bootstrap itself.** `UserRoleManagementService` refuses self-role-modification with a `400`, so a founding admin can create departments and team roles and then stop — they cannot staff a project or place anyone into a department | Make solo setup possible in the backend, preserving the guard's original protections. Explicitly **not** solved with frontend copy |
+
+Everything else was ruled out of MVP (organization project overview, employee
+capacity, dark mode) or confirmed as designed (`/skills?q=` is enough search;
+the invite link appears on Home during setup only).
+
+## Two corrections found while closing the technical questions
+
+Verifying the eight technical questions against the code caught two things this
+pack had wrong, and both changed the wireframes:
+
+- **Invites never expire.** `expiresAt` is always `null`. The invite screen's
+  expiry date and "expires soon" warning are gone; rotation is documented as the
+  **only** revocation mechanism, which makes it the more important control there
+- **The Team Finder score does not work the way the wireframes implied.**
+  `pastProjectScore` is **binary** — exactly `0` or `20`, never `18`. And
+  `skillScore = round(60 × matchedTechnologies / projectTechnologies)`, so
+  **skill level and experience do not affect the score at all**: a
+  `LEARNS` / `0-6 months` match scores identically to `TEACHES` / `7+ years`.
+  They are evidence for the human, not ranking inputs, and the detail panel now
+  says so
 
 ## Coverage
 
@@ -118,20 +145,26 @@ backend work, and the data already exists.
 | Of those, mobile variants | 3 (Team Finder, project overview, shell) |
 | All 25 wireframes required by the brief | covered |
 | Ideas marked `FUTURE / BACKEND NOT AVAILABLE` | 11 |
-| Decisions made | 20 |
-| Decisions needing product-owner approval | 8 |
-| Technical questions for the backend owner | 8 |
+| Decisions made | 20 design + 8 product, all resolved |
+| Approved backend prerequisites | 3 (B1, B2, B3) |
+| Technical questions | 8, all closed against the code |
+| Corrections applied from that verification | 2 (invite expiry, score arithmetic) |
+| New questions raised by it | 2 (Q9 level weighting, Q10 account status) |
 
 ## What happens next
 
-This pack stops at the **STOP GATE**. The next task converts approved wireframes
-into a design system, frontend architecture, route plan, component hierarchy, API
-client strategy and implementation phases.
+```text
+1. Backend enhancements  B1 capacity context · B2 rejection reason · B3 solo onboarding
+2. Update this pack      review wireframes, reject copy, org-admin setup path
+3. Merge                 the discovery pack lands once it matches the contract
+4. Lock the wireframes
+5. Begin frontend implementation
+```
 
-Before that, the eight product decisions in
-[11-open-questions.md](11-open-questions.md) want answers — **Q1 and Q2 above
-all**, because both may add backend work that changes what the review screens
-show.
+The pack stops at the **STOP GATE**. It currently describes the system **as it
+is**, not as it will be after B1–B3 — every place that changes is already
+identified in [11-open-questions.md](11-open-questions.md) §"What changes once
+Q1, Q2 and Q4 land", so the update is one pass rather than a rediscovery.
 
 ---
 
@@ -139,15 +172,15 @@ show.
 
 **`READY WITH OPEN PRODUCT DECISIONS`**
 
-The discovery is complete: every backend operation is mapped, every core journey
-specified with its real error contract, and every critical screen has a state
-matrix.
+The discovery itself is complete and the decisions are locked. The verdict stays
+as it is for one honest reason: **three approved backend changes (B1, B2, B3) sit
+between this pack and implementation**, and two of them alter the review screens —
+the most important screens in the product.
 
-It is not `READY FOR PRODUCT REVIEW` without qualification, because eight
-product decisions remain open and two of them (Q1 department capacity, Q2
-rejection reason) could change the design of the review screens — the most
-important screens in the product. They are recommendations, not blockers: the
-MVP can be built as specified, and both would be additive.
+Calling it `READY FOR PRODUCT REVIEW` would suggest nothing further is pending.
+Calling it `READY TO IMPLEMENT` would be plainly wrong: a frontend built against
+today's contract would have to be reworked in exactly the places that matter
+most.
 
-`READY TO IMPLEMENT` is deliberately **not** claimed. That requires explicit
-product-owner approval of this pack.
+The pack is accurate about the system as it stands today, and it names precisely
+what changes when B1–B3 land.

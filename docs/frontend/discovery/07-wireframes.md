@@ -79,16 +79,16 @@ GOAL:          Find people for unmet role requirements, and understand why.
 ├───────────────────────────────────┬────────────────────────────────────────┤
 │ 14 candidates                     │  Ayşe Yılmaz                           │
 │                                   │  Platform Engineering                  │
-│ ┌───────────────────────────────┐ │  ─────────────────────────────────────│
-│ │ Ayşe Yılmaz              82   │◀│  Available   ████████░░  6 of 8 h      │
+│ ┌───────────────────────────────┐ │  ──────────────────────────────────────│
+│ │ Ayşe Yılmaz              80   │◀│  Available   ████████░░  6 of 8 h      │
 │ │ Platform Eng.  Available 6/8h │ │  2 active allocations                  │
 │ └───────────────────────────────┘ │                                        │
-│ ┌───────────────────────────────┐ │  Score 82 of 100                       │
-│ │ Mehmet Kaya              74   │ │   Skills          52 / 60              │
-│ │ Platform Eng.  Partial  2/8h  │ │   Past projects   18 / 20              │
-│ └───────────────────────────────┘ │   Availability    12 / 20              │
+│ ┌───────────────────────────────┐ │  Score 80 of 100                       │
+│ │ Mehmet Kaya              70   │ │   Skills          45 / 60  3 of 4 tech │
+│ │ Platform Eng.  Partial  2/8h  │ │   Past projects   20 / 20  matched     │
+│ └───────────────────────────────┘ │   Availability    15 / 20  6 of 8 h    │
 │ ┌───────────────────────────────┐ │                                        │
-│ │ Elif Demir               61   │ │  Matched skills                        │
+│ │ Elif Demir               40   │ │  Matched skills                        │
 │ │ Data.  Close to finish  0/8h  │ │   Java         Teaches   4-7 years     │
 │ │        Orion ends 12 Apr      │ │   Spring       Does      2-4 years     │
 │ └───────────────────────────────┘ │   PostgreSQL   Knows     1-2 years     │
@@ -97,7 +97,8 @@ GOAL:          Find people for unmet role requirements, and understand why.
 │ └───────────────────────────────┘ │   Helios   Java, Spring · Backend      │
 │                                   │   Vega     PostgreSQL   · Backend      │
 │                                   │                                        │
-│                                   │  Skill levels are self-declared.       │
+│                                   │  Levels are self-declared and do not   │
+│                                   │  change the score — they are context.  │
 │                                   │                                        │
 │                                   │  [ Propose for this project ]          │
 └───────────────────────────────────┴────────────────────────────────────────┘
@@ -111,8 +112,9 @@ DATA REQUIRED:     POST /projects/{id}/team-finder → criteria, candidateCount,
                    Header context: GET /projects/{id}/details
 EMPTY STATE:       (a) no matches → restate criteria, offer to include partially
                    available / close to finish / unavailable
-                   (b) project declares no technologies or team roles → "This
-                   project has nothing to match on yet" → Edit project
+                   (b) project declares no TECHNOLOGIES → "This project has no
+                   technologies to match on yet" → Edit project. Team roles are
+                   NOT the trigger — the skill score matches technologies only.
 ERROR STATE:       403 → permission screen. 5xx → inline retry, criteria kept.
 NEXT SCREENS:      TF-C (propose) · A06 (project overview) · A07 (team)
 ```
@@ -141,9 +143,9 @@ GOAL:          Compare many candidates on one screen.
 ├────────────────────────────────────────────────────────────────────────────┤
 │ Name          Dept       Avail.   Skill Past Avail  Total  Top skills      │
 │ ────────────────────────────────────────────────────────────────────────── │
-│ Ayşe Yılmaz   Platform   6/8 h      52   18    12     82   Java, Spring +1 │
-│ Mehmet Kaya   Platform   2/8 h      48   14    12     74   Java, React     │
-│ Elif Demir    Data       0/8 h      50    8     3     61   PostgreSQL +2   │
+│ Ayşe Yılmaz   Platform   6/8 h      45   20    15     80   Java, Spring +1 │
+│ Mehmet Kaya   Platform   2/8 h      45   20     5     70   Java, React     │
+│ Elif Demir    Data       0/8 h      30    0    10     40   PostgreSQL +2   │
 │ …                                                                          │
 ├────────────────────────────────────────────────────────────────────────────┤
 │ [ ] compare selected (max 3)                            [ Propose… ]       │
@@ -189,15 +191,15 @@ GOAL:          Same, on a phone. Not a shrunken table.
 ├───────────────────────────┤                      ├───────────────────────────┤
 │ [ Criteria ▾ ] 14 results │                      │ Available  ██████░░ 6/8 h │
 ├───────────────────────────┤                      │ 2 active allocations      │
-│ Ayşe Yılmaz          82   │                      │                           │
-│ Platform Eng.             │                      │ Score 82 of 100           │
-│ Available · 6 of 8 h      │                      │  Skills        52 / 60    │
-├───────────────────────────┤                      │  Past projects 18 / 20    │
-│ Mehmet Kaya          74   │                      │  Availability  12 / 20    │
+│ Ayşe Yılmaz          80   │                      │                           │
+│ Platform Eng.             │                      │ Score 80 of 100           │
+│ Available · 6 of 8 h      │                      │  Skills        45 / 60    │
+├───────────────────────────┤                      │  Past projects 20 / 20    │
+│ Mehmet Kaya          70   │                      │  Availability  15 / 20    │
 │ Platform Eng.             │                      │                           │
 │ Partially avail. · 2/8 h  │                      │ Matched skills            │
 ├───────────────────────────┤                      │  Java      Teaches  4-7y  │
-│ Elif Demir           61   │                      │  Spring    Does     2-4y  │
+│ Elif Demir           40   │                      │  Spring    Does     2-4y  │
 │ Data                      │                      │  …                        │
 │ Close to finish · 0/8 h   │                      │                           │
 │ Orion ends 12 Apr         │                      │ Past projects             │
@@ -904,7 +906,7 @@ GOAL:          Control how people join; make rotation's cost explicit.
 │                                                                            │
 │ [ https://potriv.app/join?token=…                          ]  [ Copy ]     │
 │                                                                            │
-│ Active · created 3 Jan · expires 3 Apr                                     │
+│ Active · created 3 Jan · does not expire                                   │
 │                                                                            │
 │ ─────────────────────────────────────────────────────────────────────────  │
 │ Rotate the link if it has been shared too widely.                          │
@@ -916,8 +918,11 @@ SECONDARY ACTIONS: Rotate invite link (confirmed)
 DATA REQUIRED:     GET /organizations/current/invite ·
                    POST /organizations/current/invite/rotate
 EMPTY STATE:       none — an invite always exists
-ERROR STATE:       403 → permission screen. An expiry in the past is shown as a
-                   warning, since it silently blocks all onboarding.
+ERROR STATE:       403 → permission screen.
+NOTES:             Invites NEVER expire (expiresAt is always null — §C-14), so no
+                   expiry date and no "expires soon" warning is shown. Rotation
+                   is the only revocation mechanism, which makes it the more
+                   important control on this screen rather than the lesser one.
 NEXT SCREENS:      W-05 People
 ```
 

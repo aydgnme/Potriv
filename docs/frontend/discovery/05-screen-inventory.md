@@ -282,7 +282,7 @@ here rather than repeated. Where a screen deviates, the deviation is spelled out
 
 - **Purpose** Control how people join.
 - **Entry** Organization → Invite
-- **Content** the URL with a copy control, `active`, `createdAt`, `expiresAt`
+- **Content** the URL with a copy control, `active`, `createdAt`. **No expiry is shown — invites never expire** (§C-14)
 - **Primary CTA** Copy link · **Secondary** Rotate link
 - **Data** `GET /organizations/current/invite`, `POST /organizations/current/invite/rotate`
 - **Empty** none; an invite always exists
@@ -290,7 +290,7 @@ here rather than repeated. Where a screen deviates, the deviation is spelled out
 - **Permission** `403` → A09
 - **Mobile** URL wraps with a full-width copy button
 - **Desktop** single-line field with the copy control inline
-- **Note** Rotation is treated as destructive: the dialog states that the existing link stops working immediately. Expiry in the past is shown as a warning, since it silently blocks onboarding.
+- **Note** Rotation is treated as destructive: the dialog states that the existing link stops working immediately — and since invites never expire, **rotation is the only revocation mechanism**, which makes it the more important control on this screen rather than the lesser one.
 
 ---
 

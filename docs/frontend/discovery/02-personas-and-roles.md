@@ -40,13 +40,13 @@ Owns the structure the rest of the product operates inside.
 | Question | Answer |
 | --- | --- |
 | **Primary goals** | Get people into the organization, into departments, and into the right roles. Keep the shared vocabulary — team roles, skill catalogue — usable. |
-| **Immediately after login** | Whether the invite link is active and when it expires; who has arrived but has no department; who has no role beyond `EMPLOYEE`; which departments have no manager. |
+| **Immediately after login** | Whether the invite link is active (it never expires — §C-14); who has arrived but has no department; who has no role beyond `EMPLOYEE`; which departments have no manager. |
 | **Daily actions** | In a settled organization, close to none. In the first weeks: invite, assign roles, create departments, appoint managers. |
 | **Occasional actions** | Rotate the invite link; create or rename departments; grant/revoke roles; maintain team roles. |
 | **Should never see** | `/me/skills` of others; the system-admin console; project internals they have no endpoint for (see below). |
 | **Highest-risk mistakes** | **Rotating the invite link** — `POST /organizations/current/invite/rotate` invalidates the previous URL immediately, so anyone mid-signup with the old link is locked out. **Replacing a department manager** — a single `PUT` silently reassigns authority over a whole department. **Removing a user's last role** is impossible (`@Size(min = 1)`), which the form must reflect rather than discover by error. **Deleting a department** with members. |
 | **Needs more context before confirming** | Rotation (state that existing links stop working); manager replacement (name both the outgoing and incoming manager); department deletion (member count, from `DepartmentResponse.memberCount`). |
-| **Surface prominently** | Unassigned employees; departments without a manager; invite expiry. |
+| **Surface prominently** | Unassigned employees; departments without a manager; the invite link during setup (Q8). |
 | **Backend workflows** | `/users` list/detail/roles, `/departments` CRUD, `/departments/{id}/manager`, `/team-roles` CRUD, `/organizations/current/invite`, skill catalogue reads. |
 | **Dashboard priority** | 1) unassigned people, 2) departments missing a manager, 3) invite status, 4) organization counts. |
 
@@ -73,10 +73,10 @@ Owns people. The only role that can say yes to staffing.
 | **Occasional actions** | Add or remove department members; maintain the skill catalogue and skill↔department links; review the department's project portfolio. |
 | **Should never see** | Other departments' member lists; organization-wide user administration; role granting. |
 | **Highest-risk mistakes** | **Accepting a proposal that over-allocates someone** — the decision is irreversible from the UI's point of view; undoing it requires a whole deallocation proposal round trip. **Rejecting without reading** — because there is no rejection reason field, the PM receives a bare refusal with no explanation. **Removing a member** who is allocated to projects. |
-| **Needs more context before confirming** | Accept: the employee's current allocated hours, remaining capacity after this assignment, the project's status, the requested role and hours. Reject: an explicit statement that the requester will not receive a reason. |
+| **Needs more context before confirming** | Accept: the employee's current allocated hours, remaining capacity after this assignment, the project's status, the requested role and hours. Reject: today, an explicit statement that the requester will not receive a reason; once B2 lands, a reason input instead. |
 | **Surface prominently** | The pending count, everywhere in the shell. This is the only justified pending-action indicator in the product. |
 | **Backend workflows** | `GET /department/project-proposals` (+`?status=`), assignment accept/reject, deallocation accept/reject, `/departments/{id}/members`, `/departments/unassigned-employees`, `/department/projects`, skill catalogue writes, skill↔department links. |
-| **Dashboard priority** | 1) pending proposals, 2) department capacity, 3) unassigned employees, 4) department projects. |
+| **Dashboard priority** | 1) pending proposals, 2) unassigned employees, 3) department projects. Department-wide capacity is **not** a card — no endpoint supplies it; per-proposal capacity arrives with B1. |
 
 **Constraint that shapes the design.** A department manager manages exactly one
 department, but `GET /departments` is organization-admin-only — so the UI learns
@@ -84,10 +84,12 @@ the manager's own `departmentId` from `GET /department/projects`
 (§C-4). Every department-manager screen therefore depends on that one call
 resolving first. This is worth stating in the frontend architecture task.
 
-**Capacity caveat.** `allocatedHours` per employee is exposed by Team Finder, which
-is `@ProjectManagerOnly`. A department manager has **no endpoint that returns
-their members' current allocation**. A "department capacity" view is therefore
-`FUTURE / BACKEND NOT AVAILABLE` in its useful form; what a DM can see today is
+**Capacity caveat — resolved as approved backend work.** `allocatedHours` per
+employee is exposed by Team Finder, which is `@ProjectManagerOnly`. A department
+manager today has **no endpoint that returns their members' current allocation**.
+Capacity context on the *review response* is approved (**B1** in
+[10-mvp-prioritization.md](10-mvp-prioritization.md)); a department-wide capacity
+view remains `FUTURE / BACKEND NOT AVAILABLE`; what a DM can see today is
 membership and the department's projects with their teams. This is a significant
 finding and is carried into the open questions.
 

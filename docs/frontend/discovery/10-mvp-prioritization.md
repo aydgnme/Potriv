@@ -13,6 +13,78 @@ a real answer.
 
 ---
 
+## BACKEND PREREQUISITES — before frontend implementation starts
+
+Three enhancements were approved by the product owner and are ordered **ahead of**
+frontend work. They are not "backend incomplete" — the agreed backend scope was
+delivered and verified. Designing the UI simply exposed contract data the review
+and onboarding flows need, which is exactly what a discovery phase is for.
+
+### B1 — Capacity context on the proposal review response (from Q1)
+
+**Problem.** A department manager accepts or rejects staffing requests without
+being able to see the employee's load. Team Finder computes and returns exactly
+that figure — to project managers only. The role *deciding* has strictly less
+information than the role *asking*.
+
+**Approved shape.** Current capacity context **on the review API response**, not
+a generic capacity-dashboard endpoint. The reviewer needs `allocatedHours`,
+`availableHours` and `requestedHours` for the employee in the proposal.
+
+**Why scoped there rather than department-wide.** `GET /department/projects`
+already exposes per-project allocation rows, but only for that department's
+projects — summing them would silently under-report anyone allocated elsewhere.
+Team Finder sums an employee's **all** active allocations. Putting the computed
+figure on the review response reuses the correct calculation and gives it to the
+one screen that needs it, without inventing a broader contract.
+
+**Frontend effect.** PR-A and PR-B gain a real capacity block. The department
+capacity dashboard card stays rejected — this is review context, not a
+department-wide view.
+
+### B2 — Rejection reason (from Q2)
+
+**Problem.** Accept and reject take a path variable and no body, so a rejected
+project manager receives a bare refusal and cannot tell a capacity constraint
+from a disagreement.
+
+**Approved shape.** An explanatory reason on both assignment and deallocation
+reject, persisted.
+
+**Frontend effect.** The reject flow gains a reason input; the copy rule
+"Rejecting does not send a reason" is removed; the proposal history gains
+somewhere to show it.
+
+### B3 — Single-person organization onboarding (from Q4)
+
+**Problem, verified in the code.** `UserRoleManagementService.updateUserRoles`
+rejects self-modification outright:
+
+```java
+if (targetUser.getId().equals(currentUser.userId())) {
+    throw new BadRequestException("You cannot update your own roles.");
+}
+```
+
+So a founding organization admin **cannot grant themselves** `DEPARTMENT_MANAGER`
+or `PROJECT_MANAGER`. They can create departments and team roles, and then stop:
+they cannot place a person into a department, create a project, run Team Finder,
+or review a proposal. A new organization cannot be evaluated by one person.
+
+**Approved shape.** Make single-person organization setup possible, safely, in
+the backend. The self-modification guard exists for good reasons — an admin
+should not casually escalate or strand the organization without an admin (the
+service also enforces `"Cannot remove the last organization admin."`) — so the
+fix needs to preserve those protections rather than delete the guard.
+
+**Explicitly rejected:** solving this with frontend copy. Wording that explains
+why the product cannot be used is not a solution.
+
+**Frontend effect.** The organization admin's setup path stops having to say
+"someone else finishes this", and journey B1's closing note is rewritten.
+
+---
+
 ## FRONTEND MVP — REQUIRED
 
 Everything needed to expose the backend product coherently. Grouped into
@@ -127,23 +199,25 @@ be built first.
 
 | Idea | Backend prerequisite |
 | --- | --- |
-| **Department capacity view** | An endpoint giving a department manager their members' allocated hours. The single most valuable gap: a manager currently accepts staffing requests without seeing their team's load |
+| ~~Department capacity view~~ | **Approved as B1 above** — scoped to the review response rather than a dashboard endpoint |
 | **Employee's own capacity** | The same figure exposed to the employee |
 | **Organization-wide project overview** | A project list not scoped to the caller, readable by an organization admin |
 | **Aggregate staffing gaps** | One call returning requirements versus allocations across a manager's projects, replacing today's N+1 |
 | **In-app notifications** | Any notification endpoint at all. The README names a Notification module; the REST surface has none |
-| **Rejection reason** | A request body on the reject endpoints. Today a project manager receives a bare refusal |
+| ~~Rejection reason~~ | **Approved as B2 above** |
 | **Authenticated change password** | An endpoint that accepts the current password. Today the only route is an emailed reset |
 | **Global search** | Search endpoints for users, projects, departments and proposals. Only `skills?q=` exists |
 | **Server-side pagination, sorting and filtering** | Paged responses on product lists. Only the system-admin audit endpoint paginates |
 | **Skill endorsement or validation** | An endorsement model. Its absence is why skill data is labelled self-declared, and why product Direction B was rejected |
 | **Analytics and utilisation trends** | Aggregate reporting endpoints — and a product argument, which does not currently exist |
 | **Multi-organization membership** | A many-to-many user↔organization model. Today one user has one organization |
+| **Account status on `GET /users`** | A status field on `UserSummaryResponse`, or a filter. Today the product frontend cannot tell an active account from a suspended one (§C-18), so an admin may grant roles to a user who cannot sign in. Ruled `FUTURE / BACKEND GAP`, not an MVP blocker |
+| **Skill level and experience in the Team Finder score** | Weighting in `skillScore`. Today they are returned but ignored entirely (F2), so a beginner scores identically to an expert on the same technology |
 
-**Ordering note.** If exactly one backend addition were funded, it should be
-**department capacity**. It is the only gap that leaves a role making
-consequential decisions with less information than another role already has, and
-the data already exists — Team Finder computes it.
+**Ordering note.** The three approved prerequisites (B1, B2, B3) come first. Of
+what remains, **account status on `GET /users`** is the most consequential: it is
+the only gap where the frontend can currently mislead an administrator into
+acting on an account that cannot sign in.
 
 ---
 
