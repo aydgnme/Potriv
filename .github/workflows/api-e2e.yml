@@ -1,0 +1,81 @@
+name: API E2E
+
+# Black-box endpoint automation with a coverage gate. Runs on pull requests
+# because that is when an endpoint gets added without a scenario — the exact
+# drift this suite exists to catch. No repository secrets are required: the
+# isolated environment generates its own local-only credentials and Mailpit
+# captures every message, so nothing is ever delivered.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-e2e:
+    name: api-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/api-e2e/package-lock.json
+
+      - name: Install suite dependencies
+        working-directory: tools/api-e2e
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: tools/api-e2e
+        run: npm run typecheck
+
+      - name: Unit tests
+        working-directory: tools/api-e2e
+        run: npm test
+
+      - name: Make the Maven wrapper executable
+        run: chmod +x apps/backend/mvnw
+
+      # Builds once so the runner's `spring-boot:run` starts from a warm cache
+      # instead of resolving the whole dependency tree while a timeout ticks.
+      - name: Pre-build the backend
+        working-directory: apps/backend
+        run: ./mvnw -B -q -DskipTests package
+
+      - name: Run endpoint automation
+        working-directory: tools/api-e2e
+        run: npm run e2e
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: potriv-api-e2e-report
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            tools/api-e2e/reports/latest/report.md
+            tools/api-e2e/reports/latest/report.json
+            tools/api-e2e/reports/latest/report.html
+            tools/api-e2e/reports/latest/junit.xml
+            tools/api-e2e/reports/latest/endpoints.json
+            tools/api-e2e/reports/latest/failures.json

@@ -3,9 +3,15 @@ package me.aydgn.potriv.admin.security;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import me.aydgn.potriv.ops.monitor.BackendMonitorProperties;
 
@@ -19,9 +25,33 @@ import me.aydgn.potriv.ops.monitor.BackendMonitorProperties;
  * <p>Only {@code ROLE_SYSTEM_ADMIN} may reach admin pages; the login page and
  * admin static assets are anonymous. When the console is disabled the chain
  * permits requests so the MVC layer can answer an anti-leak 404.
+ *
+ * <p><strong>Two REST operations also live under {@code /admin/**}</strong> and
+ * are deliberately excluded from this chain — see {@link #REST_API_UNDER_ADMIN}.
  */
 @Configuration
 public class AdminSecurityConfig {
+
+    /**
+     * The Bearer-JWT REST operations that happen to sit under {@code /admin/**}:
+     * {@code AdminSecurityAuditController} and the status endpoint of
+     * {@code AdminUserController}.
+     *
+     * <p>They are ordinary API operations — declared in OpenAPI, guarded by
+     * {@code @SystemAdminOnly}, called with a token. Left inside this chain they
+     * were handed to a session filter that has no idea what a Bearer token is, so
+     * enabling the console answered them with a login redirect or a 403 and
+     * silently removed two documented operations from the API.
+     *
+     * <p>Excluding them here sends them to the stateless REST chain, where their
+     * method security applies as it does everywhere else. The exclusion is narrow
+     * on purpose: {@code /admin/users} is shared with the console's own pages, and
+     * only the {@code PATCH} belongs to the API — every console GET/POST under
+     * that prefix stays behind the session login.
+     */
+    private static final RequestMatcher REST_API_UNDER_ADMIN = new OrRequestMatcher(
+        PathPatternRequestMatcher.withDefaults().matcher("/admin/security/**"),
+        PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.PATCH, "/admin/users/*/status"));
 
     @Bean
     @Order(0)
@@ -31,7 +61,9 @@ public class AdminSecurityConfig {
         AdminAuthenticationProvider adminAuthenticationProvider,
         AdminAccessDeniedHandler adminAccessDeniedHandler
     ) throws Exception {
-        http.securityMatcher("/admin/**");
+        http.securityMatcher(new AndRequestMatcher(
+            PathPatternRequestMatcher.withDefaults().matcher("/admin/**"),
+            new NegatedRequestMatcher(REST_API_UNDER_ADMIN)));
 
         if (!properties.enabled()) {
             // Disabled: requests fall through to controllers, which 404.
