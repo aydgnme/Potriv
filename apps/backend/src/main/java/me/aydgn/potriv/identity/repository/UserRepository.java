@@ -18,6 +18,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     List<User> findAllByOrderByCreatedAtDesc();
     List<User> findByOrganization_IdOrderByCreatedAtDesc(UUID organizationId);
 
+    /**
+     * How many people belong to an organization. Used to recognise the one case
+     * where a founder may extend their own roles: an organization that still
+     * contains nobody else.
+     */
+    long countByOrganization_Id(UUID organizationId);
+
     // The pessimistic row lock serializes concurrent login attempts for the
     // same account so failed-attempt and lockout updates cannot be lost.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
