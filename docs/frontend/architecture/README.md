@@ -268,17 +268,27 @@ product" would confirm the address exists.
 
 ### Login status semantics
 
-The status says what happened; the message deliberately does not.
+Two rules pull against each other, and both matter.
 
 | Failure | Status |
 | --- | --- |
 | Malformed request | `400` |
 | Wrong credentials — and unknown email, inactive, locked | `401` |
-| Credentials fine, product refuses the session | `403` |
+| **Credentials fine, product refuses the session** | **`401` — identical to above** |
 | Backend unreachable or unexpected upstream failure | `502` |
 
-Answering `401` for a backend outage — as the first implementation did — tells a
-client that a service problem is something the user typed wrong.
+Answering `401` for a backend outage tells a client that a service problem is
+something the user typed wrong, so upstream failures get a gateway status.
+
+But a *different* status for a refused-yet-valid login is worse: the backend
+authenticated those credentials, so any observable difference confirms the pair
+is correct. That turns the login form into a credential oracle and undoes the
+uniform login error the backend deliberately returns. The two are therefore
+identical in status, code, message, body shape and cookies — the distinction
+survives only inside `authenticateForProduct`, where the cleanup needs it.
+
+`403` remains right for an authenticated product operation the backend denies:
+by then the caller's own identity is not a secret from them.
 
 The backend remains the authority for every operation. Hidden UI is not
 authorization.
@@ -299,11 +309,19 @@ cannot forge:
 | `same-site` | refused — a sibling subdomain is a different origin |
 | `same-origin` | eligible, then the Origin/Referer check still applies |
 | `none` | allowed: the user typed it or used a bookmark, which a page cannot cause |
-| absent | fall back to Origin/Referer; if those are absent too, allowed, because no Fetch Metadata means no browser, and CSRF needs a browser carrying cookies |
+| absent | fall back to Origin/Referer — see the policy split below |
 
 Comparison is on the **full origin** — scheme, host and port. `http://` and
 `https://` on the same host are different origins, and treating them as equal
 was a real weakness in the first implementation.
+
+**Two policies, because the endpoints differ.** When a request carries no origin
+signal at all — no Fetch Metadata, no `Origin`, no `Referer`:
+
+| Caller | Decision |
+| --- | --- |
+| `isSameOrigin` — login, logout, password reset (POST) | allowed. Same-origin `fetch` legitimately omits `Origin` and `Referer` in some browsers, and refusing would break ordinary use |
+| `isSafeRefreshNavigation` — `GET /api/auth/refresh` | **refused.** That endpoint rotates credentials from a top-level GET, so it fails closed rather than treating an absence as proof of a non-browser caller. It does not need to serve arbitrary non-browser callers |
 
 The expected origin comes from `request.nextUrl.origin`, so it reflects whatever
 `Host`/forwarded headers the platform already trusts. A reverse proxy that

@@ -3,29 +3,33 @@ import "server-only";
 import type { ProductAuthErrorCode } from "../model/errors";
 
 /**
- * How a product auth failure maps onto an HTTP status.
+ * How a login failure maps onto an HTTP status.
  *
- * FE-02 answered 401 for everything, which told the browser that a backend
- * outage was a credential problem. The distinction matters: a client should be
- * able to tell "your password is wrong" from "we could not reach the service",
- * and only the first is worth retyping a password for.
+ * Two rules pull against each other here, and both matter:
  *
- * The status becomes more accurate; the *message* does not. Every credential
- * failure still reads the same, because the backend deliberately refuses to say
- * which addresses exist.
+ * 1. A client should be able to tell "your password is wrong" from "we could
+ *    not reach the service" — only the first is worth retyping a password for.
+ *    So an upstream failure is a gateway status, not `401`.
+ *
+ * 2. A client must **not** be able to tell "your password is wrong" from "your
+ *    password is right but this account cannot use the product". A different
+ *    status for the second is a credential oracle: it confirms which
+ *    email/password pairs are valid, which is exactly what the backend's
+ *    uniform login error is designed to withhold.
+ *
+ * So `UNAUTHENTICATED` maps to `401` **at the login boundary** and is
+ * indistinguishable from a wrong password. That is specific to login: for an
+ * already-authenticated product operation, `403` remains the right answer,
+ * because by then the caller's identity is not a secret from them.
  */
 export function loginFailureStatus(code: ProductAuthErrorCode): number {
   switch (code) {
     case "VALIDATION":
       return 400;
     case "INVALID_CREDENTIALS":
-      return 401;
-    // The credentials were fine — the resulting session is not one this product
-    // can represent. Refusal, not authentication failure.
+    // Same status as a wrong password, on purpose — see above.
     case "UNAUTHENTICATED":
-      return 403;
-    // The backend could not be reached or answered unexpectedly. This BFF is a
-    // gateway to it, so a gateway status is the honest one.
+      return 401;
     case "NETWORK":
     case "SERVER":
     case "RESET_TOKEN_INVALID":

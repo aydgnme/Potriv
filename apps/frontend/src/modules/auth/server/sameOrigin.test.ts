@@ -107,8 +107,9 @@ describe("isSameOriginRequest", () => {
   });
 
   it("allows a non-browser caller that sends no headers at all", () => {
-    // No Fetch Metadata means not a browser, and CSRF needs a browser carrying
-    // cookies. Documented in the helper.
+    // Mutations tolerate this: same-origin fetch legitimately omits Origin and
+    // Referer in some browsers, and a caller with no Fetch Metadata is not the
+    // CSRF threat model, which needs a browser carrying cookies.
     expect(isSameOriginRequest(signals())).toBe(true);
   });
 
@@ -120,5 +121,62 @@ describe("isSameOriginRequest", () => {
 
   it("is case-insensitive about the Fetch Metadata value", () => {
     expect(isSameOriginRequest(signals({ secFetchSite: "Cross-Site" }))).toBe(false);
+  });
+
+  // ---- the stricter policy used by credential refresh ----
+
+  describe("refresh policy — fails closed", () => {
+    const refresh = { requireOriginSignal: true } as const;
+
+    it("refuses a request that carries no origin signal at all", () => {
+      // The difference from the mutation policy. This endpoint rotates
+      // credentials from a top-level GET, so an absence is not treated as
+      // evidence of a non-browser caller.
+      expect(isSameOriginRequest(signals(), refresh)).toBe(false);
+    });
+
+    it("still refuses cross-site", () => {
+      expect(isSameOriginRequest(signals({ secFetchSite: "cross-site" }), refresh)).toBe(
+        false,
+      );
+    });
+
+    it("still refuses same-site", () => {
+      expect(isSameOriginRequest(signals({ secFetchSite: "same-site" }), refresh)).toBe(
+        false,
+      );
+    });
+
+    it("allows our own page", () => {
+      expect(isSameOriginRequest(signals({ secFetchSite: "same-origin" }), refresh)).toBe(
+        true,
+      );
+    });
+
+    it("allows a direct user navigation", () => {
+      expect(isSameOriginRequest(signals({ secFetchSite: "none" }), refresh)).toBe(true);
+    });
+
+    it("allows a matching Origin when Fetch Metadata is unavailable", () => {
+      expect(isSameOriginRequest(signals({ origin: EXPECTED }), refresh)).toBe(true);
+    });
+
+    it("allows a matching Referer when Fetch Metadata is unavailable", () => {
+      expect(isSameOriginRequest(signals({ referer: `${EXPECTED}/home` }), refresh)).toBe(
+        true,
+      );
+    });
+
+    it("refuses the same host on a different scheme", () => {
+      expect(
+        isSameOriginRequest(signals({ origin: "http://potriv.example" }), refresh),
+      ).toBe(false);
+    });
+
+    it("refuses the same host on a different port", () => {
+      expect(
+        isSameOriginRequest(signals({ origin: "https://potriv.example:8443" }), refresh),
+      ).toBe(false);
+    });
   });
 });

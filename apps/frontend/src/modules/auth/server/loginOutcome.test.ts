@@ -16,9 +16,14 @@ describe("loginFailureStatus", () => {
     expect(loginFailureStatus("INVALID_CREDENTIALS")).toBe(401);
   });
 
-  it("uses 403 when the credentials were fine but the product refuses the session", () => {
-    // SYSTEM_ADMIN alone, or no organization: authenticated, not authorised here.
-    expect(loginFailureStatus("UNAUTHENTICATED")).toBe(403);
+  it("uses 401 when the credentials were fine but the product refuses the session", () => {
+    // Deliberately the same status as a wrong password. Answering 403 here — as
+    // an earlier revision did — confirms that these credentials are valid, which
+    // turns the login form into a credential oracle.
+    expect(loginFailureStatus("UNAUTHENTICATED")).toBe(401);
+    expect(loginFailureStatus("UNAUTHENTICATED")).toBe(
+      loginFailureStatus("INVALID_CREDENTIALS"),
+    );
   });
 
   it("uses a gateway status when the backend cannot be reached", () => {

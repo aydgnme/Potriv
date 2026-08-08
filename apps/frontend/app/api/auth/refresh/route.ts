@@ -4,7 +4,7 @@ import { COOKIE_NAMES } from "@/modules/auth/server/authConfig";
 import { applyTokenPair, clearAuthCookies } from "@/modules/auth/server/authCookies";
 import { noStore } from "@/modules/auth/server/httpResponse";
 import { refreshOnce } from "@/modules/auth/server/refreshSingleFlight";
-import { isSameOrigin } from "@/modules/auth/server/sameOrigin";
+import { isSafeRefreshNavigation } from "@/modules/auth/server/sameOrigin";
 import { safeReturnTo } from "@/modules/auth/utils/returnTo";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,10 @@ export async function GET(request: NextRequest) {
   const loginUrl = new URL("/login", request.nextUrl.origin);
 
   // A cross-site navigation must not be able to drive a credential rotation.
-  if (!isSameOrigin(request)) {
+  // Stricter than the POST routes: this one fails closed when the request
+  // carries no origin signal at all, rather than assuming that means a
+  // non-browser caller.
+  if (!isSafeRefreshNavigation(request)) {
     return noStore(NextResponse.redirect(loginUrl));
   }
 
