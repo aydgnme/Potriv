@@ -14,12 +14,30 @@ import { toProductUser } from "./productSession";
  *
  * Kept out of the route so the rejected-session cleanup can be tested directly:
  * that path is easy to get wrong and invisible from the outside, because a
- * caller sees the same refusal either way.
+ * caller is refused identically either way.
  */
+
+/**
+ * Why a sign-in failed, for this module's own use.
+ *
+ * **Never serialized.** The cleanup depends on knowing the difference, but the
+ * browser must not: a response that distinguishes "wrong password" from
+ * "correct password, ineligible account" is a way to confirm which credentials
+ * are valid. The distinction lives here and stops here.
+ */
+export type InternalFailureReason =
+  | "BACKEND_REJECTED"
+  | "PRODUCT_INELIGIBLE"
+  | "UPSTREAM";
 
 export type AuthenticationOutcome =
   | { readonly ok: true; readonly user: ProductUser; readonly tokens: BackendTokenPair }
-  | { readonly ok: false; readonly error: ProductAuthError };
+  | {
+      readonly ok: false;
+      /** The only part a route may forward. */
+      readonly error: ProductAuthError;
+      readonly internalReason: InternalFailureReason;
+    };
 
 type Dependencies = {
   readonly login: typeof loginOnBackend;
@@ -35,7 +53,15 @@ export async function authenticateForProduct(
   dependencies: Dependencies = DEFAULTS,
 ): Promise<AuthenticationOutcome> {
   const result = await dependencies.login(email, password, userAgent);
-  if (!result.ok) return { ok: false, error: result.error };
+
+  if (!result.ok) {
+    const upstream = result.error.code === "NETWORK" || result.error.code === "SERVER";
+    return {
+      ok: false,
+      error: result.error,
+      internalReason: upstream ? "UPSTREAM" : "BACKEND_REJECTED",
+    };
+  }
 
   const user = toProductUser(result.value, result.value.name);
   if (user) return { ok: true, user, tokens: result.value };
@@ -48,8 +74,7 @@ export async function authenticateForProduct(
   //
   // Best effort by design. The refusal below is what protects the browser, so a
   // cleanup that fails must not turn into an error for a request that was going
-  // to be refused anyway — guarded here rather than trusting the transport to
-  // swallow everything forever.
+  // to be refused anyway.
   try {
     await dependencies.logout(result.value.accessToken);
   } catch {
@@ -57,10 +82,13 @@ export async function authenticateForProduct(
     // thrown value could carry the token.
   }
 
-  // Refused with the same wording as a bad password. Saying "your account
-  // cannot use this product" would confirm the address exists.
+  // **Byte-identical to a wrong password**, deliberately. Same code, same
+  // message, and the route maps both to the same status — otherwise the
+  // response would confirm that these credentials are valid, which is precisely
+  // what the backend's uniform login error exists to prevent.
   return {
     ok: false,
-    error: productAuthError("UNAUTHENTICATED", INVALID_CREDENTIALS_MESSAGE),
+    error: productAuthError("INVALID_CREDENTIALS", INVALID_CREDENTIALS_MESSAGE),
+    internalReason: "PRODUCT_INELIGIBLE",
   };
 }
