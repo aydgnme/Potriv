@@ -256,15 +256,64 @@ validity is decided in `toProductUser`, which refuses a user left with no
 ordinary product role — `SYSTEM_ADMIN` alone, for instance, has its own console
 and is not a product session.
 
+**A refused login is cleaned up server-side.** The credentials were correct, so
+the backend has already created a session and issued tokens. Nothing reaches the
+browser, but that session would otherwise stay alive with nobody able to see or
+revoke it, so `authenticateForProduct` closes it before answering. Best effort:
+a cleanup that fails must not turn into an error for a request that was going to
+be refused anyway.
+
+The refusal reads exactly like a wrong password. "This account cannot use the
+product" would confirm the address exists.
+
+### Login status semantics
+
+The status says what happened; the message deliberately does not.
+
+| Failure | Status |
+| --- | --- |
+| Malformed request | `400` |
+| Wrong credentials — and unknown email, inactive, locked | `401` |
+| Credentials fine, product refuses the session | `403` |
+| Backend unreachable or unexpected upstream failure | `502` |
+
+Answering `401` for a backend outage — as the first implementation did — tells a
+client that a service problem is something the user typed wrong.
+
 The backend remains the authority for every operation. Hidden UI is not
 authorization.
 
 ### Same-origin and caching
 
-Session-mutating routes check `Origin`/`Referer` against `Host`, on top of
-`SameSite=Lax`. Every auth response sets `Cache-Control: no-store`, and backend
-auth calls use `cache: "no-store"` — authenticated identity must never be served
-from a shared cache.
+**`SameSite=Lax` is not relied on alone.** Lax cookies *are* sent on top-level
+cross-site GET navigations, and `/api/auth/refresh` is reached by a GET that
+rotates credentials — so a link on another site could otherwise force a
+rotation.
+
+`isSameOriginRequest` therefore consults **Fetch Metadata** first, which a page
+cannot forge:
+
+| `Sec-Fetch-Site` | Decision |
+| --- | --- |
+| `cross-site` | refused, whatever else the request claims |
+| `same-site` | refused — a sibling subdomain is a different origin |
+| `same-origin` | eligible, then the Origin/Referer check still applies |
+| `none` | allowed: the user typed it or used a bookmark, which a page cannot cause |
+| absent | fall back to Origin/Referer; if those are absent too, allowed, because no Fetch Metadata means no browser, and CSRF needs a browser carrying cookies |
+
+Comparison is on the **full origin** — scheme, host and port. `http://` and
+`https://` on the same host are different origins, and treating them as equal
+was a real weakness in the first implementation.
+
+The expected origin comes from `request.nextUrl.origin`, so it reflects whatever
+`Host`/forwarded headers the platform already trusts. A reverse proxy that
+rewrites the origin must be configured for Next to see it — the same requirement
+redirects and absolute URLs already have. There is deliberately no proxy-trust
+framework here.
+
+Every auth response sets `Cache-Control: no-store`, and backend auth calls use
+`cache: "no-store"` — authenticated identity must never be served from a shared
+cache.
 
 `returnTo` on the refresh route accepts only local product paths. That route sets
 credentials and then redirects, so an unvalidated destination would be an open
