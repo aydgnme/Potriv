@@ -193,3 +193,93 @@ Import through `@/*`, never `../../../..`.
 
 A filename should say what it owns. `helpers.ts`, `common.ts`, `utils2.ts` and
 `misc.ts` say nothing and are not used here.
+
+---
+
+## Authentication
+
+```
+Browser  →  Next.js BFF route handlers  →  Spring backend
+```
+
+The browser never holds a token. It calls same-origin `/api/auth/*` routes; those
+call the backend and keep the credentials in server-managed cookies. Product
+modules therefore never learn that tokens exist — they ask for the session and
+get identity and roles.
+
+### Cookies
+
+| Cookie | Holds | Lifetime |
+| --- | --- | --- |
+| `potriv_access_token` | backend access JWT | `expiresInSeconds` from the response, minus a 30s margin |
+| `potriv_refresh_token` | backend refresh token | 7 days, mirroring the backend's `refresh-token-days` |
+| `potriv_profile_name` | display name only | as the refresh cookie |
+
+All three are `HttpOnly`, `SameSite=Lax`, `Path=/`, and `Secure` in production.
+The access lifetime is **derived, never hard-coded** — the margin exists so the
+browser stops presenting a token the backend is about to reject.
+
+`potriv_profile_name` is presentation data. It exists because `TokenPairResponse`
+carries `name` but `GET /auth/me` does not, so a reload would otherwise lose it.
+It is never consulted for authorization; identity and roles always come from
+`/auth/me`.
+
+### Refresh rotation and single-flight
+
+The backend rotates refresh tokens: using one marks it used and issues another.
+Presenting a used token makes the backend **revoke the whole session**. So a
+duplicate refresh is not wasteful, it is destructive — two tabs waking together
+would sign the user out.
+
+`refreshSingleFlight` therefore performs one backend refresh per old token and
+hands the result to every caller, keyed by a SHA-256 digest so the raw token is
+never a map key and never logged. The entry is held for a short bounded window
+(5s) after it resolves, because a request already in flight when the new cookie
+was set still carries the old one. Failures are not cached: the session is gone
+and every caller should learn that at once.
+
+**Limitation:** the map is in-process. It deduplicates within one Next.js
+instance, not across several. A multi-instance deployment would need a shared
+lock; that is infrastructure this repository does not have, and adding it for a
+race a single-process deployment does not hit would be the wrong trade.
+
+### Guards, and what each one is for
+
+| Layer | Decides | Does not decide |
+| --- | --- | --- |
+| `middleware.ts` | is a cookie present — route to the page, to refresh, or to login | anything about identity or permission |
+| protected layout | is this a real session, via `/auth/me` | which backend operations are allowed |
+| `getNavigationItems` | which domains to show | **nothing about access** |
+
+`getNavigationItems([])` is an empty menu, not a rejected session. Session
+validity is decided in `toProductUser`, which refuses a user left with no
+ordinary product role — `SYSTEM_ADMIN` alone, for instance, has its own console
+and is not a product session.
+
+The backend remains the authority for every operation. Hidden UI is not
+authorization.
+
+### Same-origin and caching
+
+Session-mutating routes check `Origin`/`Referer` against `Host`, on top of
+`SameSite=Lax`. Every auth response sets `Cache-Control: no-store`, and backend
+auth calls use `cache: "no-store"` — authenticated identity must never be served
+from a shared cache.
+
+`returnTo` on the refresh route accepts only local product paths. That route sets
+credentials and then redirects, so an unvalidated destination would be an open
+redirect with a session attached.
+
+### Product and dev console remain separate
+
+The console keeps its `localStorage` token because it is a developer tool. The
+product uses cookies it cannot read. Neither imports the other, and
+`server-only` makes an accidental client import of the auth server modules a
+build error rather than a leak.
+
+### Known gap: organization name
+
+The session gives an organization **id** and no name, and the only endpoint that
+could supply one is organization-admin-only. `AppShell` therefore takes
+`organizationName?: string | null` and omits the line when it is absent. A UUID
+or an invented label would be worse than nothing.

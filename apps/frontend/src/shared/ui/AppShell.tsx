@@ -6,10 +6,13 @@ import styles from "./AppShell.module.css";
 import { Sidebar, type SidebarUser } from "./Sidebar";
 
 export type AppShellProps = {
-  readonly organizationName: string;
+  /** Omitted when the session cannot supply one — see Sidebar. */
+  readonly organizationName?: string | null;
   readonly user: SidebarUser;
   readonly navigationItems: readonly NavigationItem[];
   readonly currentItemId?: NavigationItemId;
+  /** Account controls supplied by the caller; the shell stays domain-agnostic. */
+  readonly accountActions?: ReactNode;
   readonly children: ReactNode;
 };
 
@@ -21,15 +24,15 @@ export type AppShellProps = {
  * decision about where the current user comes from belongs to the route rather
  * than being buried in the layout.
  *
- * Not yet mounted by any route: there is no authenticated screen until FE-02
- * supplies a session. It is built and tested now so that task wires it up rather
- * than designing it.
+ * Mounted by the protected product layout, which resolves the session and passes
+ * the real user in.
  */
 export function AppShell({
   organizationName,
   user,
   navigationItems,
   currentItemId,
+  accountActions,
   children,
 }: AppShellProps) {
   return (
@@ -42,6 +45,7 @@ export function AppShell({
         user={user}
         navigationItems={navigationItems}
         currentItemId={currentItemId}
+        accountActions={accountActions}
       />
       <main id="main" className={styles.main}>
         {children}
