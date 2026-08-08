@@ -1,0 +1,57 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: var(--p-sidebar-width);
+  flex: none;
+  padding: var(--p-space-4);
+  gap: var(--p-space-5);
+  background: var(--p-surface);
+  border-right: 1px solid var(--p-border);
+}
+
+.identity { display: flex; flex-direction: column; gap: 2px; }
+.wordmark { font-size: var(--p-text-lg); font-weight: var(--p-weight-semibold); letter-spacing: -0.01em; }
+.organization { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+
+.items { display: flex; flex-direction: column; gap: 2px; list-style: none; margin: 0; padding: 0; flex: 1; }
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  height: var(--p-control);
+  padding: 0 var(--p-space-3);
+  border-radius: var(--p-radius);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  text-decoration: none;
+}
+.item:hover { background: var(--p-surface-hover); color: var(--p-text); text-decoration: none; }
+
+/* Weight and fill, not hue: colour is reserved for domain status. */
+.itemCurrent {
+  background: var(--p-surface-active);
+  color: var(--p-text);
+  font-weight: var(--p-weight-medium);
+}
+.itemIcon { flex: none; }
+
+.account { display: flex; flex-direction: column; gap: 2px; padding-top: var(--p-space-4); border-top: 1px solid var(--p-border); }
+.accountName { font-size: var(--p-text-sm); font-weight: var(--p-weight-medium); }
+.accountRoles { font-size: var(--p-text-xs); color: var(--p-text-muted); }
+
+/* The sidebar becomes a top strip before it becomes cramped. Full bottom-tab
+   navigation arrives with the first authenticated screens. */
+@media (max-width: 767px) {
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--p-space-4);
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .items { flex-direction: row; flex: 1; }
+  .account { flex-direction: row; gap: var(--p-space-2); align-items: baseline; padding-top: 0; border-top: none; }
+}

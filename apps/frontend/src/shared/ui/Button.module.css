@@ -1,0 +1,81 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--p-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--p-radius);
+  font-family: inherit;
+  font-weight: var(--p-weight-medium);
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+/* Primary is the strongest neutral — it does not need a hue to be found. */
+.primary {
+  background: var(--p-primary);
+  border-color: var(--p-primary);
+  color: var(--p-primary-text);
+}
+.primary:hover:not(:disabled) {
+  background: var(--p-primary-hover);
+  border-color: var(--p-primary-hover);
+}
+.primary:active:not(:disabled) {
+  background: var(--p-primary-active);
+}
+
+.secondary {
+  background: var(--p-surface);
+  border-color: var(--p-border-strong);
+  color: var(--p-text);
+}
+.secondary:hover:not(:disabled) {
+  background: var(--p-surface-hover);
+}
+
+.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--p-text);
+}
+.ghost:hover:not(:disabled) {
+  background: var(--p-surface-hover);
+}
+
+/* Reserved for destruction. Rejecting a proposal is not destruction. */
+.danger {
+  background: var(--p-surface);
+  border-color: var(--p-danger);
+  color: var(--p-danger);
+}
+.danger:hover:not(:disabled) {
+  background: var(--p-danger-surface);
+}
+
+.sm {
+  height: var(--p-control-sm);
+  padding: 0 var(--p-space-3);
+  font-size: var(--p-text-sm);
+}
+.md {
+  height: var(--p-control);
+  padding: 0 var(--p-space-4);
+  font-size: var(--p-text-base);
+}
+.lg {
+  height: var(--p-control-lg);
+  padding: 0 var(--p-space-5);
+  font-size: var(--p-text-base);
+}
+
+.fullWidth {
+  width: 100%;
+}

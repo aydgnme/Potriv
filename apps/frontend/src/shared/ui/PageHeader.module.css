@@ -1,0 +1,14 @@
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--p-space-4);
+  flex-wrap: wrap;
+  padding-bottom: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+.headline { display: flex; flex-direction: column; gap: var(--p-space-2); }
+.titleRow { display: flex; align-items: center; gap: var(--p-space-3); flex-wrap: wrap; }
+.title { font-size: var(--p-text-2xl); }
+.description { color: var(--p-text-muted); font-size: var(--p-text-sm); max-width: 70ch; }
+.actions { display: flex; align-items: center; gap: var(--p-space-2); }

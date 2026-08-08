@@ -1,0 +1,107 @@
+/**
+ * Potriv design tokens — Signal Discipline.
+ *
+ * The rule that shapes this file: colour is reserved for domain status. The
+ * primary action is the strongest neutral, not a blue, because Potriv screens
+ * are saturated with status (project status, proposal status, availability) and
+ * a coloured button would compete with the thing the user is actually scanning
+ * for. Technical blue is spent only on links, focus and selection.
+ *
+ * Every status token has a matching text colour precisely because colour is
+ * never allowed to carry meaning alone — a badge always pairs its hue with a
+ * word.
+ */
+
+:root {
+  /* ---- surfaces ---- */
+  --p-bg: #f7f8f9;
+  --p-surface: #ffffff;
+  --p-surface-raised: #ffffff;
+  --p-surface-sunken: #f1f2f4;
+  --p-surface-hover: #f1f2f4;
+  --p-surface-active: #e7e9ec;
+
+  /* ---- text ---- */
+  --p-text: #16181d;
+  --p-text-muted: #5c6270;
+  --p-text-subtle: #858b98;
+  --p-text-inverse: #ffffff;
+
+  /* ---- borders ---- */
+  --p-border: #dcdfe4;
+  --p-border-strong: #b9bec8;
+
+  /* ---- primary action: the strongest neutral, never a hue ---- */
+  --p-primary: #16181d;
+  --p-primary-hover: #2b2e36;
+  --p-primary-active: #000000;
+  --p-primary-text: #ffffff;
+
+  /* ---- technical blue: links, focus, selection. Nothing else ---- */
+  --p-accent: #1b5fbf;
+  --p-accent-hover: #16509f;
+  --p-accent-subtle: #e8f0fc;
+
+  /* ---- status: always rendered with an accompanying word ---- */
+  --p-success: #1a6b3c;
+  --p-success-surface: #e7f4ec;
+  --p-warning: #8a5a00;
+  --p-warning-surface: #fdf3e0;
+  --p-danger: #a3241c;
+  --p-danger-surface: #fbeceb;
+  --p-info: #1b5fbf;
+  --p-info-surface: #e8f0fc;
+  --p-neutral-status: #4b5160;
+  --p-neutral-status-surface: #eef0f3;
+
+  /* ---- focus ---- */
+  --p-focus-ring: var(--p-accent);
+  --p-focus-ring-width: 2px;
+  --p-focus-ring-offset: 2px;
+
+  /* ---- spacing ---- */
+  --p-space-1: 4px;
+  --p-space-2: 8px;
+  --p-space-3: 12px;
+  --p-space-4: 16px;
+  --p-space-5: 24px;
+  --p-space-6: 32px;
+  --p-space-7: 48px;
+
+  /* ---- radius: modest, flat surfaces ---- */
+  --p-radius-sm: 3px;
+  --p-radius: 5px;
+  --p-radius-lg: 8px;
+  --p-radius-pill: 999px;
+
+  /* ---- typography ---- */
+  --p-font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --p-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --p-text-xs: 12px;
+  --p-text-sm: 13px;
+  --p-text-base: 14px;
+  --p-text-lg: 16px;
+  --p-text-xl: 20px;
+  --p-text-2xl: 24px;
+
+  --p-weight-normal: 400;
+  --p-weight-medium: 500;
+  --p-weight-semibold: 600;
+
+  --p-leading-tight: 1.25;
+  --p-leading: 1.5;
+
+  /* ---- control heights: dense, operational ---- */
+  --p-control-sm: 28px;
+  --p-control: 34px;
+  --p-control-lg: 40px;
+
+  /* ---- borders over shadows; shadow only for true overlays ---- */
+  --p-shadow-overlay: 0 8px 24px rgb(22 24 29 / 12%);
+
+  /* ---- layout ---- */
+  --p-sidebar-width: 232px;
+}

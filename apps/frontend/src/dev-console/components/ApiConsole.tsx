@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 
-import JsonEditor from "@/components/JsonEditor";
-import ResponseViewer from "@/components/ResponseViewer";
-import { API_BASE_URL, sendRequest } from "@/lib/apiClient";
-import type { ApiResult, EndpointPreset, HttpMethod, SentRequest } from "@/types/api";
+import JsonEditor from "@/dev-console/components/JsonEditor";
+import ResponseViewer from "@/dev-console/components/ResponseViewer";
+import { API_BASE_URL, sendRequest } from "@/dev-console/lib/apiClient";
+import type { ApiResult, EndpointPreset, HttpMethod, SentRequest } from "@/dev-console/types/api";
 
 const METHODS: HttpMethod[] = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 

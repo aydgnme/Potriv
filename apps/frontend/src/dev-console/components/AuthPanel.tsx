@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 
-import JsonEditor from "@/components/JsonEditor";
-import { sendRequest } from "@/lib/apiClient";
-import { setToken } from "@/lib/tokenStore";
-import type { ApiResult } from "@/types/api";
+import JsonEditor from "@/dev-console/components/JsonEditor";
+import { sendRequest } from "@/dev-console/lib/apiClient";
+import { setToken } from "@/dev-console/lib/tokenStore";
+import type { ApiResult } from "@/dev-console/types/api";
 
 /** Real backend auth endpoints (see identity controllers). */
 const AUTH_ACTIONS = [

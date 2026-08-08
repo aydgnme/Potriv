@@ -1,27 +1,21 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import "./globals.css";
+import "@/shared/styles/globals.css";
 
+/**
+ * Application-global concerns only: the document, the design tokens, and (later)
+ * providers. Product chrome belongs to app/(product); developer-console chrome
+ * belongs to app/(dev). Neither is allowed to leak into here.
+ */
 export const metadata: Metadata = {
-  title: "Potriv Backend Control Console",
-  description: "Developer console for the Potriv backend API",
+  title: "Potriv",
+  description: "Team allocation and skill matching",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <header className="topbar">
-          <h1>Potriv Backend Control Console</h1>
-          <nav className="row">
-            <Link href="/">Home</Link>
-            <Link href="/console">Console</Link>
-          </nav>
-          <p className="hint">dev/demo console — not the product UI</p>
-        </header>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

@@ -1,5 +1,5 @@
-import type { ApiResult, HttpMethod, SentRequest } from "@/types/api";
-import { getToken } from "@/lib/tokenStore";
+import type { ApiResult, HttpMethod, SentRequest } from "@/dev-console/types/api";
+import { getToken } from "@/dev-console/lib/tokenStore";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080/api";

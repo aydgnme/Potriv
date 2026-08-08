@@ -1,7 +1,7 @@
 "use client";
 
-import { ENDPOINT_PRESETS } from "@/lib/endpointPresets";
-import type { EndpointPreset } from "@/types/api";
+import { ENDPOINT_PRESETS } from "@/dev-console/lib/endpointPresets";
+import type { EndpointPreset } from "@/dev-console/types/api";
 
 interface EndpointPresetListProps {
   onSelect: (preset: EndpointPreset) => void;

@@ -1,4 +1,4 @@
-import type { EndpointPreset } from "@/types/api";
+import type { EndpointPreset } from "@/dev-console/types/api";
 
 /**
  * Presets for real backend endpoints only, taken from the actual controllers
