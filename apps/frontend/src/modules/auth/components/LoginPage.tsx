@@ -1,38 +1,75 @@
 "use client";
 
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 
-import styles from "./LoginPage.module.css";
+import { signIn } from "../api/authClient";
+import { INVALID_CREDENTIALS_MESSAGE } from "../model/errors";
+
+import styles from "./AuthPage.module.css";
 
 /**
- * The sign-in screen's structure and design.
+ * Sign in.
  *
- * **Deliberately not connected to a session.** FE-02 owns authentication, so
- * this submits nowhere: no request, no token, no storage, and explicitly not the
- * developer console's `tokenStore`. Faking a session here would have to be
- * unpicked rather than extended.
+ * Client-side checks mirror the backend's rules so the obvious mistakes are
+ * caught without a round trip, but the backend stays the authority — the form
+ * never decides that credentials are valid, only that they are worth sending.
  *
- * What it does establish is everything the real flow will need around the
- * request — labelled controls, a busy state that survives a slow call, and an
- * error region that is announced rather than merely displayed.
+ * Every failed sign-in shows the same message. The backend answers unknown
+ * email, wrong password, inactive account and locked account identically so the
+ * login form cannot be used to discover which addresses exist; distinguishing
+ * them here would hand back exactly that signal.
  */
 export function LoginPage() {
+  const router = useRouter();
+  const params = useSearchParams();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const notice =
+    params.get("session") === "expired"
+      ? "Your session has expired. Sign in to continue."
+      : params.get("reset") === "success"
+        ? "Password updated. Sign in with your new password."
+        : null;
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError(null);
+
+    // Mirrors LoginRequest: a valid address, and 8–72 characters.
+    const nextEmailError = /.+@.+\..+/.test(email) ? null : "Enter a valid email address.";
+    const nextPasswordError =
+      password.length >= 8 && password.length <= 72
+        ? null
+        : "Password must be 8–72 characters.";
+
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+    if (nextEmailError || nextPasswordError) return;
+
     setSubmitting(true);
-    // FE-02 replaces this with the real sign-in call. Saying so is more honest
-    // than a placeholder that looks like it worked.
-    setError("Sign-in is not connected yet.");
+    const outcome = await signIn(email, password);
     setSubmitting(false);
+
+    if (!outcome.ok) {
+      // The typed email is deliberately kept: making someone retype it after a
+      // recoverable error is a small cruelty.
+      setFormError(outcome.error.message || INVALID_CREDENTIALS_MESSAGE);
+      return;
+    }
+
+    router.replace("/home");
+    router.refresh();
   }
 
   return (
@@ -43,7 +80,8 @@ export function LoginPage() {
           <span className={styles.tagline}>Team allocation and skill matching</span>
         </div>
 
-        {error ? <Alert tone="danger">{error}</Alert> : null}
+        {notice ? <Alert tone="info">{notice}</Alert> : null}
+        {formError ? <Alert tone="danger">{formError}</Alert> : null}
 
         <form className={styles.form} onSubmit={handleSubmit} noValidate>
           <Input
@@ -52,6 +90,7 @@ export function LoginPage() {
             name="email"
             autoComplete="email"
             value={email}
+            error={emailError ?? undefined}
             onChange={(event) => setEmail(event.target.value)}
           />
           <Input
@@ -60,6 +99,7 @@ export function LoginPage() {
             name="password"
             autoComplete="current-password"
             value={password}
+            error={passwordError ?? undefined}
             onChange={(event) => setPassword(event.target.value)}
           />
           <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>

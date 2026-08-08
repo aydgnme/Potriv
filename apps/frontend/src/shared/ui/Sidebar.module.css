@@ -39,6 +39,7 @@
 .account { display: flex; flex-direction: column; gap: 2px; padding-top: var(--p-space-4); border-top: 1px solid var(--p-border); }
 .accountName { font-size: var(--p-text-sm); font-weight: var(--p-weight-medium); }
 .accountRoles { font-size: var(--p-text-xs); color: var(--p-text-muted); }
+.accountActions { margin-top: var(--p-space-2); }
 
 /* The sidebar becomes a top strip before it becomes cramped. Full bottom-tab
    navigation arrives with the first authenticated screens. */

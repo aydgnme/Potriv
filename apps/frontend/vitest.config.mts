@@ -10,7 +10,13 @@ import { defineConfig } from "vitest/config";
  */
 export default defineConfig({
   plugins: [react()],
-  resolve: { tsconfigPaths: true },
+  resolve: {
+    tsconfigPaths: true,
+    alias: {
+      // See src/test/serverOnlyStub.ts — the build still enforces the boundary.
+      "server-only": new URL("./src/test/serverOnlyStub.ts", import.meta.url).pathname,
+    },
+  },
   test: {
     environment: "jsdom",
     globals: true,
