@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { API_BASE_URL, sendRequest } from "@/lib/apiClient";
+import { API_BASE_URL, sendRequest } from "@/dev-console/lib/apiClient";
 
 type HealthState = "UNKNOWN" | "UP" | "DOWN" | "ERROR";
 

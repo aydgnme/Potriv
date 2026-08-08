@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 
-import ApiConsole from "@/components/ApiConsole";
-import AuthPanel from "@/components/AuthPanel";
-import BackendHealthCard from "@/components/BackendHealthCard";
-import EndpointPresetList from "@/components/EndpointPresetList";
-import TokenPanel from "@/components/TokenPanel";
-import type { EndpointPreset } from "@/types/api";
+import ApiConsole from "@/dev-console/components/ApiConsole";
+import AuthPanel from "@/dev-console/components/AuthPanel";
+import BackendHealthCard from "@/dev-console/components/BackendHealthCard";
+import EndpointPresetList from "@/dev-console/components/EndpointPresetList";
+import TokenPanel from "@/dev-console/components/TokenPanel";
+import type { EndpointPreset } from "@/dev-console/types/api";
 
 export default function ConsolePage() {
   const [preset, setPreset] = useState<EndpointPreset | null>(null);

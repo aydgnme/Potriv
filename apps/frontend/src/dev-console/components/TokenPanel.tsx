@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { clearToken, getToken, maskToken, setToken, subscribe } from "@/lib/tokenStore";
+import { clearToken, getToken, maskToken, setToken, subscribe } from "@/dev-console/lib/tokenStore";
 
 export default function TokenPanel() {
   const [stored, setStored] = useState<string | null>(null);

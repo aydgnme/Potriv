@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 
-import { buildCurl } from "@/lib/apiClient";
-import type { ApiResult, SentRequest } from "@/types/api";
+import { buildCurl } from "@/dev-console/lib/apiClient";
+import type { ApiResult, SentRequest } from "@/dev-console/types/api";
 
 interface ResponseViewerProps {
   request: SentRequest | null;

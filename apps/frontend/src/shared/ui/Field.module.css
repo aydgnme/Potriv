@@ -1,0 +1,71 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-2);
+}
+
+.label {
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  color: var(--p-text);
+}
+
+/* Spelled out, never an asterisk alone. */
+.requirement {
+  margin-left: var(--p-space-2);
+  font-weight: var(--p-weight-normal);
+  color: var(--p-text-subtle);
+}
+
+.control {
+  width: 100%;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  font-family: inherit;
+  font-size: var(--p-text-base);
+  padding: 0 var(--p-space-3);
+  height: var(--p-control);
+}
+
+.control:disabled {
+  background: var(--p-surface-sunken);
+  color: var(--p-text-subtle);
+  cursor: not-allowed;
+}
+
+.textarea {
+  height: auto;
+  min-height: 88px;
+  padding: var(--p-space-3);
+  line-height: var(--p-leading);
+  resize: vertical;
+}
+
+.invalid {
+  border-color: var(--p-danger);
+}
+
+.hint {
+  font-size: var(--p-text-sm);
+  color: var(--p-text-muted);
+}
+
+/* Paired with the border colour so the state is never colour-only. */
+.error {
+  font-size: var(--p-text-sm);
+  color: var(--p-danger);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-2);
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--p-primary);
+}
