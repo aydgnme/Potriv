@@ -1,21 +1,30 @@
+import { redirect } from "next/navigation";
+
+import { HomePage } from "@/modules/home";
+import { SECTION_PREVIEW_LIMIT, loadHomeData } from "@/modules/home/server/loadHome";
 import { resolveProductSession } from "@/modules/auth/server/productSession";
-import { PageHeader } from "@/shared/ui/PageHeader";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The authenticated landing route.
- *
- * Deliberately almost empty: FE-03 owns the role-composed dashboard and the data
- * behind it. Inventing counts here would mean building something to be deleted.
+ * The authenticated landing route: resolve the session, load what the user's
+ * roles allow, render. Composition belongs to the home module.
  */
 export default async function Page() {
   const session = await resolveProductSession();
-  const name = session.authenticated ? session.user.displayName : "";
+  // The protected layout already redirected; this narrows the type and keeps the
+  // page honest if it is ever mounted elsewhere.
+  if (!session.authenticated) redirect("/login?session=expired");
+
+  const { user } = session;
+  const data = await loadHomeData(user.roles);
 
   return (
-    <>
-      <PageHeader title="Home" description={`Welcome back, ${name}.`} />
-    </>
+    <HomePage
+      displayName={user.displayName}
+      roles={user.roles}
+      data={data}
+      previewLimit={SECTION_PREVIEW_LIMIT}
+    />
   );
 }

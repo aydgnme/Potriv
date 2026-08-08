@@ -350,3 +350,55 @@ The session gives an organization **id** and no name, and the only endpoint that
 could supply one is organization-admin-only. `AppShell` therefore takes
 `organizationName?: string | null` and omits the line when it is absent. A UUID
 or an invented label would be worse than nothing.
+
+---
+
+## Product modules and authenticated backend reads
+
+The dependency rule still holds — `shared` imports no module — with **one
+deliberate exception**: a product module may import
+`@/modules/auth/server-public`.
+
+```
+modules/home  →  modules/auth/server-public  →  Spring backend
+```
+
+Every product module needs authenticated reads. The alternative is each of them
+reading cookies, building an `Authorization` header and knowing the backend URL,
+which spreads credential handling across the codebase. So auth owns that and
+exposes exactly one thing: `backendGet(path)`.
+
+It is **not** a proxy. The browser cannot reach it, cannot choose a path and
+never learns a token exists. Callers pass a fixed path from their own typed
+loader. Nothing else under `modules/auth/server/**` may be imported from another
+module, and `server-only` turns an accidental client import into a build error.
+
+### Role gating happens before fetching
+
+A role-specific endpoint is never called for a user who lacks the role. Firing
+it and swallowing the 403 would send the backend a request it rightly refuses on
+every page load, and would quietly make capability depend on error handling.
+`loadHomeData` checks the role set first; a section the user has no role for is
+`null`, and its component is not rendered at all.
+
+### Holding a role is not the same as owning a record
+
+A user can hold `DEPARTMENT_MANAGER` and manage no department — the backend
+answers `403` from `requireManagedDepartment`. That is ownership, not an outage,
+so loaders distinguish `FORBIDDEN` from `ERROR` and the section says "You are
+not managing a department yet" rather than "could not load, try again".
+
+This one was found by running it, not by reading it.
+
+### A failed section is one failed section
+
+Loads are independent and awaited together, so an unavailable endpoint leaves
+the rest of Home intact and only its own panel reports the problem. Messages
+never carry a status code, a path or anything else from the backend.
+
+### Bounded enrichment
+
+There is no aggregate staffing endpoint, so a project's gap costs one
+`details` request. Home enriches only the shortlist it displays — fifty projects
+must not become fifty requests for five rows. Anything beyond it reports
+"Staffing not checked", never `0`, which would read as a fully staffed team.
