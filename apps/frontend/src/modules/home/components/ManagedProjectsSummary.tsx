@@ -1,11 +1,11 @@
 import Link from "next/link";
 
 import { StatusBadge } from "@/shared/ui/StatusBadge";
+import { projectStatusLabel, projectStatusTone } from "@/shared/utils/projectStatus";
 
 import type { ManagedProjectWithStaffing } from "../model/homeData";
 import type { Loaded } from "../server/homeDataSources";
 import { staffingLabel } from "../utils/staffingGap";
-import { projectStatusLabel, projectStatusTone } from "../utils/projectStatus";
 
 import { HomeSection } from "./HomeSection";
 import { SectionError } from "./SectionError";

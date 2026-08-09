@@ -1,4 +1,5 @@
 import type { AccessRole } from "@/shared/types/accessRole";
+import type { ProjectStatus } from "@/shared/types/projectStatus";
 
 /**
  * Only the fields Home renders, named exactly as the backend returns them.
@@ -9,12 +10,6 @@ import type { AccessRole } from "@/shared/types/accessRole";
  * accidentally display one.
  */
 
-export type ProjectStatus =
-  | "NOT_STARTED"
-  | "STARTING"
-  | "IN_PROGRESS"
-  | "CLOSING"
-  | "CLOSED";
 
 /** `GET /me/projects` */
 export type MyProjectItem = {
