@@ -1,0 +1,165 @@
+.page { display: flex; flex-direction: column; gap: var(--p-space-5); }
+.contextRow { display: flex; flex-direction: column; gap: var(--p-space-4); }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+.panelHeading { font-size: var(--p-text-lg); }
+.panelNote { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.groupHeading { font-size: var(--p-text-base); font-weight: var(--p-weight-semibold); }
+.muted { color: var(--p-text-muted); }
+.fieldError { font-size: var(--p-text-sm); color: var(--p-danger); }
+
+.chipList { display: flex; flex-wrap: wrap; gap: var(--p-space-2); list-style: none; margin: 0; padding: 0; }
+.chip {
+  padding: var(--p-space-1) var(--p-space-3);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-pill);
+  font-size: var(--p-text-sm);
+}
+
+.rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--p-space-3);
+  padding: var(--p-space-2) 0;
+  border-top: 1px solid var(--p-border);
+  flex-wrap: wrap;
+  font-size: var(--p-text-sm);
+}
+.rowStacked { display: flex; flex-direction: column; gap: 2px; padding: var(--p-space-3) 0; border-top: 1px solid var(--p-border); font-size: var(--p-text-sm); }
+.rows > .row:first-child, .rows > .rowStacked:first-child { border-top: none; }
+.rowTitle { font-weight: var(--p-weight-medium); font-size: var(--p-text-base); }
+
+/* ── Criteria ────────────────────────────────────────────────────────────── */
+
+.criteria {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+.criteriaFields {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--p-space-4);
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+.legend { padding: 0; font-size: var(--p-text-sm); font-weight: var(--p-weight-medium); }
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-2);
+  font-size: var(--p-text-sm);
+}
+
+.inlineField { display: flex; align-items: center; gap: var(--p-space-2); }
+.inlineLabel { font-size: var(--p-text-sm); color: var(--p-text-muted); white-space: nowrap; }
+
+.control {
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  font-family: inherit;
+  font-size: var(--p-text-sm);
+  padding: 0 var(--p-space-2);
+  height: var(--p-control-sm);
+}
+.control:disabled { background: var(--p-surface-sunken); color: var(--p-text-subtle); cursor: not-allowed; }
+.limitInput { width: 5rem; }
+.hoursInput { width: 6rem; }
+.textarea { height: auto; padding: var(--p-space-2); line-height: var(--p-leading); resize: vertical; width: 100%; }
+
+/* ── Split view ──────────────────────────────────────────────────────────── */
+
+.split { display: grid; grid-template-columns: minmax(18rem, 22rem) 1fr; gap: var(--p-space-4); align-items: start; }
+.listPane { display: flex; flex-direction: column; gap: var(--p-space-3); min-width: 0; }
+.detailPane { min-width: 0; }
+.detail { display: flex; flex-direction: column; gap: var(--p-space-4); }
+.detailHeader { display: flex; flex-direction: column; gap: 2px; }
+.detailName { font-size: var(--p-text-xl); }
+
+.listHeader { display: flex; flex-direction: column; gap: var(--p-space-2); }
+
+.candidates { display: flex; flex-direction: column; gap: var(--p-space-2); list-style: none; margin: 0; padding: 0; }
+
+/* A button, not a styled div: selecting a candidate is an action. */
+.candidate {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "name score" "department score" "capacity score";
+  gap: 2px var(--p-space-3);
+  width: 100%;
+  padding: var(--p-space-3);
+  text-align: left;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.candidate:hover { background: var(--p-surface-hover); }
+
+/* Selection is carried by the border and the word "Selected", never colour alone. */
+.candidateSelected { border-color: var(--p-accent); background: var(--p-surface-active); }
+
+.candidateName { grid-area: name; font-weight: var(--p-weight-medium); }
+.candidateMeta { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.candidateMeta:nth-of-type(1) { grid-area: department; }
+.candidateMeta:nth-of-type(2) { grid-area: capacity; }
+.candidateScore { grid-area: score; align-self: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ── Score ───────────────────────────────────────────────────────────────── */
+
+.score { display: flex; flex-direction: column; gap: var(--p-space-2); margin: 0; }
+.scoreRow { display: flex; justify-content: space-between; gap: var(--p-space-3); font-size: var(--p-text-sm); }
+.scoreRow dt { color: var(--p-text-muted); }
+.scoreRow dd { margin: 0; font-variant-numeric: tabular-nums; }
+.scoreTotal { padding-top: var(--p-space-2); border-top: 1px solid var(--p-border); font-weight: var(--p-weight-semibold); }
+.scoreTotal dt { color: var(--p-text); }
+
+/* ── Proposal ────────────────────────────────────────────────────────────── */
+
+.proposalForm { display: flex; flex-direction: column; gap: var(--p-space-4); }
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-2);
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+.fieldset:disabled { opacity: 0.7; }
+
+/* Desktop keeps both panes; the back control belongs to the narrow layout. */
+.backToList { display: none; margin-bottom: var(--p-space-3); }
+
+@media (max-width: 899px) {
+  .split { grid-template-columns: 1fr; }
+
+  /* One pane at a time rather than a squeezed split. */
+  .split[data-showing="detail"] .listPane { display: none; }
+  .split[data-showing="list"] .detailPane { display: none; }
+  .split[data-showing="detail"] .backToList { display: block; }
+}
