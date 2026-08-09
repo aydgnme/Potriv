@@ -83,8 +83,20 @@ describe("failure classification", () => {
     });
   });
 
+  it("reports 404 as not found, deliberately ambiguous", async () => {
+    // The backend answers 404 both for a project that does not exist and for one
+    // this caller has no relationship to. Keeping them one reason is what stops
+    // the UI telling the two apart.
+    backendGet.mockResolvedValue({ ok: false, error: { status: 404 } });
+
+    await expect(getDepartmentProjects(null)).resolves.toEqual({
+      ok: false,
+      reason: "NOT_FOUND",
+    });
+  });
+
   it("reports anything else as an error", async () => {
-    for (const status of [0, 404, 500, 503]) {
+    for (const status of [0, 500, 503]) {
       backendGet.mockResolvedValue({ ok: false, error: { status } });
 
       await expect(getDepartmentProjects(null)).resolves.toEqual({

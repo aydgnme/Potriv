@@ -12,8 +12,18 @@ import "server-only";
  * So auth owns credential mechanics and exposes exactly this. Nothing else in
  * `modules/auth/server/**` may be imported from another module.
  *
+ * Writes were added the same way reads were: one more verb on the same
+ * server-owned boundary. The browser still cannot name a path, still never sees
+ * a token, and there is still exactly one refresh implementation.
+ *
  * `server-only` makes an accidental client import a build error rather than a
  * leak.
  */
-export { backendGet, BackendRequestError } from "./server/backendTransport";
+export {
+  backendGet,
+  backendPost,
+  backendPatch,
+  backendDelete,
+  BackendRequestError,
+} from "./server/backendTransport";
 export type { BackendRequestOutcome } from "./server/backendTransport";

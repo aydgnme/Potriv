@@ -48,7 +48,13 @@ app/
 │   └── (protected)/
 │       ├── layout.tsx      the session guard and the app shell
 │       ├── home/page.tsx      → <HomePage /> from @/modules/home
-│       └── projects/page.tsx  → <ProjectsPage /> from @/modules/projects
+│       └── projects/
+│           ├── page.tsx                    the role-aware list
+│           ├── new/page.tsx                create, project managers only
+│           └── [projectId]/
+│               ├── page.tsx      overview   (relationship-aware read)
+│               ├── team/page.tsx team       (relationship-aware read)
+│               └── edit/page.tsx settings   (owner-scoped management read)
 ├── api/auth/…              the BFF routes; the browser's only auth surface
 └── (dev)/
     ├── layout.tsx          developer console chrome + its own stylesheet
@@ -482,3 +488,66 @@ never user-supplied.
 A row whose detail fails says "Staffing unavailable" and the rest of the list is
 untouched. It never becomes `0`, which would claim a full team on the strength of
 a failed request.
+
+### Reading a project and managing one are different authorities
+
+```
+GET /projects/{id}/details   relationship-aware  owning PM · member · past member · involved DM
+GET /projects/{id}/team      relationship-aware  same rule
+GET /projects/{id}           owner only          the management representation
+PATCH · DELETE · POST        owner only
+```
+
+Overview and Team therefore use the relationship endpoints and never the
+owner-scoped one — asking it on behalf of an allocated employee would refuse a
+legitimate reader. Editing uses the management representation, because a form
+built from what a *reader* sees would mean something different from what it
+saves.
+
+Management controls need **both** halves: `PROJECT_MANAGER` in the session and
+`projectManager.userId === session.userId`. Holding the role says someone can
+manage projects, not that they manage this one, so ownership is never inferred
+from the role alone.
+
+### One sentence for "you cannot see this"
+
+The backend answers `404` for a project that does not exist *and* for one the
+caller has no relationship to, deliberately. It also answers `403` in one case —
+a caller holding `DEPARTMENT_MANAGER` while managing no department, where the
+refusal escapes the department check inside the visibility rule.
+
+All of them say **"This project does not exist or is not visible to you."** Two
+different sentences would turn the difference into an existence oracle: 403 would
+mean "this project is real". Capability refusals ("only a project manager can do
+this") are a different question and are said where no project is named.
+
+*The 403 case was found by running it. It is a backend inconsistency worth fixing
+there; the frontend refuses to amplify it in the meantime.*
+
+### Writes go through the same server-only boundary
+
+`backendPost`, `backendPatch` and `backendDelete` were added beside `backendGet`
+— one more verb on the boundary auth already owned, not a new mechanism. The
+browser still cannot name a path, still never sees a token, and there is still
+exactly one refresh implementation.
+
+Mutations are Server Actions in `modules/projects/server/actions`. Each one
+re-validates its input: the client validation is how the screen stays pleasant,
+and this is the run that decides. Failures are narrowed to one product sentence —
+the backend's own `message` when it is bounded, single-line and free of anything
+describing infrastructure, and a fallback otherwise. Nothing that crosses back to
+the browser has a field that could hold a status code, a path or a token.
+
+An identifier is not a path. The project id arrives through the form like
+everything else, is narrowed to the shape of a UUID before it can be substituted
+into a path written in the action, and the backend still answers 404 for a
+project this user does not own — which is what actually enforces ownership.
+
+### Deletability is not predicted
+
+The backend refuses deletion once a project has *ever* reached In progress,
+Closing or Closed. That is a rule about status **history**, and no endpoint
+exposes it — so a project sitting in Not started may still be undeletable.
+`canDelete = status === "NOT_STARTED"` would be confidently wrong. The button is
+always offered, always confirmed, and the backend decides; a refusal keeps the
+person on Settings with the explanation and the project intact.

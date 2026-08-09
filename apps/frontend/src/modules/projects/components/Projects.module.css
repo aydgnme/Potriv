@@ -121,3 +121,130 @@
     color: var(--p-text-muted);
   }
 }
+
+/* ── Project detail ─────────────────────────────────────────────────────── */
+
+.detailColumns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--p-space-5); }
+.detailColumn { display: flex; flex-direction: column; gap: var(--p-space-5); min-width: 0; }
+
+.definitions { display: flex; flex-direction: column; gap: var(--p-space-3); margin: 0; }
+.definitions > div { display: flex; gap: var(--p-space-3); justify-content: space-between; }
+.definitions dt { color: var(--p-text-muted); font-size: var(--p-text-sm); }
+.definitions dd { margin: 0; text-align: right; }
+
+.chipList { display: flex; flex-wrap: wrap; gap: var(--p-space-2); list-style: none; margin: 0; padding: 0; }
+.chip {
+  padding: var(--p-space-1) var(--p-space-3);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-pill);
+  font-size: var(--p-text-sm);
+}
+
+.rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--p-space-3);
+  padding: var(--p-space-3) 0;
+  border-top: 1px solid var(--p-border);
+  flex-wrap: wrap;
+}
+.rows > .row:first-child { border-top: none; }
+.rowMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rowTitle { font-weight: var(--p-weight-medium); }
+.rowMeta { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.rowAside { font-size: var(--p-text-sm); white-space: nowrap; }
+
+/* A word, not a colour: an inactive role has to read as inactive in text. */
+.inactiveTag { color: var(--p-text-muted); font-weight: var(--p-weight-normal); }
+
+/* ── Forms ──────────────────────────────────────────────────────────────── */
+
+.form { display: flex; flex-direction: column; gap: var(--p-space-5); }
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-4);
+  padding: var(--p-space-4);
+  margin: 0;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+.fieldset:disabled { opacity: 0.7; }
+
+.legend {
+  padding: 0 var(--p-space-2);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+/* Dense two columns for scalar fields; repeatable groups stay full width. */
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--p-space-4); }
+
+.formActions { display: flex; gap: var(--p-space-3); flex-wrap: wrap; }
+
+.editorRows { display: flex; flex-direction: column; gap: var(--p-space-3); list-style: none; margin: 0; padding: 0; }
+.editorRow { display: flex; align-items: flex-start; gap: var(--p-space-3); flex-wrap: wrap; }
+.editorField { display: flex; flex-direction: column; gap: var(--p-space-2); flex: 1 1 240px; min-width: 0; }
+.editorCount { flex: 0 0 120px; }
+
+.control {
+  width: 100%;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  font-family: inherit;
+  font-size: var(--p-text-base);
+  padding: 0 var(--p-space-3);
+  height: var(--p-control);
+}
+.control:disabled { background: var(--p-surface-sunken); color: var(--p-text-subtle); cursor: not-allowed; }
+.controlInvalid { border-color: var(--p-danger); }
+
+.fieldError { font-size: var(--p-text-sm); color: var(--p-danger); }
+.rowError { flex: 1 1 100%; font-size: var(--p-text-sm); color: var(--p-danger); }
+
+.dangerPanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-danger);
+  border-radius: var(--p-radius);
+}
+
+.dialog {
+  max-width: 32rem;
+  padding: var(--p-space-5);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius-lg);
+  color: var(--p-text);
+}
+.dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.dialog > * + * { margin-top: var(--p-space-3); }
+
+/* Reachable by a screen reader, invisible on screen. */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 767px) {
+  .detailColumns { grid-template-columns: 1fr; }
+  .formGrid { grid-template-columns: 1fr; }
+  .row { flex-direction: column; align-items: flex-start; }
+  .definitions > div { flex-direction: column; gap: 2px; }
+  .definitions dd { text-align: left; }
+  .editorCount { flex: 1 1 100%; }
+}
