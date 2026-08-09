@@ -599,6 +599,81 @@ Capacity in the finder is a snapshot. When it goes stale the backend answers 409
 and that is authoritative: the form stays open with the reason, and nothing is
 created optimistically.
 
+## Staffing is a handshake, and `/staffing` is composed from both sides
+
+A project manager asks; a department manager decides. One person can be both, so
+`/staffing` is a capability union rather than a mode — reviews first, because that
+is work other people are blocked on.
+
+| Capability | Source |
+| --- | --- |
+| department manager | `GET /department/project-proposals?status=` |
+| project manager | `GET /projects/managed` |
+
+Each source is called only for the capability that entitles it, and somebody with
+neither role gets a permission state before either is asked.
+
+There is deliberately **no "requests I sent"**. The backend has no PM-wide
+proposal list, and building one by asking every managed project for its team
+would be inventing a feature out of N requests. The project side shows the
+projects themselves, linking to Team Finder and the team.
+
+`?status=` accepts `PENDING`, `APPROVED` and `REJECTED`; anything else becomes
+`PENDING`, which is both the backend's default and the honest one.
+
+### One merged feed, in the backend's order
+
+Assignment and removal requests come back together, oldest first with a stable
+tie-breaker, so the frontend makes one call and preserves that order. Two calls,
+or a re-sort by type, would push a three-week-old request below one from this
+morning. Selecting a row is local; changing the status filter navigates.
+
+The two types share a DTO but not a meaning, and nothing crosses between them: an
+assignment carries the manager's `comments`, a removal carries an `allocationId`
+and their `reason`, and a null is rendered as absence.
+
+### Capacity belongs to the backend
+
+Pending assignment rows carry a capacity context computed with the same rule
+acceptance uses. Every figure is rendered as given, the denominator is the
+published `maxHoursPerDay` — so no client hard-codes a working day — and
+`currentlyAcceptableByCapacity` is the backend's own conclusion. Deriving it from
+the numbers would be a second capacity model that could disagree.
+
+When it says a request no longer fits, Accept is off and Reject stays available:
+the backend deliberately leaves such proposals pending rather than auto-rejecting
+them, and that is a real state for a person to act on.
+
+`capacity` is null for removals — which free capacity rather than consume it —
+and for decided rows. Null renders as no block, never as zeros.
+
+A capacity context is current state, not a reservation, so acceptance can still
+lose a race. A 409 keeps the request reviewable; a 409 that says it was *already
+reviewed* also clears the stale selection, because leaving live buttons on a
+settled request invites a second decision.
+
+### A removal proposal removes nobody
+
+`Propose removal` appears on **active** allocation rows only, and only for the
+owning project manager. The person stays on the project — active, allocated,
+counted — until a department manager accepts, so success says the request was
+sent and names the reviewing department from the response.
+
+The reason is required because, once approved, it is stored permanently with the
+past allocation and becomes the only record of why. The Server Action re-reads the
+project for ownership and the team for the allocation: an id that is not active
+right now is refused before the backend is asked.
+
+The manager's `reason` and the reviewer's `rejectionReason` are two statements by
+two different people and are never merged — "Removal reason" and "Review rejection
+reason" are separate fields with separate labels.
+
+### Projects and staffing still do not import each other
+
+Project Team takes an optional per-row action and the **route** supplies staffing's
+`ProposeRemovalAction`. The composition point is the route, which is the same rule
+that lets Team Finder read `/projects/{id}/details` through staffing's own types.
+
 ### Deletability is not predicted
 
 The backend refuses deletion once a project has *ever* reached In progress,

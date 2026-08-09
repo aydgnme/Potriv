@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { PageHeader } from "@/shared/ui/PageHeader";
 import { StatusBadge } from "@/shared/ui/StatusBadge";
@@ -23,6 +24,14 @@ export type ProjectTeamViewProps = {
   readonly projectId: string;
   readonly data: Loaded<ProjectTeam>;
   readonly canManage: boolean;
+  /**
+   * An action offered on each **active** allocation, supplied by the route.
+   *
+   * Projects does not import staffing and staffing does not import Projects; the
+   * route composes the two. Proposed and past rows never receive one — there is
+   * nothing to take someone off when they are not on the project.
+   */
+  readonly activeMemberAction?: (member: ActiveMember) => ReactNode;
 };
 
 /**
@@ -35,7 +44,12 @@ export type ProjectTeamViewProps = {
  *
  * Read-only. Proposing and removing people belong to the staffing flow.
  */
-export function ProjectTeamView({ projectId, data, canManage }: ProjectTeamViewProps) {
+export function ProjectTeamView({
+  projectId,
+  data,
+  canManage,
+  activeMemberAction,
+}: ProjectTeamViewProps) {
   if (!data.ok) {
     return (
       <div className={styles.page}>
@@ -123,6 +137,9 @@ export function ProjectTeamView({ projectId, data, canManage }: ProjectTeamViewP
                 <th role="columnheader" scope="col">Hours/day</th>
                 <th role="columnheader" scope="col">Allocated</th>
                 <th role="columnheader" scope="col">Approved</th>
+                {activeMemberAction ? (
+                  <th role="columnheader" scope="col">Staffing</th>
+                ) : null}
               </tr>
             </thead>
             <tbody role="rowgroup">
@@ -144,6 +161,11 @@ export function ProjectTeamView({ projectId, data, canManage }: ProjectTeamViewP
                   <td role="cell" data-label="Approved" className={styles.muted}>
                     {byAndWhen(member.approvedBy, member.approvedAt)}
                   </td>
+                  {activeMemberAction ? (
+                    <td role="cell" data-label="Staffing">
+                      {activeMemberAction(member)}
+                    </td>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
