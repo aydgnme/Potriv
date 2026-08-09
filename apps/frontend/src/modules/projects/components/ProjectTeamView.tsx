@@ -61,7 +61,7 @@ export function ProjectTeamView({ projectId, data, canManage }: ProjectTeamViewP
         actions={canManage ? <Link href={`/projects/${projectId}/edit`}>Edit</Link> : undefined}
       />
 
-      <ProjectContextNav projectId={projectId} active="team" />
+      <ProjectContextNav projectId={projectId} active="team" canManage={canManage} />
 
       <section className={styles.panel} aria-labelledby="team-proposed">
         <h2 className={styles.panelHeading} id="team-proposed">

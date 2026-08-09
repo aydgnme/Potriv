@@ -543,6 +543,62 @@ everything else, is narrowed to the shape of a UUID before it can be substituted
 into a path written in the action, and the backend still answers 404 for a
 project this user does not own — which is what actually enforces ownership.
 
+## Team Finder is deterministic, and says so
+
+`POST /projects/{id}/team-finder` is a read that happens to take a body. It
+persists nothing, creates no proposal and changes no project — so it is not
+converted to a GET, and no proxy lets the browser reach it.
+
+The ranking is arithmetic over declared facts: exact-normalized matches between
+the project's technologies and people's recorded skills (max 60), past projects
+that shared **both** a technology and a target role (a binary 20), and current
+capacity (max 20). Nothing in the UI recomputes a component or the total, and
+nothing calls it a recommendation, a smart match or a good fit. The screen shows
+the arithmetic; a manager decides.
+
+Skill level and experience are rendered with the backend's own labels and carry
+**no** points. The screen says so in as many words, because a level shown beside
+a score invites the assumption that it moved it.
+
+`candidateCount` is the number returned **after** the limit — the service sorts,
+limits, then counts. At the limit the copy says "returned · limit N" rather than
+claiming a total nobody computed.
+
+### Criteria live in the URL; the run is explicit
+
+The endpoint cannot be bookmarked, so the criteria are. `?includePartiallyAvailable`,
+`?includeCloseToFinish`, `?closeToFinishWeeks`, `?includeUnavailable` and `?limit`
+are narrowed to the ranges the backend enforces — anything else is dropped so a
+hand-edited URL produces a default rather than a 400.
+
+The criteria form is a plain `method="get"` form: one submit, one navigation, one
+`POST` per render, and a screen that works before any JavaScript loads. Nothing
+runs on a keystroke or a toggle. `response.criteria` — not the form draft — is
+what "Showing results for…" reports, because only the backend knows which
+defaults it applied.
+
+Selecting a candidate and sorting the returned set are client-side. Re-running an
+organization-wide ranking to look at a second person would be work nobody asked
+for, and backend order stays the default.
+
+### A proposal is not an assignment
+
+`Propose for this project` exists only in the selected candidate's detail, never
+as a row action. It creates a request a department manager reviews; the review
+department is snapshotted server-side, so there is no picker and the success
+message names it from the response.
+
+Roles offered are the project's **active requirements with open positions**, and
+the Server Action re-derives that set from the project rather than trusting the
+form — a role filled or deactivated since the page loaded is refused before the
+backend is asked. Hours are bounded by the candidate's current `availableHours`;
+the frontend never learns how long a working day is, because the payload does not
+say and copying the backend's constant would be a second source of truth.
+
+Capacity in the finder is a snapshot. When it goes stale the backend answers 409
+and that is authoritative: the form stays open with the reason, and nothing is
+created optimistically.
+
 ### Deletability is not predicted
 
 The backend refuses deletion once a project has *ever* reached In progress,

@@ -57,7 +57,7 @@ export function ProjectOverview({ projectId, data, canManage }: ProjectOverviewP
         }
       />
 
-      <ProjectContextNav projectId={projectId} active="overview" />
+      <ProjectContextNav projectId={projectId} active="overview" canManage={canManage} />
 
       <div className={styles.detailColumns}>
         <div className={styles.detailColumn}>
