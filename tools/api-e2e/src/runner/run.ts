@@ -21,7 +21,8 @@ import {
   runValidationScenarios,
 } from '../scenarios/contract.js';
 import {
-  runAnonymousMatrix, runIsolationMatrix, runPublicMatrix, runRoleMatrix,
+  runAnonymousMatrix, runIsolationMatrix,
+  runProjectVisibilityOracleMatrix, runPublicMatrix, runRoleMatrix,
 } from '../security/matrices.js';
 import { percentile, type Report, type Verdict } from '../report/model.js';
 import { writeReports } from '../report/writers.js';
@@ -112,6 +113,7 @@ async function main(): Promise<number> {
     await runAnonymousMatrix(prober, operations, context);
     await runRoleMatrix(prober, context);
     await runIsolationMatrix(prober, context);
+    await runProjectVisibilityOracleMatrix(client, prober, context);
     console.log('Operational endpoints…');
     await runOperationalScenarios(client, prober, config);
     await runCorrelationScenarios(client, prober);

@@ -139,7 +139,10 @@ class ProjectDetailsViewIntegrationTest extends AbstractProjectDomainRegressionI
         getProjectDetails(pastEmployee.token(), projectId).andExpect(status().isOk());
         getProjectDetails(workspace.dm().token(), projectId).andExpect(status().isOk());
         getProjectDetails(proposedOnly.token(), projectId).andExpect(status().isNotFound());
-        getProjectDetails(unassignedDm.token(), projectId).andExpect(status().isForbidden());
+        // Holding DEPARTMENT_MANAGER without an assignment answers exactly as an
+        // unrelated employee does. Anything else would make the refusal readable
+        // as "this project exists".
+        getProjectDetails(unassignedDm.token(), projectId).andExpect(status().isNotFound());
         getProjectDetails(unrelated.token(), projectId).andExpect(status().isNotFound());
         getProjectDetails(otherPm.token(), projectId).andExpect(status().isNotFound());
         getProjectDetails(foreign.token(), projectId).andExpect(status().isNotFound());

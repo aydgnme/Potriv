@@ -190,7 +190,10 @@ class ProjectTeamViewIntegrationTest extends AbstractProjectDomainRegressionInte
         getTeamView(pastEmployee.token(), projectId).andExpect(status().isOk());
         getTeamView(workspace.dm().token(), projectId).andExpect(status().isOk());
         getTeamView(proposedOnly.token(), projectId).andExpect(status().isNotFound());
-        getTeamView(unassignedDm.token(), projectId).andExpect(status().isForbidden());
+        // Holding DEPARTMENT_MANAGER without an assignment answers exactly as an
+        // unrelated employee does. Anything else would make the refusal readable
+        // as "this project exists".
+        getTeamView(unassignedDm.token(), projectId).andExpect(status().isNotFound());
         getTeamView(unrelated.token(), projectId).andExpect(status().isNotFound());
         getTeamView(otherPm.token(), projectId).andExpect(status().isNotFound());
         getTeamView(foreign.token(), projectId).andExpect(status().isNotFound());

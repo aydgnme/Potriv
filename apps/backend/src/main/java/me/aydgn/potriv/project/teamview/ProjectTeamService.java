@@ -27,14 +27,10 @@ import me.aydgn.potriv.allocation.repository.ProjectAllocationRepository;
 import me.aydgn.potriv.allocation.repository.ProjectAssignmentProposalRepository;
 import me.aydgn.potriv.allocation.repository.ProjectAssignmentProposalRoleRepository;
 import me.aydgn.potriv.allocation.repository.ProjectDeallocationProposalRepository;
-import me.aydgn.potriv.common.exception.ForbiddenException;
 import me.aydgn.potriv.common.exception.NotFoundException;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.common.security.CurrentOrganizationResolver;
-import me.aydgn.potriv.identity.entity.AccessRole;
 import me.aydgn.potriv.identity.entity.User;
-import me.aydgn.potriv.identity.repository.UserRepository;
-import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.organization.entity.Department;
 import me.aydgn.potriv.organization.entity.DepartmentManagerAssignment;
 import me.aydgn.potriv.organization.repository.DepartmentManagerAssignmentRepository;
@@ -66,8 +62,6 @@ public class ProjectTeamService {
     private final ProjectDeallocationProposalRepository deallocationProposalRepository;
     private final ProjectAssignmentProposalRoleRepository proposalRoleRepository;
     private final DepartmentManagerAssignmentRepository managerAssignmentRepository;
-    private final UserRepository userRepository;
-    private final UserRoleRepository userRoleRepository;
     private final CurrentOrganizationResolver currentOrganizationResolver;
     private final Clock clock;
 
@@ -78,8 +72,6 @@ public class ProjectTeamService {
         ProjectDeallocationProposalRepository deallocationProposalRepository,
         ProjectAssignmentProposalRoleRepository proposalRoleRepository,
         DepartmentManagerAssignmentRepository managerAssignmentRepository,
-        UserRepository userRepository,
-        UserRoleRepository userRoleRepository,
         CurrentOrganizationResolver currentOrganizationResolver,
         Clock clock
     ) {
@@ -89,8 +81,6 @@ public class ProjectTeamService {
         this.deallocationProposalRepository = deallocationProposalRepository;
         this.proposalRoleRepository = proposalRoleRepository;
         this.managerAssignmentRepository = managerAssignmentRepository;
-        this.userRepository = userRepository;
-        this.userRoleRepository = userRoleRepository;
         this.currentOrganizationResolver = currentOrganizationResolver;
         this.clock = clock;
     }
@@ -164,19 +154,27 @@ public class ProjectTeamService {
         return allocationRepository.existsByProject_IdAndEmployee_Id(projectId, userId);
     }
 
+    /**
+     * Whether this caller manages a department the project actually involved.
+     *
+     * Every negative answer here is just "not visible", never a diagnosis. A
+     * caller who holds DEPARTMENT_MANAGER but manages no department used to be
+     * told so with a 403, which made the refusal readable as "this project
+     * exists" — a missing project answered 404. Two statuses for one question is
+     * an object-existence oracle, whatever the wording.
+     *
+     * Telling a manager they have no department is a real and useful thing to
+     * say; the place to say it is a department-scoped screen such as
+     * {@code GET /department/projects}, where no project id is being probed.
+     */
     private boolean isInvolvedDepartmentManager(
         UUID projectId, UUID userId, UUID organizationId) {
         Optional<DepartmentManagerAssignment> assignment =
             managerAssignmentRepository.findByManager_Id(userId);
 
         if (assignment.isEmpty()) {
-            // A DEPARTMENT_MANAGER role holder without an actual assignment gets
-            // the controlled forbidden used elsewhere; anyone else stays 404.
-            User user = userRepository.findById(userId)
-                .orElseThrow(ProjectTeamService::projectNotFound);
-            if (userRoleRepository.existsByUserAndRole(user, AccessRole.DEPARTMENT_MANAGER)) {
-                throw new ForbiddenException("You are not assigned as a department manager.");
-            }
+            // No managed department, so no involvement — the same answer an
+            // ordinary employee gets, whatever roles this caller holds.
             return false;
         }
 

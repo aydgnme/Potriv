@@ -512,17 +512,17 @@ from the role alone.
 ### One sentence for "you cannot see this"
 
 The backend answers `404` for a project that does not exist *and* for one the
-caller has no relationship to, deliberately. It also answers `403` in one case —
-a caller holding `DEPARTMENT_MANAGER` while managing no department, where the
-refusal escapes the department check inside the visibility rule.
+caller has no relationship to, deliberately — including for a caller holding
+`DEPARTMENT_MANAGER` while managing no department.
 
-All of them say **"This project does not exist or is not visible to you."** Two
-different sentences would turn the difference into an existence oracle: 403 would
-mean "this project is real". Capability refusals ("only a project manager can do
-this") are a different question and are said where no project is named.
+The UI says **"This project does not exist or is not visible to you."** for every
+one of them. Capability refusals ("only a project manager can do this") are a
+different question and are said where no project is named.
 
-*The 403 case was found by running it. It is a backend inconsistency worth fixing
-there; the frontend refuses to amplify it in the meantime.*
+*FE-05 found the backend answering `403` here for an existing project and `404`
+for a missing one, which made the refusal readable as "this project is real".
+The backend now returns `404` for both; the frontend's single sentence stays as
+defence in depth rather than as the only thing closing the gap.*
 
 ### Writes go through the same server-only boundary
 
