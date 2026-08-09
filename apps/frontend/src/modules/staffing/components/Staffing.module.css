@@ -1,0 +1,151 @@
+.page { display: flex; flex-direction: column; gap: var(--p-space-6); }
+.section { display: flex; flex-direction: column; gap: var(--p-space-4); }
+.sectionHeading { font-size: var(--p-text-xl); }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+.panelHeading { font-size: var(--p-text-lg); }
+.panelNote { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.groupHeading { font-size: var(--p-text-base); font-weight: var(--p-weight-semibold); }
+.muted { color: var(--p-text-muted); font-weight: var(--p-weight-normal); }
+.fieldError { font-size: var(--p-text-sm); color: var(--p-danger); }
+.fieldLabel { font-size: var(--p-text-sm); font-weight: var(--p-weight-medium); }
+
+/* ── Status filter ───────────────────────────────────────────────────────── */
+
+.statusNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.statusLink {
+  padding: var(--p-space-2) 0;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+}
+.statusLink:hover { color: var(--p-text); text-decoration: none; }
+
+/* Weight and colour both change, so the active filter survives without colour. */
+.statusLinkActive {
+  color: var(--p-text);
+  border-bottom-color: var(--p-accent);
+  font-weight: var(--p-weight-semibold);
+}
+
+/* ── Queue + detail ──────────────────────────────────────────────────────── */
+
+.split { display: grid; grid-template-columns: minmax(18rem, 24rem) 1fr; gap: var(--p-space-4); align-items: start; }
+.listPane { min-width: 0; }
+.detailPane { min-width: 0; }
+
+.queue { display: flex; flex-direction: column; gap: var(--p-space-2); list-style: none; margin: 0; padding: 0; }
+
+/* A button, not a styled row: deciding starts with selecting. */
+.queueRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: var(--p-space-3);
+  text-align: left;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.queueRow:hover { background: var(--p-surface-hover); }
+.queueRowSelected { border-color: var(--p-accent); background: var(--p-surface-active); }
+
+.queueType { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.queueName { font-weight: var(--p-weight-medium); }
+.queueMeta { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+
+.detail { display: flex; flex-direction: column; gap: var(--p-space-4); }
+.detailHeader { display: flex; flex-direction: column; gap: 2px; }
+.detailType { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.detailName { font-size: var(--p-text-xl); }
+
+.figures { display: flex; flex-direction: column; gap: var(--p-space-2); margin: 0; }
+.figureRow { display: flex; justify-content: space-between; gap: var(--p-space-3); font-size: var(--p-text-sm); }
+.figureRow dt { color: var(--p-text-muted); }
+.figureRow dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; }
+
+.decisionBar { display: flex; gap: var(--p-space-3); flex-wrap: wrap; align-items: center; }
+
+/* ── Managed projects ────────────────────────────────────────────────────── */
+
+.rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--p-space-3);
+  padding: var(--p-space-3);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+  margin-bottom: var(--p-space-2);
+  flex-wrap: wrap;
+}
+.rowMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rowTitle { font-weight: var(--p-weight-medium); }
+.rowAside { display: flex; align-items: center; gap: var(--p-space-3); flex-wrap: wrap; font-size: var(--p-text-sm); }
+
+/* ── Controls ────────────────────────────────────────────────────────────── */
+
+.control {
+  width: 100%;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  font-family: inherit;
+  font-size: var(--p-text-base);
+  padding: var(--p-space-2) var(--p-space-3);
+}
+.textarea { line-height: var(--p-leading); resize: vertical; }
+
+.removalForm { display: flex; flex-direction: column; gap: var(--p-space-2); }
+
+.dialog {
+  max-width: 34rem;
+  width: calc(100vw - var(--p-space-6));
+  padding: var(--p-space-5);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius-lg);
+  color: var(--p-text);
+}
+.dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.dialog > * + * { margin-top: var(--p-space-3); }
+.dialogActions { display: flex; gap: var(--p-space-3); flex-wrap: wrap; }
+
+/* Desktop keeps both panes; the back control belongs to the narrow layout. */
+.backToList { display: none; margin-bottom: var(--p-space-3); }
+
+@media (max-width: 899px) {
+  .split { grid-template-columns: 1fr; }
+
+  /* One pane at a time rather than a squeezed split. */
+  .split[data-showing="detail"] .listPane { display: none; }
+  .split[data-showing="list"] .detailPane { display: none; }
+  .split[data-showing="detail"] .backToList { display: block; }
+
+  .figureRow { flex-direction: column; gap: 0; }
+  .figureRow dd { text-align: left; }
+}

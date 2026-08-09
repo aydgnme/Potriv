@@ -5,3 +5,7 @@
  */
 export { TeamFinderScreen } from "./components/TeamFinderScreen";
 export type { TeamFinderScreenProps } from "./components/TeamFinderScreen";
+export { StaffingPage } from "./components/StaffingPage";
+export type { StaffingPageProps } from "./components/StaffingPage";
+export { ProposeRemovalAction } from "./components/ProposeRemovalAction";
+export type { ProposeRemovalActionProps } from "./components/ProposeRemovalAction";
