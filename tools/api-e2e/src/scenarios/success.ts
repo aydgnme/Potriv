@@ -225,6 +225,15 @@ export async function runSuccessScenarios(
     id: 'team-roles.list.success', kind: 'success', method: 'GET',
     template: '/team-roles', url: '/team-roles', expect: 200, actor: a.admin,
   });
+  // A project manager reads the catalogue because project role requirements are
+  // catalog-backed: without this they could own a project's requirements while
+  // being unable to name them. Reading is not owning — the writes below stay with
+  // the admin, and the role matrix proves a PM is refused them.
+  await prober.run({
+    id: 'team-roles.list.projectManager', kind: 'success', method: 'GET',
+    template: '/team-roles', url: '/team-roles?includeInactive=true', expect: 200,
+    actor: a.projectManager,
+  });
   await prober.run({
     id: 'team-roles.read.success', kind: 'success', method: 'GET',
     template: '/team-roles/{teamRoleId}', url: `/team-roles/${extraTeamRoleId}`,
