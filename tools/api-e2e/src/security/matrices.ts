@@ -1,5 +1,7 @@
 import type { Operation } from '../openapi/inventory.js';
 import type { RunContext } from '../fixtures/context.js';
+import { DEFAULT_PASSWORD, identity, login } from '../fixtures/context.js';
+import type { ApiClient } from '../http/client.js';
 import { Prober } from '../scenarios/probe.js';
 
 /**
@@ -204,6 +206,64 @@ export async function runIsolationMatrix(prober: Prober, ctx: RunContext): Promi
       template: testCase.template, url: testCase.url, actor: testCase.actor,
       // 403 and 404 are both acceptable refusals; the contract is anti-enumeration.
       expect: [403, 404], options: { body: testCase.body },
+    });
+  }
+}
+
+/**
+ * The project read views must not answer differently for an object that exists
+ * and one that does not.
+ *
+ * A caller holding DEPARTMENT_MANAGER while managing no department is the case
+ * that once separated them: an existing project answered 403 and a random id
+ * answered 404, so any id could be tested for existence. This probes both, for
+ * both endpoints, and requires the same status each time.
+ */
+export async function runProjectVisibilityOracleMatrix(
+  client: ApiClient,
+  prober: Prober,
+  ctx: RunContext,
+): Promise<void> {
+  const a = ctx.orgA;
+  const email = identity(ctx.runId, 'nodeptdm', 'A');
+
+  const created = await client.post(`/auth/register-employee/${a.inviteToken}`, {
+    body: { name: 'QA No-Department DM', email, password: DEFAULT_PASSWORD },
+  });
+  if (created.status !== 201) {
+    throw new Error(`could not register the no-department manager: HTTP ${created.status}`);
+  }
+  const userId = String((created.body as { userId?: string }).userId ?? '');
+
+  // The role without the appointment — deliberately never assigned a department.
+  const granted = await client.patch(`/users/${userId}/roles`, {
+    actor: a.admin,
+    body: { roles: ['EMPLOYEE', 'DEPARTMENT_MANAGER'] },
+  });
+  if (granted.status !== 200) {
+    throw new Error(`could not grant DEPARTMENT_MANAGER: HTTP ${granted.status}`);
+  }
+
+  const actor = await login(client, {
+    email, as: 'orgANoDepartmentDm', role: 'DEPARTMENT_MANAGER',
+  });
+
+  const missingProjectId = ctx.nonexistentUuid;
+  const cases: ReadonlyArray<{ id: string; template: string; url: string }> = [
+    { id: 'oracle:details-existing-project', template: '/projects/{projectId}/details',
+      url: `/projects/${a.projectId}/details` },
+    { id: 'oracle:details-missing-project', template: '/projects/{projectId}/details',
+      url: `/projects/${missingProjectId}/details` },
+    { id: 'oracle:team-existing-project', template: '/projects/{projectId}/team',
+      url: `/projects/${a.projectId}/team` },
+    { id: 'oracle:team-missing-project', template: '/projects/{projectId}/team',
+      url: `/projects/${missingProjectId}/team` },
+  ];
+
+  for (const testCase of cases) {
+    await prober.run({
+      id: testCase.id, kind: 'isolation', method: 'GET', template: testCase.template,
+      url: testCase.url, expect: 404, actor,
     });
   }
 }
