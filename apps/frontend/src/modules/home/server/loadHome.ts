@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AccessRole } from "@/shared/types/accessRole";
+import { projectAttentionRank } from "@/shared/utils/projectStatus";
 
 import type {
   DepartmentProjects,
@@ -100,7 +101,7 @@ async function loadManagedProjects(
   // Projects that are actually running come first: a gap on a live project is
   // the one worth acting on today.
   const ordered = [...loaded.value].sort(
-    (left, right) => attentionRank(left.status) - attentionRank(right.status),
+    (left, right) => projectAttentionRank(left.status) - projectAttentionRank(right.status),
   );
 
   const shortlist = ordered.slice(0, STAFFING_ENRICHMENT_LIMIT);
@@ -123,17 +124,4 @@ async function loadManagedProjects(
       openStaffingSlots: enriched.get(project.projectId) ?? null,
     })),
   };
-}
-
-const ATTENTION_ORDER = [
-  "IN_PROGRESS",
-  "STARTING",
-  "CLOSING",
-  "NOT_STARTED",
-  "CLOSED",
-] as const;
-
-function attentionRank(status: string): number {
-  const index = ATTENTION_ORDER.indexOf(status as (typeof ATTENTION_ORDER)[number]);
-  return index === -1 ? ATTENTION_ORDER.length : index;
 }

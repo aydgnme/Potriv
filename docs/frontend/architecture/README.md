@@ -42,8 +42,14 @@ app/
 ├── layout.tsx              document, design tokens, providers — nothing else
 ├── (product)/
 │   ├── layout.tsx          product chrome
-│   ├── page.tsx            → redirects to /login until FE-02 lands
-│   └── login/page.tsx      → <LoginPage /> from @/modules/auth
+│   ├── page.tsx            → /home when signed in, /login when not
+│   ├── login/page.tsx      → <LoginPage /> from @/modules/auth
+│   ├── forgot-password/ · reset-password/
+│   └── (protected)/
+│       ├── layout.tsx      the session guard and the app shell
+│       ├── home/page.tsx      → <HomePage /> from @/modules/home
+│       └── projects/page.tsx  → <ProjectsPage /> from @/modules/projects
+├── api/auth/…              the BFF routes; the browser's only auth surface
 └── (dev)/
     ├── layout.tsx          developer console chrome + its own stylesheet
     └── console/page.tsx    the API console
@@ -104,6 +110,14 @@ inside a module make circular imports easy and stack traces useless.
 
 When a domain grows, it takes the shape it needs — `api/`, `components/`,
 `hooks/`, `model/`, `utils/` — and no more. Do not create empty folders.
+
+Modules do not import each other. When two domains need the same thing, what
+moves to `shared` is the part that belongs to no domain — the `ProjectStatus`
+union, its labels and tones, date formatting — and it moves rather than being
+copied. Domain arithmetic stays in the domain: Home and Projects each own their
+open-positions calculation, pinned by their own regression tests, because putting
+project staffing rules in `shared` would make `shared` the place domain knowledge
+accumulates.
 
 ---
 
@@ -407,3 +421,64 @@ The gap is a count of open **positions** — `max(0, required − filled)` summe
 over every team-role requirement — not a count of understaffed role types. A
 role wanting three people with one filled is two people missing, and two is the
 number a manager acts on.
+
+## Projects: one domain, several granted scopes
+
+`/projects` is a single navigation destination. There is no `Managed projects`,
+`Department projects` or `My projects` in the sidebar, because they are not
+separate places — they are three questions about the same domain, and which of
+them a person may ask depends on their roles:
+
+| Scope | Endpoint | Granted by |
+| --- | --- | --- |
+| Managed | `GET /projects/managed[?status=]` | `PROJECT_MANAGER` |
+| Department | `GET /department/projects[?status=]` | `DEPARTMENT_MANAGER` |
+| My projects | `GET /me/projects` | every product user |
+
+This is **data-scope selection, not role switching**. The backend authorises
+against the whole role set on every request, so a UI that claimed to switch role
+would constrain nothing while appearing to. The same project may honestly appear
+in more than one scope meaning something different each time — I manage it · my
+department has people on it · I am allocated to it — so scopes are never merged
+into one cross-role row.
+
+There is **no organization-wide scope**. No ordinary-product endpoint returns
+every project in the organization, so an admin who is neither PM nor DM sees only
+their own allocations rather than an "All projects" view with nothing behind it.
+
+### Scope and filter live in the URL
+
+`?view=` and `?status=` are the whole of this screen's state — no client store,
+no `onChange` that fires a request. The filter survives a reload, can be shared,
+and works before any JavaScript runs.
+
+Both are normalised against a closed union before anything is fetched. A `?view=`
+the roles do not grant falls back to the default granted scope instead of being
+attempted; an unrecognised `?status=` becomes All. Nothing arbitrary reaches a
+backend path.
+
+Default scope is `managed` → `department` → `mine`, widest responsibility first.
+
+### Only the active scope is fetched
+
+Hidden scopes are not loaded to fill counts or badges. Doing so would pay for
+data nobody asked to see and, for a role the user does not hold, would send a
+request the backend rightly refuses on every page load.
+
+`/me/projects` takes no status parameter, so that one filter is applied in the
+server-side frontend layer. Current and past stay separate, and every allocation
+episode survives: the same project appearing twice is two real allocations, and
+deduplicating by project id would delete part of someone's history.
+
+### The staffing fan-out is concurrency-bounded
+
+The Projects list attempts staffing for **every** managed row, not a shortlist —
+reporting unknown staffing for everything past the fifth would be a quieter kind
+of wrong. But one `details` request per project with `Promise.all` would open as
+many connections as the person happens to manage, worst for the busiest users. So
+`DETAIL_CONCURRENCY = 5` requests run at a time: small, fixed, server-side and
+never user-supplied.
+
+A row whose detail fails says "Staffing unavailable" and the rest of the list is
+untouched. It never becomes `0`, which would claim a full team on the strength of
+a failed request.

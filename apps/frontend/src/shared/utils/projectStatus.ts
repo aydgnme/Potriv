@@ -1,10 +1,10 @@
 import type { StatusTone } from "@/shared/ui/StatusBadge";
-
-import type { ProjectStatus } from "../model/homeData";
+import type { ProjectStatus } from "@/shared/types/projectStatus";
 
 /**
  * Human wording and tone for a project status. Enum values are never shown raw,
- * and the tone is decided once here rather than in each component.
+ * and the tone is decided once here rather than in each component, so the same
+ * status cannot read as "live work" on one screen and neutral on the next.
  */
 const STATUS_LABELS: Readonly<Record<ProjectStatus, string>> = {
   NOT_STARTED: "Not started",
@@ -29,4 +29,22 @@ export function projectStatusLabel(status: ProjectStatus): string {
 
 export function projectStatusTone(status: ProjectStatus): StatusTone {
   return STATUS_TONES[status] ?? "neutral";
+}
+
+/**
+ * How much a status wants attention today. Live work first, finished work last.
+ *
+ * Deterministic and total, so a list sorted by it renders the same way twice.
+ */
+const ATTENTION_ORDER: readonly ProjectStatus[] = [
+  "IN_PROGRESS",
+  "STARTING",
+  "CLOSING",
+  "NOT_STARTED",
+  "CLOSED",
+];
+
+export function projectAttentionRank(status: ProjectStatus): number {
+  const index = ATTENTION_ORDER.indexOf(status);
+  return index === -1 ? ATTENTION_ORDER.length : index;
 }

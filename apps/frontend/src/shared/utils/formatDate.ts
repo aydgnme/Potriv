@@ -20,3 +20,23 @@ export function formatDate(isoDate: string | null | undefined): string | null {
   if (Number.isNaN(parsed.getTime())) return null;
   return FORMATTER.format(parsed);
 }
+
+/**
+ * The span a project runs for, as one readable phrase.
+ *
+ * An ongoing project legitimately has no deadline, so the missing end is stated
+ * rather than filled in — `Invalid date` or an invented date would both be
+ * claims the backend never made.
+ */
+export function formatDateRange(
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+): string {
+  const start = formatDate(startDate);
+  const end = formatDate(endDate);
+
+  if (start && end) return `${start} – ${end}`;
+  if (start) return `${start} – no deadline`;
+  if (end) return `Until ${end}`;
+  return "No dates set";
+}

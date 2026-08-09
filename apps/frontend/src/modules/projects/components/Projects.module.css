@@ -1,0 +1,123 @@
+.page { display: flex; flex-direction: column; gap: var(--p-space-5); }
+.controls { display: flex; flex-direction: column; gap: var(--p-space-3); }
+
+/* Scope navigation. Underlined rather than filled: it selects data, it is not
+   the page's primary action. */
+.scopeNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.scopeLink {
+  padding: var(--p-space-2) 0;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+}
+.scopeLink:hover { color: var(--p-text); text-decoration: none; }
+
+/* Weight and colour both change, so the active scope survives without colour. */
+.scopeLinkActive {
+  color: var(--p-text);
+  border-bottom-color: var(--p-accent);
+  font-weight: var(--p-weight-semibold);
+}
+
+.statusFilter { display: flex; flex-wrap: wrap; gap: var(--p-space-2); }
+
+.filterLink {
+  padding: var(--p-space-1) var(--p-space-3);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-pill);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+}
+.filterLink:hover { background: var(--p-surface-hover); text-decoration: none; }
+
+.filterLinkActive {
+  background: var(--p-surface-active);
+  border-color: var(--p-border-strong);
+  color: var(--p-text);
+  font-weight: var(--p-weight-medium);
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+.panelHeading { font-size: var(--p-text-lg); }
+.panelNote { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.groupHeading { font-size: var(--p-text-base); font-weight: var(--p-weight-semibold); }
+
+.table { width: 100%; border-collapse: collapse; text-align: left; }
+
+.table th {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: baseline;
+  font-size: var(--p-text-sm);
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+.projectName { font-size: var(--p-text-base); font-weight: var(--p-weight-medium); }
+.muted { color: var(--p-text-muted); }
+.memberList { display: flex; flex-direction: column; gap: 2px; }
+
+/* Stacked rows on small screens. `display: block` drops the implicit table
+   semantics, so every element carries its role explicitly and the markup stays
+   a table for anyone listening to it. */
+@media (max-width: 767px) {
+  .table,
+  .table > thead,
+  .table > tbody,
+  .table > tbody > tr,
+  .table > tbody > tr > td {
+    display: block;
+    width: 100%;
+  }
+
+  /* The column names live in each cell's label on this layout. */
+  .table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+
+  .table > tbody > tr > td {
+    padding: 2px 0;
+    border-bottom: none;
+  }
+
+  .table > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+}
