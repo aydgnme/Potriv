@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import type { ProjectStaffingDetails } from "../model/homeData";
-import { rolesStillNeeded, staffingLabel } from "./staffingGap";
+import { openStaffingSlots, staffingLabel } from "./staffingGap";
 
 /**
- * The gap is derived from real `/projects/{id}/details` fields, so the fixtures
- * use that shape. It is a count of unmet requirements — never a score.
+ * The figure is a count of open staffing positions — the people a manager still
+ * has to find — derived from real `/projects/{id}/details` fields.
+ *
+ * The cases with `requiredMembers > 1` are the ones that matter most: an earlier
+ * version counted understaffed role *types*, so a role needing three people with
+ * one filled reported a shortage of one instead of two.
  */
 
 const BACKEND = "role-backend";
 const FRONTEND = "role-frontend";
+const QA = "role-qa";
 
 function details(
   requirements: readonly { role: string; required: number }[],
@@ -27,37 +32,37 @@ function details(
   };
 }
 
-describe("rolesStillNeeded", () => {
+describe("openStaffingSlots", () => {
   it("reports none when every requirement is met", () => {
-    const project = details(
-      [{ role: BACKEND, required: 2 }],
-      [[BACKEND], [BACKEND]],
-    );
-
-    expect(rolesStillNeeded(project)).toBe(0);
+    expect(openStaffingSlots(details([{ role: BACKEND, required: 2 }], [[BACKEND], [BACKEND]])))
+      .toBe(0);
   });
 
-  it("reports a role that is short of people", () => {
-    const project = details([{ role: BACKEND, required: 2 }], [[BACKEND]]);
-
-    expect(rolesStillNeeded(project)).toBe(1);
+  it("reports one open position when a role is one person short", () => {
+    expect(openStaffingSlots(details([{ role: BACKEND, required: 2 }], [[BACKEND]]))).toBe(1);
   });
 
-  it("counts each unmet requirement, not each missing person", () => {
-    // Backend is two short and frontend is one short: two roles need attention,
-    // which is what a manager acts on.
+  it("counts every missing person in a single role, not the role once", () => {
+    // The case the earlier implementation got wrong: four wanted, one filled, so
+    // three people are missing — not "one understaffed role".
+    expect(openStaffingSlots(details([{ role: BACKEND, required: 4 }], [[BACKEND]]))).toBe(3);
+  });
+
+  it("sums shortfalls across roles", () => {
+    // Backend 3/1 → 2, Frontend 2/1 → 1, QA 1/1 → 0.
     const project = details(
       [
         { role: BACKEND, required: 3 },
         { role: FRONTEND, required: 2 },
+        { role: QA, required: 1 },
       ],
-      [[BACKEND], [FRONTEND]],
+      [[BACKEND], [FRONTEND], [QA]],
     );
 
-    expect(rolesStillNeeded(project)).toBe(2);
+    expect(openStaffingSlots(project)).toBe(3);
   });
 
-  it("counts a member who holds two required roles toward both", () => {
+  it("lets one member satisfy two different role requirements", () => {
     // The backend records the roles an allocation carries; there is no
     // one-role-per-person rule to invent here.
     const project = details(
@@ -68,41 +73,64 @@ describe("rolesStillNeeded", () => {
       [[BACKEND, FRONTEND]],
     );
 
-    expect(rolesStillNeeded(project)).toBe(0);
+    expect(openStaffingSlots(project)).toBe(0);
   });
 
-  it("ignores members whose roles are not required", () => {
-    const project = details([{ role: BACKEND, required: 1 }], [["role-qa"]]);
+  it("does not let a member fill the same role twice", () => {
+    // One person is one person, however the roles are listed.
+    const project = details([{ role: BACKEND, required: 2 }], [[BACKEND, BACKEND]]);
 
-    expect(rolesStillNeeded(project)).toBe(1);
+    expect(openStaffingSlots(project)).toBe(1);
   });
 
-  it("reports none when a project declares no requirements", () => {
-    // Nothing was asked for, so nothing is missing — not "fully staffed by luck".
-    expect(rolesStillNeeded(details([], []))).toBe(0);
+  it("ignores members whose roles the project did not ask for", () => {
+    expect(openStaffingSlots(details([{ role: BACKEND, required: 1 }], [[QA]]))).toBe(1);
   });
 
-  it("reports every requirement when nobody is allocated yet", () => {
+  it("never reports a negative shortage for an over-filled role", () => {
+    // Three people on a role that wanted one is not "minus two positions", and
+    // must not offset a genuine shortage elsewhere.
     const project = details(
       [
         { role: BACKEND, required: 1 },
         { role: FRONTEND, required: 2 },
       ],
+      [[BACKEND], [BACKEND], [BACKEND]],
+    );
+
+    expect(openStaffingSlots(project)).toBe(2);
+  });
+
+  it("reports none when a project declares no requirements", () => {
+    // Nothing was asked for, so nothing is missing.
+    expect(openStaffingSlots(details([], []))).toBe(0);
+  });
+
+  it("reports every required position when nobody is allocated yet", () => {
+    const project = details(
+      [
+        { role: BACKEND, required: 2 },
+        { role: FRONTEND, required: 1 },
+      ],
       [],
     );
 
-    expect(rolesStillNeeded(project)).toBe(2);
+    expect(openStaffingSlots(project)).toBe(3);
   });
 });
 
 describe("staffingLabel", () => {
-  it("says the team is staffed when nothing is missing", () => {
+  it("says the team is staffed when nothing is open", () => {
     expect(staffingLabel(0)).toBe("Team staffed");
   });
 
-  it("counts in words, singular and plural", () => {
-    expect(staffingLabel(1)).toBe("1 role still needed");
-    expect(staffingLabel(3)).toBe("3 roles still needed");
+  it("counts positions, singular and plural", () => {
+    expect(staffingLabel(1)).toBe("1 position still needed");
+    expect(staffingLabel(3)).toBe("3 positions still needed");
+  });
+
+  it("says positions rather than roles, because that is what is counted", () => {
+    expect(staffingLabel(2)).not.toContain("role");
   });
 
   it("says so plainly when staffing was never looked up", () => {

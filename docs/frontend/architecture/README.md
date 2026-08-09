@@ -402,3 +402,8 @@ There is no aggregate staffing endpoint, so a project's gap costs one
 `details` request. Home enriches only the shortlist it displays — fifty projects
 must not become fifty requests for five rows. Anything beyond it reports
 "Staffing not checked", never `0`, which would read as a fully staffed team.
+
+The gap is a count of open **positions** — `max(0, required − filled)` summed
+over every team-role requirement — not a count of understaffed role types. A
+role wanting three people with one filled is two people missing, and two is the
+number a manager acts on.

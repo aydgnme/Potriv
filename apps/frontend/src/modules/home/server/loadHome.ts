@@ -11,7 +11,7 @@ import type {
   OrganizationUser,
   PendingProposal,
 } from "../model/homeData";
-import { rolesStillNeeded } from "../utils/staffingGap";
+import { openStaffingSlots } from "../utils/staffingGap";
 import { HOME_DATA_SOURCES, type HomeDataSources, type Loaded } from "./homeDataSources";
 
 /**
@@ -113,14 +113,14 @@ async function loadManagedProjects(
     const detail = details[index];
     // A detail that failed leaves the project unenriched rather than defaulting
     // to zero, which would read as "fully staffed".
-    if (detail?.ok) enriched.set(project.projectId, rolesStillNeeded(detail.value));
+    if (detail?.ok) enriched.set(project.projectId, openStaffingSlots(detail.value));
   });
 
   return {
     ok: true,
     value: ordered.map((project) => ({
       ...project,
-      rolesStillNeeded: enriched.get(project.projectId) ?? null,
+      openStaffingSlots: enriched.get(project.projectId) ?? null,
     })),
   };
 }

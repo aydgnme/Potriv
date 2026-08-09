@@ -60,10 +60,14 @@ export type ProjectStaffingDetails = {
   }[];
 };
 
-/** A managed project with its gap resolved, where the detail could be loaded. */
+/** A managed project with its staffing resolved, where the detail could be loaded. */
 export type ManagedProjectWithStaffing = ManagedProject & {
-  /** Null when the detail was not loaded — never guessed at. */
-  readonly rolesStillNeeded: number | null;
+  /**
+   * Open staffing positions across every declared role requirement. Null when
+   * the detail was not loaded — never guessed at, and never defaulted to 0,
+   * which would read as a fully staffed team.
+   */
+  readonly openStaffingSlots: number | null;
 };
 
 /** `GET /department/project-proposals?status=PENDING` */

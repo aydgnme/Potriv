@@ -160,6 +160,27 @@ describe("loadHomeData — bounded staffing enrichment", () => {
     expect(data.managedProjects.value[0]?.projectId).toBe("live");
   });
 
+  it("carries the real number of open positions through, not the role count", async () => {
+    const deps = sources({
+      getManagedProjects: vi.fn(async () => ok([managedProject("p1", "IN_PROGRESS")])),
+      getProjectStaffingDetails: vi.fn(async () =>
+        ok({
+          projectId: "p1",
+          teamRoleRequirements: [
+            { teamRole: { teamRoleId: "backend" }, requiredMembers: 3 },
+          ],
+          activeMembers: [{ roles: [{ teamRoleId: "backend" }] }],
+        }),
+      ),
+    });
+
+    const data = await loadHomeData(["EMPLOYEE", "PROJECT_MANAGER"], deps);
+
+    if (!data.managedProjects?.ok) throw new Error("expected managed projects");
+    // Two people missing, not "one understaffed role".
+    expect(data.managedProjects.value[0]?.openStaffingSlots).toBe(2);
+  });
+
   it("leaves a project unenriched rather than reporting a false zero", async () => {
     const deps = sources({
       getManagedProjects: vi.fn(async () => ok([managedProject("p1", "IN_PROGRESS")])),
@@ -170,7 +191,7 @@ describe("loadHomeData — bounded staffing enrichment", () => {
 
     if (!data.managedProjects?.ok) throw new Error("expected managed projects");
     // Null, not 0 — 0 would render as "Team staffed".
-    expect(data.managedProjects.value[0]?.rolesStillNeeded).toBeNull();
+    expect(data.managedProjects.value[0]?.openStaffingSlots).toBeNull();
   });
 });
 

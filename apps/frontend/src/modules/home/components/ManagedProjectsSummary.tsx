@@ -19,9 +19,10 @@ export type ManagedProjectsSummaryProps = {
 /**
  * Projects this user manages, ordered so live work comes first.
  *
- * The staffing figure is a count of unmet role requirements, not a score, and
- * only the shortlist is enriched — see the loader for why. Anything beyond it
- * says "Staffing not checked" rather than implying a full team.
+ * The staffing figure counts open positions — the people still to be found —
+ * not understaffed role types, and not a score. Only the shortlist is enriched;
+ * anything beyond it says "Staffing not checked" rather than implying a full
+ * team.
  *
  * The action says "Staff project", never "Assign": a project manager proposes,
  * and a department manager decides.
@@ -54,7 +55,7 @@ export function ManagedProjectsSummary({ data, limit }: ManagedProjectsSummaryPr
                   {project.name}
                 </Link>
                 <span className={styles.rowMeta}>
-                  {staffingLabel(project.rolesStillNeeded)}
+                  {staffingLabel(project.openStaffingSlots)}
                 </span>
               </div>
               <div className={styles.rowAside}>
