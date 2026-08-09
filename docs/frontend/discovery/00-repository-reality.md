@@ -87,6 +87,7 @@ How the guard annotations actually resolve:
 | `@OrganizationAdminOnly` | `hasAnyRole('SYSTEM_ADMIN', 'ORGANIZATION_ADMIN')` |
 | `@DepartmentManagerOnly` | `hasAnyRole('SYSTEM_ADMIN', 'DEPARTMENT_MANAGER')` |
 | `@ProjectManagerOnly` | `hasAnyRole('SYSTEM_ADMIN', 'PROJECT_MANAGER')` |
+| `@OrganizationAdminOrProjectManager` | `hasAnyRole('SYSTEM_ADMIN', 'ORGANIZATION_ADMIN', 'PROJECT_MANAGER')` |
 | `@EmployeeOnly` | authenticated (any role) |
 
 `SYSTEM_ADMIN` is a superset of every product role at the annotation level. It
@@ -150,7 +151,8 @@ Read from the class- and method-level annotations on every product controller.
 | `GET/POST/DELETE /departments/{id}/members`, `/departments/unassigned-employees` | `@DepartmentManagerOnly` | DEPT_MGR, SYS_ADMIN |
 | `GET /users`, `GET /users/{id}`, `PATCH /users/{id}/roles` | `@OrganizationAdminOnly` | ORG_ADMIN, SYS_ADMIN |
 | `GET/POST /organizations/current/invite…` | `@OrganizationAdminOnly` | ORG_ADMIN, SYS_ADMIN |
-| `/team-roles` CRUD | `@OrganizationAdminOnly` | ORG_ADMIN, SYS_ADMIN |
+| `GET /team-roles` | `@OrganizationAdminOrProjectManager` | ORG_ADMIN, PROJ_MGR, SYS_ADMIN |
+| `GET/POST/PATCH/DELETE /team-roles…` (the rest) | `@OrganizationAdminOnly` | ORG_ADMIN, SYS_ADMIN |
 | `/skills`, `/skill-categories` **reads** | none (authenticated) | everyone |
 | `/skills`, `/skill-categories` **writes**, skill↔department links | `@DepartmentManagerOnly` | DEPT_MGR, SYS_ADMIN |
 | `/me/skills` all verbs | none (authenticated, self-scoped) | everyone |
