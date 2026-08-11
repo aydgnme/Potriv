@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 
 import type { RoleActionState } from "../../model/peopleActionState";
-import { roleEditorState, toRolePayload, validateRoleChange } from "../../model/roleEditor";
+import { parseRolePayload, roleEditorState, validateRoleChange } from "../../model/roleEditor";
 import { getOrganizationUser, getOrganizationUsers, updateUserRoles } from "../peopleDataSources";
 
 /**
@@ -16,8 +16,13 @@ import { getOrganizationUser, getOrganizationUsers, updateUserRoles } from "../p
  * that too, but the form is the browser's — a page loaded an hour ago would
  * happily claim to be the only admin, or the only person.
  *
- * `EMPLOYEE` is forced back in and `SYSTEM_ADMIN` cannot survive the parse, so
- * neither depends on the editor having rendered correctly.
+ * The submitted vocabulary is closed, and checked before anything is read. A role
+ * this product does not offer fails the whole request rather than being dropped
+ * from it: because the endpoint replaces the complete role set, a discarded value
+ * would leave behind a different, perfectly valid mutation nobody asked for.
+ *
+ * `EMPLOYEE` is still forced back in, so the baseline does not depend on the
+ * editor having rendered correctly.
  */
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,11 +59,16 @@ export async function updateUserRolesAction(
     return { error: FALLBACK.NOT_FOUND };
   }
 
-  // Unknown roles — SYSTEM_ADMIN above all — are dropped, and EMPLOYEE is added
-  // whatever arrived.
-  const requested = toRolePayload(
+  // A role outside the product vocabulary makes the whole submission invalid, and
+  // proving that needs no reads at all — so nothing is fetched and, more to the
+  // point, no other mutation can be derived from a malformed request.
+  const parsed = parseRolePayload(
     formData.getAll("role").filter((value): value is string => typeof value === "string"),
   );
+  if (!parsed.ok) {
+    return { error: FALLBACK.VALIDATION };
+  }
+  const requested = parsed.roles;
 
   // Fresh authority: the organization as it is now, not as the page had it.
   const [organization, target] = await Promise.all([

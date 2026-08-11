@@ -93,6 +93,17 @@ describe("success", () => {
     expect(Array.isArray(roles)).toBe(true);
   });
 
+  it("sends a repeated role once", async () => {
+    await updateUserRolesAction(
+      EMPTY_ROLE_STATE,
+      form(OTHER, ["EMPLOYEE", "PROJECT_MANAGER", "PROJECT_MANAGER"]),
+    );
+
+    expect(updateUserRoles).toHaveBeenCalledTimes(1);
+    const [, roles] = updateUserRoles.mock.calls[0]!;
+    expect([...roles].sort()).toEqual(["EMPLOYEE", "PROJECT_MANAGER"]);
+  });
+
   it("refreshes People, the person, and Home", async () => {
     await updateUserRolesAction(EMPTY_ROLE_STATE, form(OTHER, ["EMPLOYEE"]));
 
@@ -125,15 +136,32 @@ describe("the trust boundary", () => {
     }
   });
 
-  it("drops SYSTEM_ADMIN before the backend is asked", async () => {
-    await updateUserRolesAction(
-      EMPTY_ROLE_STATE,
+  it("rejects SYSTEM_ADMIN before any backend mutation", async () => {
+    // Dropping it would turn this into a valid request to remove PROJECT_MANAGER.
+    const state = await expectRejected(
       form(OTHER, ["EMPLOYEE", "SYSTEM_ADMIN", "PROJECT_MANAGER"]),
     );
 
-    const [, roles] = updateUserRoles.mock.calls[0]!;
-    expect(roles).not.toContain("SYSTEM_ADMIN");
-    expect([...roles].sort()).toEqual(["EMPLOYEE", "PROJECT_MANAGER"]);
+    expect(state.error).toBe("Those roles were not accepted. Check the selection and try again.");
+  });
+
+  it("rejects any value outside the product vocabulary", async () => {
+    for (const unknown of ["SUPER_ADMIN", "ROOT", "ADMINISTRATOR", "banana", "employee"]) {
+      vi.clearAllMocks();
+
+      const state = await expectRejected(form(OTHER, ["EMPLOYEE", unknown]));
+
+      expect(state.error).toBeDefined();
+    }
+  });
+
+  it("proves a bad vocabulary without reading anything", async () => {
+    // An unknown role needs no organization or target read to be invalid, and
+    // fetching first would only widen what a malformed request can reach.
+    await expectRejected(form(OTHER, ["EMPLOYEE", "SYSTEM_ADMIN"]));
+
+    expect(getOrganizationUsers).not.toHaveBeenCalled();
+    expect(getOrganizationUser).not.toHaveBeenCalled();
   });
 
   it("puts Employee back even when the form omits it", async () => {
@@ -284,6 +312,20 @@ describe("what crosses back to the browser", () => {
         await updateUserRolesAction(EMPTY_ROLE_STATE, form(OTHER, ["EMPLOYEE"])),
       );
       for (const leak of LEAKS) expect(serialized).not.toContain(leak);
+    }
+  });
+
+  it("says nothing about the vocabulary it refused", async () => {
+    // Naming the rejected value would confirm to a tamperer which strings the
+    // backend knows; the sentence is the same one any other bad selection gets.
+    const state = await updateUserRolesAction(
+      EMPTY_ROLE_STATE,
+      form(OTHER, ["EMPLOYEE", "SYSTEM_ADMIN"]),
+    );
+
+    const serialized = JSON.stringify(state);
+    for (const leak of [...LEAKS, "SYSTEM_ADMIN", "AccessRole", "enum"]) {
+      expect(serialized).not.toContain(leak);
     }
   });
 });

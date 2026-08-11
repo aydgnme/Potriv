@@ -136,22 +136,39 @@ export function roleEditorState(input: RoleEditorInput): RoleEditorState {
   };
 }
 
+export type RolePayload =
+  | { readonly ok: true; readonly roles: readonly AccessRole[] }
+  | { readonly ok: false };
+
 /**
  * The complete desired role set, as `PATCH /users/{id}/roles` expects it.
  *
- * `EMPLOYEE` is forced in and `SYSTEM_ADMIN` cannot survive, whatever arrived —
- * this runs on the server over form input, so it is a boundary, not a
- * convenience.
+ * The vocabulary is closed. Anything outside it — `SYSTEM_ADMIN` above all, which
+ * the backend knows but the ordinary product deliberately does not offer — makes
+ * the whole submission invalid rather than being quietly discarded.
+ *
+ * That distinction matters because this endpoint replaces the entire role set. A
+ * request for `EMPLOYEE + SYSTEM_ADMIN` against somebody holding
+ * `EMPLOYEE + PROJECT_MANAGER` would, if the unknown value were merely dropped,
+ * become a perfectly valid request to *remove* Project Manager. A malformed
+ * authorization request must not be normalized into a different authorization
+ * mutation that nobody asked for.
+ *
+ * Two normalizations remain, because neither invents an authority the caller did
+ * not express: a missing `EMPLOYEE` is added back, since the backend treats it as
+ * the organization baseline and would add it anyway, and repeats of a known role
+ * collapse to one.
  */
-export function toRolePayload(requested: readonly string[]): readonly AccessRole[] {
+export function parseRolePayload(requested: readonly string[]): RolePayload {
   const known = new Set<string>(PRODUCT_ROLES);
   const roles = new Set<AccessRole>(["EMPLOYEE"]);
 
   for (const role of requested) {
-    if (known.has(role)) roles.add(role as AccessRole);
+    if (!known.has(role)) return { ok: false };
+    roles.add(role as AccessRole);
   }
 
-  return [...roles];
+  return { ok: true, roles: [...roles] };
 }
 
 /** Whether a submitted set is allowed, given the state the editor would have shown. */

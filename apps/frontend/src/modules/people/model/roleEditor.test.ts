@@ -4,8 +4,8 @@ import type { AccessRole } from "@/shared/types/accessRole";
 
 import {
   PRODUCT_ROLES,
+  parseRolePayload,
   roleEditorState,
-  toRolePayload,
   validateRoleChange,
 } from "./roleEditor";
 
@@ -182,35 +182,56 @@ describe("the last organization admin", () => {
   });
 });
 
-describe("toRolePayload", () => {
+describe("parseRolePayload", () => {
+  function accepted(raw: readonly string[]): readonly AccessRole[] {
+    const parsed = parseRolePayload(raw);
+    if (!parsed.ok) throw new Error(`expected ${JSON.stringify(raw)} to be accepted`);
+    return parsed.roles;
+  }
+
   it("always includes Employee", () => {
-    expect(toRolePayload(["PROJECT_MANAGER"])).toContain("EMPLOYEE");
-    expect(toRolePayload([])).toEqual(["EMPLOYEE"]);
+    // The backend treats it as the organization baseline and would add it anyway,
+    // so supplying it changes no authority.
+    expect(accepted(["PROJECT_MANAGER"])).toContain("EMPLOYEE");
+    expect(accepted([])).toEqual(["EMPLOYEE"]);
   });
 
-  it("drops SYSTEM_ADMIN however it arrives", () => {
-    // This runs on the server over form input, so it is a boundary.
-    expect(toRolePayload(["SYSTEM_ADMIN", "PROJECT_MANAGER"])).toEqual([
-      "EMPLOYEE",
-      "PROJECT_MANAGER",
-    ]);
-  });
-
-  it("drops anything that is not a product role", () => {
-    expect(toRolePayload(["OWNER", "", "employee", "GOD"])).toEqual(["EMPLOYEE"]);
-  });
-
-  it("de-duplicates", () => {
-    expect(toRolePayload(["PROJECT_MANAGER", "PROJECT_MANAGER", "EMPLOYEE"])).toEqual([
+  it("de-duplicates a repeated known role", () => {
+    expect(accepted(["PROJECT_MANAGER", "PROJECT_MANAGER", "EMPLOYEE"])).toEqual([
       "EMPLOYEE",
       "PROJECT_MANAGER",
     ]);
   });
 
   it("keeps the complete desired set", () => {
-    expect(
-      [...toRolePayload(["EMPLOYEE", "DEPARTMENT_MANAGER", "PROJECT_MANAGER"])].sort(),
-    ).toEqual(["DEPARTMENT_MANAGER", "EMPLOYEE", "PROJECT_MANAGER"]);
+    expect([...accepted(["EMPLOYEE", "DEPARTMENT_MANAGER", "PROJECT_MANAGER"])].sort()).toEqual([
+      "DEPARTMENT_MANAGER",
+      "EMPLOYEE",
+      "PROJECT_MANAGER",
+    ]);
+  });
+
+  describe("rejects anything outside the product vocabulary", () => {
+    // Dropping an unknown role would leave a different, perfectly valid request
+    // behind — this endpoint replaces the whole set, so `EMPLOYEE + SYSTEM_ADMIN`
+    // against an existing project manager would quietly become "remove PROJECT_MANAGER".
+    for (const unknown of ["SYSTEM_ADMIN", "SUPER_ADMIN", "ROOT", "ADMINISTRATOR", "banana"]) {
+      it(unknown, () => {
+        expect(parseRolePayload(["EMPLOYEE", unknown])).toEqual({ ok: false });
+      });
+    }
+
+    it("even when every other value is legitimate", () => {
+      expect(
+        parseRolePayload(["EMPLOYEE", "SYSTEM_ADMIN", "PROJECT_MANAGER"]),
+      ).toEqual({ ok: false });
+    });
+
+    it("including near-misses in case or spelling", () => {
+      for (const raw of ["employee", "Project_Manager", "", " EMPLOYEE"]) {
+        expect(parseRolePayload([raw])).toEqual({ ok: false });
+      }
+    });
   });
 });
 

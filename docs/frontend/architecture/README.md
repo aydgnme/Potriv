@@ -741,6 +741,31 @@ That exception is also why a lone founder is still listed on `/people` rather
 than replaced by "only you so far": their own detail page is the only screen
 where self-editing is allowed, and nothing else in the product links to it.
 
+### The submitted role vocabulary is closed, and fails the request
+
+`PATCH /users/{id}/roles` replaces the **complete** role set, which changes what a
+malformed submission means. Dropping a value the product does not offer and
+carrying on would leave a different, perfectly valid request behind: submitting
+`EMPLOYEE + SYSTEM_ADMIN` for somebody holding `EMPLOYEE + PROJECT_MANAGER` would
+quietly become "remove Project Manager" — a mutation nobody asked for, from a
+request that was invalid.
+
+So `parseRolePayload` accepts only the four product roles and fails the whole
+submission on anything else, before any read happens: proving a role is unknown
+needs no organization or target lookup, and fetching first would only widen what a
+tampered form can reach. The browser gets one bounded sentence that names nothing
+it did not already send.
+
+Two normalizations survive, because neither invents authority the caller did not
+express: a missing `EMPLOYEE` is added back, since the backend treats it as the
+organization baseline and would add it anyway, and repeats of a known role
+collapse to one.
+
+This is the opposite of how unknown values are treated on **reads** — narrowing
+`SYSTEM_ADMIN` out of navigation, or a hand-edited Team Finder criterion falling
+back to its default. There, dropping is right: nothing is being changed. Here it
+would turn bad input into a silent write.
+
 ### The role checkboxes are uncontrolled, deliberately
 
 React resets a form once a Server Action settles. With controlled checkboxes that
