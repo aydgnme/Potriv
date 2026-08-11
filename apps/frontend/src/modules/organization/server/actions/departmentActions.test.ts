@@ -18,6 +18,7 @@ const createDepartment = vi.fn();
 const updateDepartment = vi.fn();
 const deleteDepartment = vi.fn();
 const revalidatePath = vi.fn();
+const redirect = vi.fn();
 
 vi.mock("@/modules/auth/server/productSession", () => ({ resolveProductSession }));
 vi.mock("../organizationDataSources", () => ({
@@ -27,6 +28,13 @@ vi.mock("../organizationDataSources", () => ({
   deleteDepartment,
 }));
 vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("next/navigation", () => ({
+  // The real one signals by throwing, and the action must not catch it.
+  redirect: (path: string) => {
+    redirect(path);
+    throw new Error("NEXT_REDIRECT");
+  },
+}));
 
 const { createDepartmentAction, updateDepartmentAction, deleteDepartmentAction } = await import(
   "./departmentActions"
@@ -200,14 +208,27 @@ describe("deleting a department", () => {
     expect(deleteDepartment).not.toHaveBeenCalled();
   });
 
-  it("deletes a department with no known blocker", async () => {
-    const state = await deleteDepartmentAction(
-      EMPTY_DEPARTMENT_STATE,
-      form({ departmentId: DEPARTMENT }),
-    );
+  it("deletes a department with no known blocker, and leaves the dead route", async () => {
+    // Staying would render this department's own detail page for a department
+    // that no longer exists — and its honest "does not exist or is not visible
+    // to you" is the right sentence for a stale URL, not for a delete somebody
+    // just performed on purpose.
+    await expect(
+      deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+    ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(deleteDepartment).toHaveBeenCalledWith(DEPARTMENT);
-    expect(state.done).toContain("deleted");
+    expect(redirect).toHaveBeenCalledWith("/organization/departments");
+  });
+
+  it("refreshes the organization before it goes", async () => {
+    await expect(
+      deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    for (const path of ["/organization", "/organization/departments", "/home"]) {
+      expect(revalidatePath).toHaveBeenCalledWith(path);
+    }
   });
 
   it("reports a backend refusal it could not have predicted", async () => {
@@ -239,6 +260,97 @@ describe("deleting a department", () => {
 
       expect(state.error).toBe("This department does not exist or is not visible to you.");
     }
+  });
+});
+
+describe("only a real deletion leaves the page", () => {
+  /**
+   * Every way this can fail keeps somebody on the detail route, where the error
+   * and the department are both still in front of them. Navigating away from a
+   * refusal would hide the reason and imply the delete had worked.
+   */
+  async function expectStays(state: Promise<{ readonly error?: string }>) {
+    const settled = await state;
+    expect(redirect).not.toHaveBeenCalled();
+    expect(settled.error).toBeDefined();
+    return settled;
+  }
+
+  it("stays on a fresh manager blocker", async () => {
+    getDepartment.mockResolvedValue({
+      ok: true,
+      value: department({ manager: { userId: "u-ana", name: "Ana", email: "ana@potriv.test" } }),
+    });
+
+    await expectStays(
+      deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+    );
+    expect(deleteDepartment).not.toHaveBeenCalled();
+  });
+
+  it("stays on a fresh member blocker", async () => {
+    getDepartment.mockResolvedValue({ ok: true, value: department({ memberCount: 2 }) });
+
+    await expectStays(
+      deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+    );
+    expect(deleteDepartment).not.toHaveBeenCalled();
+  });
+
+  it("stays on a backend conflict it could not have predicted", async () => {
+    // Linked skills and any other module's guard: a 409 is a refusal, and a
+    // refusal that navigated to the list would read as success.
+    deleteDepartment.mockResolvedValue({
+      ok: false,
+      status: 409,
+      detail: "Department has linked skills and cannot be deleted.",
+    });
+
+    const state = await expectStays(
+      deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+    );
+    expect(state.error).toContain("linked skills");
+  });
+
+  it("stays when the department is missing or not visible", async () => {
+    for (const reason of ["NOT_FOUND", "FORBIDDEN"]) {
+      vi.clearAllMocks();
+      getDepartment.mockResolvedValue({ ok: false, reason });
+
+      await expectStays(
+        deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+      );
+      expect(deleteDepartment).not.toHaveBeenCalled();
+    }
+  });
+
+  it("stays on a server failure", async () => {
+    deleteDepartment.mockResolvedValue({ ok: false, status: 500, detail: null });
+
+    await expectStays(
+      deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+    );
+  });
+
+  it("stays on an identifier that is not one", async () => {
+    for (const departmentId of ["", "../departments", "not-a-uuid"]) {
+      vi.clearAllMocks();
+
+      await expectStays(deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId })));
+      expect(getDepartment).not.toHaveBeenCalled();
+    }
+  });
+
+  it("stays for a caller without the organization-admin role", async () => {
+    resolveProductSession.mockResolvedValue({
+      authenticated: true,
+      user: { userId: "dm-1", roles: ["EMPLOYEE", "DEPARTMENT_MANAGER"] },
+    });
+
+    await expectStays(
+      deleteDepartmentAction(EMPTY_DEPARTMENT_STATE, form({ departmentId: DEPARTMENT })),
+    );
+    expect(getDepartment).not.toHaveBeenCalled();
   });
 });
 

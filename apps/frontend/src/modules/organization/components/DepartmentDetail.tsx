@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useActionState, useRef } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
@@ -203,11 +202,9 @@ function DeleteDepartmentPanel({ detail }: { readonly detail: DepartmentDetailDa
         </form>
       </dialog>
 
-      {state.done ? (
-        <Alert tone="success">
-          {state.done} <Link href="/organization/departments">Back to departments</Link>
-        </Alert>
-      ) : null}
+      {/* No success block: a successful delete redirects to the list, so anything
+          rendered here would belong to a department that no longer exists. Only
+          failures keep somebody on this page, and those are shown above. */}
     </section>
   );
 }

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 
@@ -121,6 +122,13 @@ export async function updateDepartmentAction(
  * Passing those two checks is still not a promise. Other modules register their
  * own deletion guards — linked skills among them — that nothing here can see, so
  * a 409 from the backend remains a legitimate answer and is reported as one.
+ *
+ * Success leaves the route. Staying would render the department's own detail page
+ * for a department that no longer exists, and the honest answer that page gives —
+ * "does not exist or is not visible to you" — is the right sentence for somebody
+ * who typed a stale URL and exactly the wrong one for somebody who just deleted it
+ * on purpose. Every failure stays put instead, so the error and the department
+ * remain in front of whoever has to act on them.
  */
 export async function deleteDepartmentAction(
   _previous: DepartmentActionState,
@@ -152,5 +160,9 @@ export async function deleteDepartmentAction(
 
   refreshOrganization();
 
-  return { done: `${fresh.value.name} was deleted.` };
+  // `redirect` signals by throwing, so nothing after it runs and no success state
+  // is returned to a page that is about to be replaced. It must stay outside any
+  // `try`, or the framework's own control flow gets caught and reported as an
+  // error the user never caused.
+  redirect("/organization/departments");
 }

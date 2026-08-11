@@ -362,6 +362,38 @@ describe("deleting a department", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders no post-delete success, because success leaves the route", async () => {
+    // A successful delete redirects to the list, so anything rendered here would
+    // describe a department that no longer exists — and a manual "back" link
+    // would imply the user has to recover from their own successful action.
+    const user = userEvent.setup();
+    deleteDepartment.mockResolvedValue({ done: "Platform was deleted." });
+    const target = department(PLATFORM, "Platform", null, 0);
+    render(<DepartmentDetail detail={detailFor(target, users, [target])} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete department" }));
+    const dialog = document.querySelector("dialog")!;
+    await user.click(within(dialog).getByRole("button", { name: "Delete department" }));
+
+    expect(screen.queryByText(/was deleted/)).toBeNull();
+    expect(screen.queryByRole("link", { name: "Back to departments" })).toBeNull();
+  });
+
+  it("still shows a refusal, which does keep somebody here", async () => {
+    const user = userEvent.setup();
+    deleteDepartment.mockResolvedValue({
+      error: "Department has linked skills and cannot be deleted.",
+    });
+    const target = department(PLATFORM, "Platform", null, 0);
+    render(<DepartmentDetail detail={detailFor(target, users, [target])} />);
+
+    await user.click(screen.getByRole("button", { name: "Delete department" }));
+    const dialog = document.querySelector("dialog")!;
+    await user.click(within(dialog).getByRole("button", { name: "Delete department" }));
+
+    expect(await screen.findByText(/linked skills/)).toBeInTheDocument();
+  });
+
   it("offers no way to clear the blockers from here", () => {
     const target = department(PLATFORM, "Platform", ANA, 3);
     render(<DepartmentDetail detail={detailFor(target, users, [target])} />);
