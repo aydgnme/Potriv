@@ -22,6 +22,7 @@ import "server-only";
 export {
   backendGet,
   backendPost,
+  backendPut,
   backendPatch,
   backendDelete,
   BackendRequestError,
