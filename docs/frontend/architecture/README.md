@@ -784,3 +784,105 @@ returns. No account status, no department, no last-login: a column would be blan
 or invented, and fanning out department endpoints per row would answer a question
 this screen is not asking. Filtering is local — the rows are already loaded and
 there is no people search to call.
+
+## Organization: only what the API actually governs
+
+`/organization` manages departments and the invite link. That is the whole of it,
+because that is the whole of what the ordinary product's API exposes.
+
+There is no organization name on this screen, no headquarters, no plan, no
+employee total. No product endpoint returns an organization profile, and the
+session carries an `organizationId` and nothing else about the organization
+itself. The system-admin surface does have more, but it is not this product's to
+borrow — a heading reading "Acme Ltd" here would have to be invented, and an
+invented heading is worse than an absent one. **The organization display-name gap
+is real and stays open.**
+
+The landing page loads departments and the invite independently. They answer
+unrelated questions of unrelated endpoints, and an invite outage must not blank
+the department summary.
+
+### A department name is trimmed, not folded
+
+The backend stores a trimmed display name and compares uniqueness on a lowercased
+form. Both are honoured, differently: the payload is trimmed so it matches what
+gets stored, and the case is left exactly as typed. `Platform` and `platform`
+collide — but whichever was typed is the one that appears.
+
+Uniqueness itself is never predicted. Only the organization's whole department set
+could answer it, that set changes, and the backend answers 409. A duplicate comes
+back into the form with the entered value intact.
+
+### Deletion states what it knows, and no more
+
+The department contract carries a manager and a member count, so those two
+blockers are named before the button is offered — each saying who has to act.
+Other modules register their own deletion guards, linked skills among them, and no
+product endpoint exposes those. So passing the two known checks is **not** a
+promise: the confirmation says other configuration can still prevent deletion, and
+a 409 is reported as the legitimate answer it is.
+
+The Server Action re-reads the department and re-derives both blockers. What the
+browser believed about `memberCount` or `hasManager` is never consulted.
+
+Nothing cascades. A delete that quietly unassigned a manager, emptied a department
+and unlinked its skills would be a far larger operation than the one the button
+offers, so blocked dependencies stay blocked and visible.
+
+### A role is a capability; an appointment is a posting
+
+This is the distinction the whole area turns on.
+
+`DEPARTMENT_MANAGER` says somebody *can* manage a department. A
+`DepartmentManagerAssignment` says they manage *this* one. The backend keeps a
+strict one-to-one: one manager per department, one department per manager.
+
+So appointing never grants the role and removing never takes it away — the
+Organization module exposes no user-role call at all, which is what makes that
+guarantee structural rather than a promise. Somebody removed as manager still
+holds the role and simply manages nothing, and the removal confirmation says so
+outright rather than leaving the reader to guess whether they were just demoted.
+
+The picker is built from `GET /users` and `GET /departments` together, because
+nothing exposes "unassigned managers" directly: everyone holding the role, minus
+everyone already posted elsewhere. Someone managing another department is shown
+and disabled *with the department named* — "Cara is missing from the list" is a
+puzzle, "Cara manages QA" is an answer. Eligibility is re-derived server-side from
+fresh reads, since a picker rendered before a role was revoked would otherwise
+carry a stale answer through.
+
+Where nobody holds the role at all, the screen says so and links to People. It
+does not offer to grant the role, because that is a different decision with
+different authority.
+
+### One panel, one sentence
+
+Appointing and removing are separate forms with separate action states, and each
+outlives the answer it described. Left alone they contradict each other: after a
+removal the panel showed "X is now the manager" directly above "this department has
+no manager", and the reassuring sentence was the false one. Worse, the removal's
+own confirmation lived on a button that success unmounted, so the action that
+actually happened had no visible outcome.
+
+A confirmation is now shown only while it still agrees with the department as it
+is, and the removal's state belongs to the panel rather than the button.
+
+### Rotating the invite is a revocation
+
+`POST /organizations/current/invite/rotate` deactivates every active invite before
+minting the new one, so anybody part-way through joining with the old link is cut
+off. It reads like a refresh and behaves like a revocation, which is why it is
+confirmed first and why the wording leads with the consequence.
+
+The new URL is whatever the backend returned. Assembling one in the browser, or
+swapping a token into the old one, would be inventing an onboarding credential.
+The link is rendered from the revalidated read and never carried in the action
+state — that is a place for sentences, not credentials.
+
+The whole URL is shown in a read-only, selectable field; the token is never
+extracted and displayed on its own, where it would be a bare credential with no
+context. Copying is local: no request, no rotation, and if the clipboard refuses,
+the field is still selectable and the message says so.
+
+Employee invites are created with `expiresAt = null`, so there is no countdown and
+no expiry column. Inventing one would be a promise the contract does not make.

@@ -67,7 +67,7 @@ export function safeBackendMessage(body: unknown): string | null {
   return trimmed;
 }
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 async function request<T>(
   method: Method,
@@ -136,6 +136,10 @@ export function backendPost<T>(path: string, body: unknown): Promise<BackendRequ
 
 export function backendPatch<T>(path: string, body: unknown): Promise<BackendRequestOutcome<T>> {
   return request<T>("PATCH", path, body);
+}
+
+export function backendPut<T>(path: string, body: unknown): Promise<BackendRequestOutcome<T>> {
+  return request<T>("PUT", path, body);
 }
 
 export function backendDelete(path: string): Promise<BackendRequestOutcome<void>> {
