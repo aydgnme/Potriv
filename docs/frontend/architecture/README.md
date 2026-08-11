@@ -886,3 +886,98 @@ the field is still selectable and the message says so.
 
 Employee invites are created with `expiresAt = null`, so there is no countdown and
 no expiry column. Inventing one would be a promise the contract does not make.
+
+## Skills: shared vocabulary, and one person's claim on it
+
+Two things live in this domain and they are not the same thing.
+
+A **catalogue skill** is the organization's shared vocabulary, identified by
+`skillId`. An **employee skill** is one person's declared assignment to that
+vocabulary, identified by `employeeSkillId`. Their lifecycles differ — a catalogue
+skill can be deactivated while somebody's assignment to it survives — and every
+profile mutation takes the *assignment* id. Sending the catalogue id instead would
+aim a profile edit at shared organization data, so the types keep them apart and
+the tests assert the distinction directly.
+
+`/skills` is the catalogue, `/skills/{skillId}` one entry, `/skills/my` the
+reader's own profile. All three are open to every authenticated person: the
+vocabulary is shared, and the profile is their own. Catalogue *management* —
+creating skills and categories, linking departments — is not here. The module
+exposes no data source that could perform it, which makes that structural rather
+than a matter of hiding buttons.
+
+### The search is the backend's, and says so
+
+`GET /skills?q=` is the product's only server-side text search: a case-insensitive
+*contains* match on the skill name. Not fuzzy, not semantic, and not across
+descriptions or authors — so the screen says "Search matches skill names" rather
+than letting people infer more.
+
+Filters live in the URL and the list is always the backend's answer to it.
+Re-implementing the match over a preloaded list would make the screen disagree
+with its own address bar the moment the two drifted. The order is the backend's
+too — category name, then skill name — because there is no ranking to sort by.
+
+There is no pagination endpoint, so there is no pagination: the count states what
+came back and implies no hidden remainder.
+
+### A filter never lies about what was asked
+
+Categories load first, with the mode being asked for; the category filter is then
+settled against them, and only then is the search issued. That ordering exists so
+one thing cannot happen: the sidebar showing "All skills" while a category
+parameter is quietly narrowing the request.
+
+A malformed category never reaches the backend. A well-formed one for a category
+the organization does not have — or an inactive one while the toggle is off —
+collapses to no filter, in the query the screen renders from as well as the one it
+sends. Show-inactive drives both lists together, so the filter can never offer a
+category the source was not asked for.
+
+### Inactive is visible, not secret
+
+An inactive catalogue skill still has a detail page, still shows its metadata, and
+is simply marked. What it cannot do is be newly added. Turning inactive into a 404
+would confuse "retired" with "not yours", and only the second deserves the
+ambiguous answer — a skill in another organization and one that never existed get
+the same sentence.
+
+An existing assignment to a since-deactivated skill stays in the profile, and stays
+editable and removable. Hiding it would strand somebody with a row they can no
+longer reach, and it is still their data.
+
+### A department link is metadata, not permission
+
+`SkillResponse` embeds its department links, so the detail page reads them from the
+response it already has rather than fetching them again.
+
+They describe where a skill is used. The backend's assign path never consults
+them, so a skill linked to no department can still be added by anyone in the
+organization — filtering the action by department would invent a rule that does not
+exist and hide skills people are entitled to claim.
+
+### Level and experience are self-reported context
+
+Both are closed vocabularies mirroring backend enums exactly, written out rather
+than generated: the level's 1–5 belongs to its code, not to its position in a list,
+so reordering the options cannot silently change what a level means.
+
+They are checked exactly on the server, before anything is read. An unknown code
+fails the whole submission rather than being coerced into a neighbour — recording a
+self-assessment somebody never made is the profile version of the closed-vocabulary
+rule that access roles follow.
+
+Neither field is a rating. Team Finder's ranking does not weight them, so nothing
+is starred, coloured or sorted by them, and no screen claims a higher level improves
+a match. There is no endorsement or verification endpoint, so no screen shows one.
+
+### The self list is the ownership proof
+
+`/me/skills` has no user in its path, so a fresh read of it is what proves an
+assignment belongs to the caller. Edit and remove both look the id up there first;
+an id that is not in it belongs to somebody else or to nobody, and both get the same
+sentence rather than one that reveals which.
+
+Removing an assignment removes one row from one profile. The catalogue skill, its
+category and everybody else's assignment to it are untouched, which is why the
+confirmation says "remove" and never "delete".

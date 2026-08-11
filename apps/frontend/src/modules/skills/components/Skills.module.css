@@ -1,0 +1,209 @@
+.page { display: flex; flex-direction: column; gap: var(--p-space-5); }
+.section { display: flex; flex-direction: column; gap: var(--p-space-4); }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+.panelHeading { font-size: var(--p-text-lg); }
+.panelNote { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.muted { color: var(--p-text-muted); }
+.fieldError { font-size: var(--p-text-sm); color: var(--p-danger); }
+.skillName { font-weight: var(--p-weight-medium); }
+
+/* ── View navigation ─────────────────────────────────────────────────────── */
+
+.viewNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.viewLink {
+  padding: var(--p-space-2) 0;
+  color: var(--p-text-muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.viewLink[aria-current="page"] {
+  color: var(--p-text);
+  font-weight: var(--p-weight-medium);
+  border-bottom-color: var(--p-link);
+}
+
+/* ── Catalogue layout ────────────────────────────────────────────────────── */
+
+.catalogue {
+  display: grid;
+  grid-template-columns: minmax(180px, 220px) 1fr;
+  gap: var(--p-space-5);
+  align-items: start;
+}
+
+.categoryNav { display: flex; flex-direction: column; gap: var(--p-space-1); }
+.categoryHeading { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+
+.categoryLink {
+  padding: var(--p-space-2);
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--p-radius-sm);
+}
+
+.categoryLink[aria-current="true"] {
+  font-weight: var(--p-weight-medium);
+  background: var(--p-surface-sunken, var(--p-surface));
+}
+
+.filters { display: flex; flex-direction: column; gap: var(--p-space-3); }
+.filterRow { display: flex; flex-wrap: wrap; gap: var(--p-space-3); align-items: flex-end; }
+.field { display: flex; flex-direction: column; gap: var(--p-space-1); flex: 1 1 220px; }
+.fieldLabel { font-size: var(--p-text-sm); font-weight: var(--p-weight-medium); }
+
+.control {
+  padding: var(--p-space-2);
+  font: inherit;
+  color: inherit;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-sm);
+}
+
+.checkboxField { display: flex; gap: var(--p-space-2); align-items: center; }
+
+.resultCount {
+  font-size: var(--p-text-sm);
+  color: var(--p-text-muted);
+}
+
+/* ── Skill rows ──────────────────────────────────────────────────────────── */
+
+.skillList { display: flex; flex-direction: column; }
+
+.skillRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-2) var(--p-space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+}
+
+.skillMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.skillMeta { display: flex; flex-wrap: wrap; gap: var(--p-space-2); font-size: var(--p-text-sm); }
+.skillDescription { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+
+.chipList { display: flex; flex-wrap: wrap; gap: var(--p-space-1); list-style: none; margin: 0; padding: 0; }
+
+.chip {
+  padding: 2px var(--p-space-2);
+  font-size: var(--p-text-sm);
+  border: 1px solid var(--p-border);
+  border-radius: 999px;
+}
+
+/* Inactive is a real catalogue state with a real consequence — it cannot be
+   newly added — so it earns a semantic tone. Level and experience never do:
+   they are self-reported context, not status. */
+.inactiveTag { color: var(--p-warning-text, var(--p-text-muted)); font-size: var(--p-text-sm); }
+
+/* ── My skills ───────────────────────────────────────────────────────────── */
+
+.assignment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-3);
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+}
+
+.assignmentMain { display: flex; flex-direction: column; gap: 2px; min-width: 200px; }
+.assignmentControls { display: flex; flex-wrap: wrap; gap: var(--p-space-2); align-items: flex-end; }
+.selectField { display: flex; flex-direction: column; gap: var(--p-space-1); }
+
+.figures { display: flex; flex-direction: column; }
+
+.figureRow {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--p-space-3);
+  padding: var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border-subtle);
+}
+
+.figureRow:last-child { border-bottom: none; }
+.figureRow dt { color: var(--p-text-muted); }
+.figureRow dd { text-align: right; }
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.linkButton {
+  padding: 0;
+  font: inherit;
+  color: var(--p-link);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ── Dialog ──────────────────────────────────────────────────────────────── */
+
+.dialog {
+  max-width: 32rem;
+  padding: var(--p-space-4);
+  color: inherit;
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+.dialog::backdrop { background: rgb(0 0 0 / 40%); }
+
+.dialogBody { display: flex; flex-direction: column; gap: var(--p-space-2); }
+
+.dialogActions {
+  display: flex;
+  gap: var(--p-space-2);
+  justify-content: flex-end;
+  margin-top: var(--p-space-4);
+}
+
+/* ── Narrow screens ──────────────────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  /* One column, and the categories become an ordinary list above the results
+     rather than a squeezed sidebar. */
+  .catalogue { grid-template-columns: 1fr; gap: var(--p-space-4); }
+
+  .categoryNav { flex-direction: row; flex-wrap: wrap; gap: var(--p-space-2); }
+  .categoryLink { border: 1px solid var(--p-border); }
+
+  .skillRow,
+  .assignment { flex-direction: column; align-items: stretch; }
+
+  .assignmentControls { flex-direction: column; align-items: stretch; }
+  .selectField { width: 100%; }
+  .control { width: 100%; }
+}
