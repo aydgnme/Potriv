@@ -682,3 +682,80 @@ exposes it — so a project sitting in Not started may still be undeletable.
 `canDelete = status === "NOT_STARTED"` would be confidently wrong. The button is
 always offered, always confirmed, and the backend decides; a refusal keeps the
 person on Settings with the explanation and the project intact.
+
+## People: two questions, two contracts
+
+`/people` answers one of two different questions depending on who is asking, and
+they come from endpoints that do not share a shape.
+
+An Organization Admin sees everyone in the organization from `GET /users`. A
+Department Manager sees their own department's members and the unassigned pool,
+from `GET /departments/{id}/members` and `GET /departments/unassigned-employees`.
+Somebody holding both roles gets both views, organization first, as ordinary
+links rather than tabs — each view is a page, and the URL says which one.
+
+### `roles` and `accessRoles` are different fields
+
+`GET /users` returns `roles`. The department endpoints return `accessRoles` for
+what is otherwise the same person. A single shared "person" type would compile
+against either and render an empty chip list against the other, silently: the
+list would simply show no capabilities, which reads as "this person has none".
+So the two contracts stay separate types, and `rolesOf` is the one place that
+knows which field a given shape carries.
+
+### The department id never comes from the browser
+
+Membership actions re-resolve the acting manager's department from
+`GET /department/projects` on every mutation and ignore any `departmentId` in the
+form. That endpoint is also the only one that will tell a manager which
+department is theirs, so a 403 from it is the honest signal that nobody has
+appointed them yet — which is a different sentence from "we could not load your
+department", and the screen says whichever is true.
+
+`POST /departments/{id}/members/{userId}` answers **200**, not 201, and `DELETE`
+answers 204. Nothing asserts a particular success code.
+
+### Access-role authority is not membership authority
+
+An Organization Admin changes roles and cannot add anyone to a department; a
+Department Manager does the reverse. Adding somebody changes no roles, and the
+confirmation for removing says so explicitly rather than leaving the reader to
+wonder what else it did.
+
+### Role rules are re-derived, never remembered
+
+`roleEditorState` recomputes from a fresh read every time: Employee is the
+baseline and always locked on, you cannot edit your own roles, and an
+organization keeps at least one Organization Admin. A locked checkbox says *why*
+it is locked, because "you cannot edit your own" and "the last admin must stay an
+admin" are different facts that a dimmed box communicates equally badly.
+
+The one exception is a founder alone in a new organization, who may add
+Department Manager or Project Manager to themselves and remove nothing. It is
+derived from a fresh `GET /users` — a page loaded an hour ago would happily still
+claim they are alone — and it closes the moment a second person exists. The
+backend rebuilds roles per request, so the new capability is live immediately and
+nothing suggests signing out.
+
+That exception is also why a lone founder is still listed on `/people` rather
+than replaced by "only you so far": their own detail page is the only screen
+where self-editing is allowed, and nothing else in the product links to it.
+
+### The role checkboxes are uncontrolled, deliberately
+
+React resets a form once a Server Action settles. With controlled checkboxes that
+reset clears them in the DOM while React still believes they are ticked, so the
+identical next render writes nothing back — a role that saved correctly renders
+as unticked, the screen denying a capability the person now holds. Elsewhere the
+answer to that reset was to control every field, because losing half-typed text
+is unacceptable. Here the opposite is right: the only correct value is the one
+the backend just confirmed, so the reset restores the truth and a changed answer
+remounts the fieldset to take the new one.
+
+### Only what the contract has
+
+The table shows name, email and roles, because that is what `GET /users`
+returns. No account status, no department, no last-login: a column would be blank
+or invented, and fanning out department endpoints per row would answer a question
+this screen is not asking. Filtering is local — the rows are already loaded and
+there is no people search to call.

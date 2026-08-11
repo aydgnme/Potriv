@@ -1,0 +1,227 @@
+.page { display: flex; flex-direction: column; gap: var(--p-space-5); }
+.section { display: flex; flex-direction: column; gap: var(--p-space-4); }
+.sectionHeading { font-size: var(--p-text-xl); }
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+.panelHeading { font-size: var(--p-text-lg); }
+.panelNote { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+.muted { color: var(--p-text-muted); }
+.fieldError { font-size: var(--p-text-sm); color: var(--p-danger); }
+.personName { font-weight: var(--p-weight-medium); }
+
+.soloNote {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-1);
+  padding: var(--p-space-3) var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+}
+
+/* ── View navigation ─────────────────────────────────────────────────────── */
+
+.viewNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.viewLink {
+  padding: var(--p-space-2) 0;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+}
+.viewLink:hover { color: var(--p-text); text-decoration: none; }
+
+/* Weight and colour both change, so the active view survives without colour. */
+.viewLinkActive {
+  color: var(--p-text);
+  border-bottom-color: var(--p-accent);
+  font-weight: var(--p-weight-semibold);
+}
+
+/* ── Organization list ───────────────────────────────────────────────────── */
+
+.listHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--p-space-4);
+  flex-wrap: wrap;
+}
+
+.inlineField { display: flex; align-items: center; gap: var(--p-space-2); }
+.inlineLabel { font-size: var(--p-text-sm); color: var(--p-text-muted); white-space: nowrap; }
+
+.control {
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  font-family: inherit;
+  font-size: var(--p-text-sm);
+  padding: 0 var(--p-space-2);
+  height: var(--p-control-sm);
+}
+
+/* A button that reads as a link — still a button, so it is reachable and
+   announced as the action it performs. */
+.linkButton {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--p-accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.table { width: 100%; border-collapse: collapse; text-align: left; }
+
+.table th {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: baseline;
+  font-size: var(--p-text-sm);
+}
+.table tbody tr:last-child td { border-bottom: none; }
+
+/* Capability labels, not severity — no traffic lights. */
+.chipList { display: flex; flex-wrap: wrap; gap: var(--p-space-2); list-style: none; margin: 0; padding: 0; }
+.chip {
+  padding: 2px var(--p-space-2);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-pill);
+  font-size: var(--p-text-xs);
+  white-space: nowrap;
+}
+
+/* ── Department panes ────────────────────────────────────────────────────── */
+
+.twoPanes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--p-space-4); align-items: start; }
+
+.rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+.row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--p-space-3);
+  padding: var(--p-space-3) 0;
+  border-top: 1px solid var(--p-border);
+  flex-wrap: wrap;
+}
+.rows > .row:first-child { border-top: none; }
+.rowMain { display: flex; flex-direction: column; gap: var(--p-space-2); min-width: 0; }
+.rowAside { display: flex; flex-direction: column; align-items: flex-end; gap: var(--p-space-2); }
+
+/* ── Person detail ───────────────────────────────────────────────────────── */
+
+.figures { display: flex; flex-direction: column; gap: var(--p-space-2); margin: 0; }
+.figureRow { display: flex; justify-content: space-between; gap: var(--p-space-3); font-size: var(--p-text-sm); }
+.figureRow dt { color: var(--p-text-muted); }
+.figureRow dd { margin: 0; text-align: right; }
+
+.roleForm { display: flex; flex-direction: column; gap: var(--p-space-4); }
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-4);
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+.fieldset:disabled { opacity: 0.75; }
+
+.roleOption { display: flex; flex-direction: column; gap: 2px; }
+.checkbox { display: flex; align-items: center; gap: var(--p-space-2); font-weight: var(--p-weight-medium); }
+
+.dialog {
+  max-width: 32rem;
+  width: calc(100vw - var(--p-space-6));
+  padding: var(--p-space-5);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius-lg);
+  color: var(--p-text);
+}
+.dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.dialog > * + * { margin-top: var(--p-space-3); }
+.dialogActions { display: flex; gap: var(--p-space-3); flex-wrap: wrap; }
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 899px) {
+  .twoPanes { grid-template-columns: 1fr; }
+}
+
+/* Stacked rows on small screens. `display: block` drops the implicit table
+   semantics, so every element carries its role explicitly. */
+@media (max-width: 767px) {
+  .table,
+  .table > thead,
+  .table > tbody,
+  .table > tbody > tr,
+  .table > tbody > tr > td {
+    display: block;
+    width: 100%;
+  }
+
+  .table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+
+  .table > tbody > tr > td { padding: 2px 0; border-bottom: none; }
+
+  .table > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+
+  .row { flex-direction: column; align-items: flex-start; }
+  .rowAside { align-items: flex-start; }
+  .figureRow { flex-direction: column; gap: 0; }
+  .figureRow dd { text-align: left; }
+}
