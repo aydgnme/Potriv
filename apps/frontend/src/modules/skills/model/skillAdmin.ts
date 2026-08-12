@@ -96,6 +96,40 @@ export function activeCategories(
   return categories.filter((category) => category.active);
 }
 
+/**
+ * The categories an existing skill may be saved into.
+ *
+ * The active ones, plus the skill's own even when it has been retired. That
+ * follows the backend, which only requires an active category when the skill is
+ * actually *moving*: staying put while renaming or re-describing is allowed.
+ *
+ * It also follows from category retirement not cascading. A skill can legitimately
+ * live in a retired category, and dropping that category from the picker would
+ * show the state while denying the author any way to edit around it — forcing a
+ * move nobody asked for as the price of fixing a typo.
+ */
+export function categoriesForEdit(
+  categories: readonly SkillCategory[],
+  currentCategoryId: string,
+): readonly SkillCategory[] {
+  return categories.filter(
+    (category) => category.active || category.categoryId === currentCategoryId,
+  );
+}
+
+/**
+ * Whether a save needs its target category to be active.
+ *
+ * Only a move does. Keeping the current category — retired or not — is the case
+ * the backend permits and the one an author needs.
+ */
+export function requiresActiveCategory(
+  currentCategoryId: string,
+  targetCategoryId: string,
+): boolean {
+  return targetCategoryId !== currentCategoryId;
+}
+
 export type SkillAdminCapabilities = {
   /** Any department manager may create catalogue entries. */
   readonly canAuthorCatalogue: boolean;

@@ -282,11 +282,17 @@ describe("errors and blocking", () => {
     await user.type(screen.getByLabelText(/Description/), "Billing rewrite");
     await user.click(screen.getByRole("button", { name: "Create project" }));
 
+    // Wait for the rejected action's state to reach the screen before asking what
+    // the fields hold. Asserting straight after the click raced the commit and
+    // failed intermittently under a loaded suite.
+    expect(
+      await screen.findByText("The deadline cannot be before the start date."),
+    ).toBeInTheDocument();
+
     expect(failing).toHaveBeenCalledTimes(1);
     expect(screen.getByLabelText(/Project name/)).toHaveValue("Apollo");
     expect(screen.getByLabelText(/Description/)).toHaveValue("Billing rewrite");
     expect(screen.getByLabelText(/Start date/)).toHaveValue("2026-08-01");
-    expect(screen.getByText("The deadline cannot be before the start date.")).toBeInTheDocument();
   });
 
   it("blocks saving when a dependency could not be loaded", () => {

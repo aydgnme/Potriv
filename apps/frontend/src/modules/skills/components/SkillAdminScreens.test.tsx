@@ -196,9 +196,9 @@ describe("the skill editor", () => {
     expect(options).toEqual(["Choose a category", "Backend"]);
   });
 
-  it("warns when the skill's own category has been retired", () => {
-    // A real backend state; the edit cannot keep it, so it is said rather than
-    // silently substituted.
+  it("keeps the skill's own retired category selected, and marked", () => {
+    // The backend allows a skill to stay in a category that was retired
+    // underneath it; removing the option would make a move the price of an edit.
     render(
       <SkillEditor
         categories={[category(BACKEND, "Backend"), category(RETIRED, "Retired", false)]}
@@ -206,8 +206,33 @@ describe("the skill editor", () => {
       />,
     );
 
-    expect(screen.getByText(/Retired is retired. Choose an active category/)).toBeInTheDocument();
-    expect((screen.getByLabelText("Category") as HTMLSelectElement).value).toBe("");
+    const select = screen.getByLabelText("Category") as HTMLSelectElement;
+    expect(select.value).toBe(RETIRED);
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Choose a category", "Backend", "Retired (current category)"]);
+    expect(screen.getByText(/This skill can stay in it/)).toBeInTheDocument();
+  });
+
+  it("offers no other retired category as a destination", () => {
+    render(
+      <SkillEditor
+        categories={[
+          category(BACKEND, "Backend"),
+          category(RETIRED, "Retired", false),
+          category("c-3", "Also retired", false),
+        ]}
+        skill={skill({ category: { categoryId: RETIRED, name: "Retired" } })}
+      />,
+    );
+
+    expect(
+      within(screen.getByLabelText("Category"))
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).not.toContain("Also retired");
   });
 
   it("says who will own a new skill", () => {

@@ -5,7 +5,9 @@ import {
   SKILL_DESCRIPTION_MAX,
   SKILL_NAME_MAX,
   activeCategories,
+  categoriesForEdit,
   linkActionFor,
+  requiresActiveCategory,
   skillAdminCapabilities,
   validateCategoryName,
   validateSkillForm,
@@ -123,14 +125,44 @@ describe("skill fields", () => {
 });
 
 describe("which categories may take a skill", () => {
-  it("offers only active ones", () => {
-    // The backend refuses a skill in a retired category.
-    const result = activeCategories([
-      category(BACKEND, "Backend"),
-      category(RETIRED, "Retired", false),
-    ]);
+  const all = [category(BACKEND, "Backend"), category(RETIRED, "Retired", false)];
 
-    expect(result.map((entry) => entry.name)).toEqual(["Backend"]);
+  it("offers only active ones when creating", () => {
+    // The backend refuses a new skill in a retired category.
+    expect(activeCategories(all).map((entry) => entry.name)).toEqual(["Backend"]);
+  });
+
+  it("keeps the skill's own retired category when editing", () => {
+    // The backend only demands an active category when the skill actually moves,
+    // so a skill can be renamed where it is. Dropping its category here would
+    // make a move the price of fixing a typo.
+    expect(categoriesForEdit(all, RETIRED).map((entry) => entry.name)).toEqual([
+      "Backend",
+      "Retired",
+    ]);
+  });
+
+  it("still offers no other retired category as a destination", () => {
+    const another = category("c-3", "Also retired", false);
+    expect(
+      categoriesForEdit([...all, another], RETIRED).map((entry) => entry.name),
+    ).toEqual(["Backend", "Retired"]);
+  });
+
+  it("changes nothing when the skill's category is active", () => {
+    expect(categoriesForEdit(all, BACKEND).map((entry) => entry.name)).toEqual(["Backend"]);
+  });
+});
+
+describe("when a save needs an active category", () => {
+  it("does not, for a skill staying where it is", () => {
+    expect(requiresActiveCategory(RETIRED, RETIRED)).toBe(false);
+    expect(requiresActiveCategory(BACKEND, BACKEND)).toBe(false);
+  });
+
+  it("does, for a move", () => {
+    expect(requiresActiveCategory(RETIRED, BACKEND)).toBe(true);
+    expect(requiresActiveCategory(BACKEND, RETIRED)).toBe(true);
   });
 });
 

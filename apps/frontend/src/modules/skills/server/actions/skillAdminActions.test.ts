@@ -359,6 +359,86 @@ describe("authorship decides content", () => {
     }
   });
 
+  it("edits a skill that stays in its own retired category", async () => {
+    // The backend only demands an active category for a move. Refusing this
+    // would freeze every skill inside a retired category, which is exactly the
+    // cascade retirement is supposed not to have.
+    getSkill.mockResolvedValue({
+      ok: true,
+      value: skill({ category: { categoryId: RETIRED_CATEGORY, name: "Retired" } }),
+    });
+    getSkillCategories.mockResolvedValue({
+      ok: true,
+      value: [category(BACKEND, "Backend"), category(RETIRED_CATEGORY, "Retired", false)],
+    });
+
+    const state = await actions.updateCatalogueSkillAction(
+      EMPTY_SKILL_ADMIN_STATE,
+      form({
+        skillId: JAVA,
+        categoryId: RETIRED_CATEGORY,
+        name: "Java SE",
+        description: "Now with a typo fixed.",
+      }),
+    );
+
+    expect(updateCatalogueSkill).toHaveBeenCalledWith(JAVA, {
+      categoryId: RETIRED_CATEGORY,
+      name: "Java SE",
+      description: "Now with a typo fixed.",
+    });
+    expect(state.error).toBeUndefined();
+  });
+
+  it("refuses a move into a retired category", async () => {
+    getSkillCategories.mockResolvedValue({
+      ok: true,
+      value: [category(BACKEND, "Backend"), category(RETIRED_CATEGORY, "Retired", false)],
+    });
+
+    const state = await actions.updateCatalogueSkillAction(
+      EMPTY_SKILL_ADMIN_STATE,
+      form({ skillId: JAVA, categoryId: RETIRED_CATEGORY, name: "Java", description: "" }),
+    );
+
+    expect(updateCatalogueSkill).not.toHaveBeenCalled();
+    expect(state.error).toContain("active category");
+  });
+
+  it("takes the current category from a fresh read, not the form", async () => {
+    // A form claiming the skill already lives in the retired category must not
+    // be able to turn a move into a stay.
+    getSkill.mockResolvedValue({
+      ok: true,
+      value: skill({ category: { categoryId: BACKEND, name: "Backend" } }),
+    });
+    getSkillCategories.mockResolvedValue({
+      ok: true,
+      value: [category(BACKEND, "Backend"), category(RETIRED_CATEGORY, "Retired", false)],
+    });
+
+    await actions.updateCatalogueSkillAction(
+      EMPTY_SKILL_ADMIN_STATE,
+      form({ skillId: JAVA, categoryId: RETIRED_CATEGORY, name: "Java", description: "" }),
+    );
+
+    expect(updateCatalogueSkill).not.toHaveBeenCalled();
+  });
+
+  it("still refuses creating in a retired category", async () => {
+    getSkillCategories.mockResolvedValue({
+      ok: true,
+      value: [category(RETIRED_CATEGORY, "Retired", false)],
+    });
+
+    await actions.createCatalogueSkillAction(
+      EMPTY_SKILL_ADMIN_STATE,
+      form({ categoryId: RETIRED_CATEGORY, name: "Go", description: "" }),
+    );
+
+    expect(createCatalogueSkill).not.toHaveBeenCalled();
+  });
+
   it("never lets an edit carry a state change", async () => {
     await actions.updateCatalogueSkillAction(
       EMPTY_SKILL_ADMIN_STATE,

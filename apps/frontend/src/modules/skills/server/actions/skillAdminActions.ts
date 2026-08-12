@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 
 import {
+  requiresActiveCategory,
   validateCategoryName,
   validateSkillForm,
 } from "../../model/skillAdmin";
@@ -254,7 +255,10 @@ export async function createCatalogueSkillAction(
  */
 async function requireAuthorship(
   skillId: string,
-): Promise<{ readonly ok: true; readonly name: string } | { readonly ok: false; readonly error: string }> {
+): Promise<
+  | { readonly ok: true; readonly name: string; readonly categoryId: string }
+  | { readonly ok: false; readonly error: string }
+> {
   const session = await requireDepartmentManager();
   if (!session) return { ok: false, error: FALLBACK.FORBIDDEN };
 
@@ -270,7 +274,9 @@ async function requireAuthorship(
     return { ok: false, error: FALLBACK.NOT_AUTHOR };
   }
 
-  return { ok: true, name: fresh.value.name };
+  // The current category comes back too, so an edit can tell staying put from
+  // moving without trusting the form about where the skill already is.
+  return { ok: true, name: fresh.value.name, categoryId: fresh.value.category.categoryId };
 }
 
 export async function updateCatalogueSkillAction(
@@ -305,7 +311,16 @@ export async function updateCatalogueSkillAction(
   if (!category) {
     return { error: FALLBACK.CATEGORY_UNAVAILABLE, categoryId, name, description };
   }
-  if (!category.active) {
+
+  // Only a *move* needs an active target, which is exactly what the backend
+  // demands. A skill whose category was retired underneath it can still be
+  // renamed or re-described where it is — otherwise retiring a category would
+  // quietly freeze every skill inside it, which is the cascade this product
+  // promises not to have.
+  if (
+    requiresActiveCategory(author.categoryId, validated.values.categoryId) &&
+    !category.active
+  ) {
     return { error: FALLBACK.INACTIVE_CATEGORY, categoryId, name, description };
   }
 

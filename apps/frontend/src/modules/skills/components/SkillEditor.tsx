@@ -5,7 +5,12 @@ import { useActionState } from "react";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 
-import { activeCategories, SKILL_DESCRIPTION_MAX, SKILL_NAME_MAX } from "../model/skillAdmin";
+import {
+  activeCategories,
+  categoriesForEdit,
+  SKILL_DESCRIPTION_MAX,
+  SKILL_NAME_MAX,
+} from "../model/skillAdmin";
 import { EMPTY_SKILL_ADMIN_STATE } from "../model/skillsActionState";
 import type { CatalogueSkill, SkillCategory } from "../model/skillsData";
 import {
@@ -27,11 +32,15 @@ export type SkillEditorProps = {
  * One form for create and edit; the rules are identical and only the action and
  * the id differ.
  *
- * Only active categories are offered, because the backend refuses a skill in a
- * retired one. An existing skill whose category was retired afterwards is a real
- * state — it keeps rendering everywhere else — but it cannot stay there through an
- * edit, so the current value is shown as a choice that has to be replaced rather
- * than silently substituted.
+ * Creating needs an active category. Editing does not, quite: the backend only
+ * demands one when the skill actually *moves*, so a skill sitting in a category
+ * that was retired underneath it can still be renamed or re-described where it
+ * is. Its own category therefore stays in the list, marked, and stays selected —
+ * dropping it would show that state while denying the author any way to edit
+ * around it, making a move the price of fixing a typo.
+ *
+ * Other retired categories are never offered, because moving into one is what the
+ * backend refuses.
  *
  * Uniqueness is per category, so the same name under a different category is
  * legitimate. Nothing here predicts it; a 409 comes back into the form with the
@@ -43,10 +52,14 @@ export function SkillEditor({ categories, skill }: SkillEditorProps) {
     EMPTY_SKILL_ADMIN_STATE,
   );
 
-  const selectable = activeCategories(categories);
+  const selectable = skill
+    ? categoriesForEdit(categories, skill.category.categoryId)
+    : activeCategories(categories);
   const currentCategoryRetired =
     skill !== undefined &&
-    !selectable.some((category) => category.categoryId === skill.category.categoryId);
+    selectable.some(
+      (category) => category.categoryId === skill.category.categoryId && !category.active,
+    );
 
   return (
     <form action={formAction} className={styles.filters}>
@@ -61,7 +74,7 @@ export function SkillEditor({ categories, skill }: SkillEditorProps) {
 
       {currentCategoryRetired ? (
         <Alert tone="warning">
-          {`${skill?.category.name} is retired. Choose an active category before saving.`}
+          {`${skill?.category.name} is retired. This skill can stay in it, but it cannot be moved into another retired category.`}
         </Alert>
       ) : null}
 
@@ -73,16 +86,15 @@ export function SkillEditor({ categories, skill }: SkillEditorProps) {
           id="skill-category"
           name="categoryId"
           className={styles.control}
-          defaultValue={
-            state.categoryId ?? (currentCategoryRetired ? "" : skill?.category.categoryId ?? "")
-          }
+          defaultValue={state.categoryId ?? skill?.category.categoryId ?? ""}
           aria-describedby={state.fieldErrors?.categoryId ? "skill-category-error" : undefined}
           aria-invalid={state.fieldErrors?.categoryId ? true : undefined}
         >
           <option value="">Choose a category</option>
           {selectable.map((category) => (
             <option key={category.categoryId} value={category.categoryId}>
-              {category.name}
+              {/* Marked rather than hidden: it is where the skill already is. */}
+              {category.active ? category.name : `${category.name} (current category)`}
             </option>
           ))}
         </select>
