@@ -73,7 +73,7 @@
   font: inherit;
   color: inherit;
   background: var(--p-surface);
-  border: 1px solid var(--p-border);
+  border: 1px solid var(--p-border-strong);
   border-radius: var(--p-radius-sm);
 }
 
