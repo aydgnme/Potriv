@@ -130,13 +130,26 @@ export function requiresActiveCategory(
   return targetCategoryId !== currentCategoryId;
 }
 
+/**
+ * What the appointment lookup said, kept as three answers rather than two.
+ *
+ * "No appointment" and "the lookup failed" are different facts about the
+ * organization, and only the first is something to tell somebody about
+ * themselves. Collapsing them would let a backend outage assert that a manager
+ * was never appointed.
+ */
+export type ManagedDepartmentState =
+  | { readonly kind: "managed"; readonly department: ManagedDepartment }
+  | { readonly kind: "unassigned" }
+  | { readonly kind: "error" };
+
 export type SkillAdminCapabilities = {
   /** Any department manager may create catalogue entries. */
   readonly canAuthorCatalogue: boolean;
   /** Only this skill's author may change its content or its state. */
   readonly canEditContent: boolean;
   /** Requires an actual appointment, and says which department it would affect. */
-  readonly managedDepartment: ManagedDepartment | null;
+  readonly department: ManagedDepartmentState;
   /** True when the managed department is already among the skill's links. */
   readonly linkedToManagedDepartment: boolean;
 };
@@ -145,24 +158,27 @@ export type SkillAdminInput = {
   readonly skill: CatalogueSkill;
   readonly currentUserId: string;
   readonly roles: readonly string[];
-  /** Null when the caller holds the role but manages no department. */
-  readonly managedDepartment: ManagedDepartment | null;
+  /** Unassigned when the caller holds the role but manages no department. */
+  readonly managedDepartment: ManagedDepartmentState;
 };
 
 export function skillAdminCapabilities(input: SkillAdminInput): SkillAdminCapabilities {
   const isDepartmentManager = input.roles.includes("DEPARTMENT_MANAGER");
-  const managedDepartment = isDepartmentManager ? input.managedDepartment : null;
+  // An appointment without the role grants nothing, whatever the lookup returned.
+  const department: ManagedDepartmentState = isDepartmentManager
+    ? input.managedDepartment
+    : { kind: "unassigned" };
 
   return {
     canAuthorCatalogue: isDepartmentManager,
     // Authorship, not role, decides content — and it is re-checked server-side
     // against a fresh read before anything is written.
     canEditContent: isDepartmentManager && input.skill.author.userId === input.currentUserId,
-    managedDepartment,
+    department,
     linkedToManagedDepartment:
-      managedDepartment !== null &&
+      department.kind === "managed" &&
       input.skill.departments.some(
-        (department) => department.departmentId === managedDepartment.departmentId,
+        (linked) => linked.departmentId === department.department.departmentId,
       ),
   };
 }
@@ -180,7 +196,9 @@ export function linkActionFor(
   skill: CatalogueSkill,
   capabilities: SkillAdminCapabilities,
 ): LinkAction {
-  if (capabilities.managedDepartment === null) return "none";
+  // Both "no appointment" and "we could not find out" mean no control: an
+  // unanswered authority question fails closed.
+  if (capabilities.department.kind !== "managed") return "none";
   if (capabilities.linkedToManagedDepartment) return "unlink";
   return skill.active ? "link" : "none";
 }

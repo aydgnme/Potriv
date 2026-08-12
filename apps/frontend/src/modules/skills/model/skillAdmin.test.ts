@@ -11,6 +11,7 @@ import {
   skillAdminCapabilities,
   validateCategoryName,
   validateSkillForm,
+  type ManagedDepartmentState,
 } from "./skillAdmin";
 import type { CatalogueSkill, SkillCategory } from "./skillsData";
 
@@ -53,6 +54,10 @@ function skill(overrides: Partial<CatalogueSkill> = {}): CatalogueSkill {
     updatedAt: "2026-01-02T00:00:00Z",
     ...overrides,
   };
+}
+
+function managing(departmentId: string): ManagedDepartmentState {
+  return { kind: "managed", department: { departmentId, name: "Platform" } };
 }
 
 describe("category names", () => {
@@ -172,7 +177,7 @@ describe("what a department manager may do", () => {
       skill: skill(),
       currentUserId: ANA,
       roles: ["EMPLOYEE", "DEPARTMENT_MANAGER"],
-      managedDepartment: null,
+      managedDepartment: { kind: "unassigned" },
       ...overrides,
     });
 
@@ -187,13 +192,13 @@ describe("what a department manager may do", () => {
       skill: skill(),
       currentUserId: ANA,
       roles: ["EMPLOYEE", "ORGANIZATION_ADMIN"],
-      managedDepartment: { departmentId: PLATFORM, name: "Platform" },
+      managedDepartment: { kind: "managed", department: { departmentId: PLATFORM, name: "Platform" } },
     });
 
     expect(employee.canAuthorCatalogue).toBe(false);
     expect(employee.canEditContent).toBe(false);
     // Not even a department, whatever the appointment says.
-    expect(employee.managedDepartment).toBeNull();
+    expect(employee.department).toEqual({ kind: "unassigned" });
   });
 
   it("lets only the author change the content", () => {
@@ -203,19 +208,19 @@ describe("what a department manager may do", () => {
 
   it("keeps authorship and appointment independent", () => {
     // Somebody else's skill, but this manager runs a department.
-    const other = asManager({
-      currentUserId: BOB,
-      managedDepartment: { departmentId: PLATFORM, name: "Platform" },
-    });
+    const other = asManager({ currentUserId: BOB, managedDepartment: managing(PLATFORM) });
 
     expect(other.canEditContent).toBe(false);
-    expect(other.managedDepartment?.name).toBe("Platform");
+    expect(other.department).toEqual({
+      kind: "managed",
+      department: { departmentId: PLATFORM, name: "Platform" },
+    });
   });
 
   it("notices when the managed department is already linked", () => {
     const linked = asManager({
       skill: skill({ departments: [{ departmentId: PLATFORM, name: "Platform" }] }),
-      managedDepartment: { departmentId: PLATFORM, name: "Platform" },
+      managedDepartment: managing(PLATFORM),
     });
 
     expect(linked.linkedToManagedDepartment).toBe(true);
@@ -224,10 +229,25 @@ describe("what a department manager may do", () => {
   it("does not count another department's link as its own", () => {
     const linkedElsewhere = asManager({
       skill: skill({ departments: [{ departmentId: QA, name: "QA" }] }),
-      managedDepartment: { departmentId: PLATFORM, name: "Platform" },
+      managedDepartment: managing(PLATFORM),
     });
 
     expect(linkedElsewhere.linkedToManagedDepartment).toBe(false);
+  });
+
+  it("treats a failed appointment lookup as neither managing nor unassigned", () => {
+    // The distinction the UI needs: a failure is not an answer about the person.
+    const failed = asManager({
+      skill: skill({ departments: [{ departmentId: PLATFORM, name: "Platform" }] }),
+      managedDepartment: { kind: "error" },
+    });
+
+    expect(failed.department).toEqual({ kind: "error" });
+    // Not even a link it would otherwise have recognised: nothing is claimed.
+    expect(failed.linkedToManagedDepartment).toBe(false);
+    // The role still stands on its own; only the relationship is unknown.
+    expect(failed.canAuthorCatalogue).toBe(true);
+    expect(failed.canEditContent).toBe(true);
   });
 });
 
@@ -237,12 +257,26 @@ describe("which link control to offer", () => {
       skill: target,
       currentUserId: BOB,
       roles: ["EMPLOYEE", "DEPARTMENT_MANAGER"],
-      managedDepartment: department ? { departmentId: department, name: "Platform" } : null,
+      managedDepartment: department ? managing(department) : { kind: "unassigned" },
     });
 
   it("offers nothing to a manager with no department", () => {
     const target = skill();
     expect(linkActionFor(target, capabilitiesFor(target, null))).toBe("none");
+  });
+
+  it("offers nothing when the appointment could not be looked up", () => {
+    // Fail closed: an unanswered authority question is not permission, and it is
+    // not a refusal either — the control is simply absent.
+    const target = skill({ departments: [{ departmentId: PLATFORM, name: "Platform" }] });
+    const unknown = skillAdminCapabilities({
+      skill: target,
+      currentUserId: BOB,
+      roles: ["EMPLOYEE", "DEPARTMENT_MANAGER"],
+      managedDepartment: { kind: "error" },
+    });
+
+    expect(linkActionFor(target, unknown)).toBe("none");
   });
 
   it("offers a link on an active unlinked skill", () => {

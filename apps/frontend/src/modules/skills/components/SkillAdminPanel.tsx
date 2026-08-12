@@ -144,6 +144,12 @@ function ContentControls({ skill }: { readonly skill: CatalogueSkill }) {
  * There is no department picker, because the endpoint takes no department: the
  * backend resolves the caller's from the request. Somebody holding the role
  * without an appointment gets an explanation instead of a disabled button.
+ *
+ * When the appointment lookup itself failed we say so, rather than reusing that
+ * explanation: telling somebody they were never appointed because a request
+ * failed is a claim about the organization we have not established. Only this
+ * relationship is withheld — the catalogue entry and the author's own controls
+ * are unaffected by it.
  */
 function DepartmentLinkControls({
   skill,
@@ -161,9 +167,21 @@ function DepartmentLinkControls({
     EMPTY_SKILL_ADMIN_STATE,
   );
 
-  const department = capabilities.managedDepartment;
+  const state = capabilities.department;
 
-  if (department === null) {
+  if (state.kind === "error") {
+    return (
+      <>
+        <p className={styles.panelNote}>
+          Could not load your department management context, so linking is unavailable. This
+          does not mean you manage no department.
+        </p>
+        <Link href={`/skills/${skill.skillId}`}>Try again</Link>
+      </>
+    );
+  }
+
+  if (state.kind === "unassigned") {
     return (
       <p className={styles.panelNote}>
         You are not assigned to manage a department, so you cannot link this skill to one. You
@@ -172,6 +190,7 @@ function DepartmentLinkControls({
     );
   }
 
+  const department = state.department;
   const action = linkActionFor(skill, capabilities);
   // The confirmation that agrees with the link as it now stands.
   const confirmation = capabilities.linkedToManagedDepartment

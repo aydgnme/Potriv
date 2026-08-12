@@ -6,12 +6,8 @@ import {
   type CatalogueQuery,
   type RawSearchParams,
 } from "../model/catalogueQuery";
-import type {
-  CatalogueSkill,
-  EmployeeSkill,
-  ManagedDepartment,
-  SkillCategory,
-} from "../model/skillsData";
+import type { ManagedDepartmentState } from "../model/skillAdmin";
+import type { CatalogueSkill, EmployeeSkill, SkillCategory } from "../model/skillsData";
 
 import {
   getManagedDepartment,
@@ -143,15 +139,21 @@ export async function loadCategoryAdmin(includeInactive: boolean): Promise<Categ
  * The department the caller manages, if any.
  *
  * A 403 means they hold the role without an appointment — a real state, not a
- * failure, and the one that decides whether link controls exist at all.
+ * failure, and the one that decides whether link controls exist at all. Every
+ * other failure is the lookup itself not working, which is a different thing and
+ * kept separate: reporting an outage as "you are not assigned to manage a
+ * department" would state an organization fact we did not establish, and the
+ * role/appointment split is precisely what this screen exists to respect.
  */
 export async function loadManagedDepartment(
   roles: readonly string[],
-): Promise<ManagedDepartment | null> {
-  if (!roles.includes("DEPARTMENT_MANAGER")) return null;
+): Promise<ManagedDepartmentState> {
+  if (!roles.includes("DEPARTMENT_MANAGER")) return { kind: "unassigned" };
 
   const outcome = await getManagedDepartment();
-  return outcome.ok ? outcome.value : null;
+  if (outcome.ok) return { kind: "managed", department: outcome.value };
+  if (outcome.reason === "FORBIDDEN") return { kind: "unassigned" };
+  return { kind: "error" };
 }
 
 export type SkillEditorState =

@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { skillAdminCapabilities } from "../model/skillAdmin";
+import { skillAdminCapabilities, type ManagedDepartmentState } from "../model/skillAdmin";
 import type { SkillAdminActionState } from "../model/skillsActionState";
 import type { CatalogueSkill, SkillCategory } from "../model/skillsData";
 
@@ -96,11 +96,23 @@ function capabilitiesFor(
   currentUserId: string,
   department: { departmentId: string; name: string } | null,
 ) {
+  return capabilitiesWith(
+    target,
+    currentUserId,
+    department ? { kind: "managed", department } : { kind: "unassigned" },
+  );
+}
+
+function capabilitiesWith(
+  target: CatalogueSkill,
+  currentUserId: string,
+  managedDepartment: ManagedDepartmentState,
+) {
   return skillAdminCapabilities({
     skill: target,
     currentUserId,
     roles: ["EMPLOYEE", "DEPARTMENT_MANAGER"],
-    managedDepartment: department,
+    managedDepartment,
   });
 }
 
@@ -266,7 +278,7 @@ describe("the admin panel on a skill", () => {
           skill: skill(),
           currentUserId: ANA,
           roles: ["EMPLOYEE"],
-          managedDepartment: null,
+          managedDepartment: { kind: "unassigned" },
         })}
       />,
     );
@@ -307,6 +319,29 @@ describe("the admin panel on a skill", () => {
     expect(screen.getByText(/not assigned to manage a department/)).toBeInTheDocument();
     expect(screen.getByText(/still add skills and categories/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
+  });
+
+  it("does not claim an absent appointment when the lookup failed", () => {
+    // The wrong copy here is a false statement about the organization: a 500 on
+    // the appointment endpoint would otherwise tell an appointed manager that
+    // they were never appointed.
+    const target = skill({ departments: [{ departmentId: PLATFORM, name: "Platform" }] });
+    render(
+      <SkillAdminPanel
+        skill={target}
+        capabilities={capabilitiesWith(target, ANA, { kind: "error" })}
+      />,
+    );
+
+    expect(screen.getByText(/Could not load your department management context/))
+      .toBeInTheDocument();
+    expect(screen.queryByText(/not assigned to manage a department/)).toBeNull();
+
+    // The relationship fails closed while everything else stays usable.
+    expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Unlink from/ })).toBeNull();
+    expect(screen.getByRole("link", { name: "Edit skill" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retire skill" })).toBeInTheDocument();
   });
 
   it("offers a link to the manager's own department, named", () => {
