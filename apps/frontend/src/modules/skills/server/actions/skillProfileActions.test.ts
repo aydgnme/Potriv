@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { EMPTY_SKILL_PROFILE_STATE } from "../../model/skillsActionState";
@@ -21,6 +23,16 @@ const updateOwnSkill = vi.fn();
 const removeOwnSkill = vi.fn();
 const revalidatePath = vi.fn();
 
+// Mocked so the profile actions can be proven never to reach them.
+const createSkillCategory = vi.fn();
+const updateSkillCategory = vi.fn();
+const deactivateSkillCategory = vi.fn();
+const createCatalogueSkill = vi.fn();
+const updateCatalogueSkill = vi.fn();
+const deactivateCatalogueSkill = vi.fn();
+const linkSkillToCurrentDepartment = vi.fn();
+const unlinkSkillFromCurrentDepartment = vi.fn();
+
 vi.mock("@/modules/auth/server/productSession", () => ({ resolveProductSession }));
 vi.mock("../skillsDataSources", () => ({
   getSkill,
@@ -28,6 +40,14 @@ vi.mock("../skillsDataSources", () => ({
   assignOwnSkill,
   updateOwnSkill,
   removeOwnSkill,
+  createSkillCategory,
+  updateSkillCategory,
+  deactivateSkillCategory,
+  createCatalogueSkill,
+  updateCatalogueSkill,
+  deactivateCatalogueSkill,
+  linkSkillToCurrentDepartment,
+  unlinkSkillFromCurrentDepartment,
 }));
 vi.mock("next/cache", () => ({ revalidatePath }));
 
@@ -323,27 +343,57 @@ describe("removing my assignment", () => {
 });
 
 describe("the catalogue is never touched", () => {
-  it("exposes no catalogue mutation at all", async () => {
-    // Structural rather than a promise: there is nothing in this module's data
-    // sources that could create, edit, deactivate or link a catalogue skill.
-    //
-    // `importActual`, deliberately — a plain import would return the mock above,
-    // which is this test file's own fixture and would prove nothing about the
-    // real surface.
-    const sources = await vi.importActual<Record<string, unknown>>("../skillsDataSources");
-    const exported = Object.keys(sources).filter(
-      (name) => typeof sources[name] === "function",
+  /**
+   * Catalogue administration now exists in this module, so the old assertion —
+   * that no such data source is exported at all — no longer holds and should not.
+   * What must still hold is narrower and more useful: *these three actions* only
+   * ever touch the caller's own profile, whatever else the module can do.
+   */
+  it("performs no catalogue mutation while managing a profile", async () => {
+    await assignOwnSkillAction(EMPTY_SKILL_PROFILE_STATE, form(VALID_ADD));
+    await updateOwnSkillAction(EMPTY_SKILL_PROFILE_STATE, form(VALID_EDIT));
+    await removeOwnSkillAction(
+      EMPTY_SKILL_PROFILE_STATE,
+      form({ employeeSkillId: ASSIGNMENT }),
     );
 
-    expect(exported.sort()).toEqual([
-      "assignOwnSkill",
-      "getOwnSkills",
-      "getSkill",
-      "getSkillCategories",
-      "getSkills",
-      "removeOwnSkill",
-      "updateOwnSkill",
-    ]);
+    for (const forbidden of [
+      createSkillCategory,
+      updateSkillCategory,
+      deactivateSkillCategory,
+      createCatalogueSkill,
+      updateCatalogueSkill,
+      deactivateCatalogueSkill,
+      linkSkillToCurrentDepartment,
+      unlinkSkillFromCurrentDepartment,
+    ]) {
+      expect(forbidden).not.toHaveBeenCalled();
+    }
+  });
+
+  it("imports no catalogue mutation into the profile action module", async () => {
+    // Structural: the file's own import list, so a future edit that reached for
+    // one of these would have to add it here first.
+    // Path from the vitest root rather than `import.meta.url`, which the
+    // transform does not give as a file URL.
+    const source = await readFile(
+      "src/modules/skills/server/actions/skillProfileActions.ts",
+      "utf8",
+    );
+    const imports = source.slice(0, source.indexOf("const UUID"));
+
+    for (const forbidden of [
+      "createSkillCategory",
+      "updateSkillCategory",
+      "deactivateSkillCategory",
+      "createCatalogueSkill",
+      "updateCatalogueSkill",
+      "deactivateCatalogueSkill",
+      "linkSkillToCurrentDepartment",
+      "unlinkSkillFromCurrentDepartment",
+    ]) {
+      expect(imports).not.toContain(forbidden);
+    }
   });
 });
 

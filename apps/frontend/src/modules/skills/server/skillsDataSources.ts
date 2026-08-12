@@ -8,7 +8,12 @@ import {
 } from "@/modules/auth/server-public";
 
 import type { CatalogueQuery } from "../model/catalogueQuery";
-import type { CatalogueSkill, EmployeeSkill, SkillCategory } from "../model/skillsData";
+import type {
+  CatalogueSkill,
+  EmployeeSkill,
+  ManagedDepartment,
+  SkillCategory,
+} from "../model/skillsData";
 import type { SkillExperienceCode, SkillLevelCode } from "../model/skillVocabulary";
 
 /**
@@ -127,6 +132,142 @@ export async function removeOwnSkill(
   employeeSkillId: string,
 ): Promise<MutationOutcome<void>> {
   const outcome = await backendDelete(`/me/skills/${encodeURIComponent(employeeSkillId)}`);
+  if (outcome.ok) return { ok: true, value: undefined };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/* ── Catalogue administration ──────────────────────────────────────────────
+ *
+ * Three different authorities live below, and they are deliberately not one:
+ *
+ * - **Category and skill creation** need the Department Manager role.
+ * - **Skill content mutation** additionally needs the caller to be that skill's
+ *   author; another manager may read it and must not change it.
+ * - **Department links** need an actual manager *appointment*, which the role
+ *   alone does not imply — and the endpoint takes no department, because the
+ *   backend resolves the caller's own from the principal.
+ *
+ * Deactivation is soft throughout. Nothing here deletes a category or a skill.
+ */
+
+/** `POST /skill-categories` — 201. Department-manager role. */
+export async function createSkillCategory(
+  name: string,
+): Promise<MutationOutcome<SkillCategory>> {
+  const outcome = await backendPost<SkillCategory>("/skill-categories", { name });
+  if (outcome.ok) return { ok: true, value: outcome.value };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/** `PATCH /skill-categories/{id}` — partial; callers send only what they mean. */
+export async function updateSkillCategory(
+  categoryId: string,
+  changes: { readonly name?: string; readonly active?: boolean },
+): Promise<MutationOutcome<SkillCategory>> {
+  const outcome = await backendPatch<SkillCategory>(
+    `/skill-categories/${encodeURIComponent(categoryId)}`,
+    changes,
+  );
+  if (outcome.ok) return { ok: true, value: outcome.value };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/**
+ * `DELETE /skill-categories/{id}` — 204, and **soft**.
+ *
+ * It deactivates. Skills in the category, their department links and everybody's
+ * assignments are untouched, so an active skill can legitimately sit in a
+ * deactivated category and the product shows that rather than rewriting it.
+ */
+export async function deactivateSkillCategory(
+  categoryId: string,
+): Promise<MutationOutcome<void>> {
+  const outcome = await backendDelete(`/skill-categories/${encodeURIComponent(categoryId)}`);
+  if (outcome.ok) return { ok: true, value: undefined };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/** `POST /skills` — 201. The backend records the caller as author. */
+export async function createCatalogueSkill(
+  categoryId: string,
+  name: string,
+  description: string | null,
+): Promise<MutationOutcome<CatalogueSkill>> {
+  const outcome = await backendPost<CatalogueSkill>("/skills", {
+    categoryId,
+    name,
+    description,
+  });
+  if (outcome.ok) return { ok: true, value: outcome.value };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/** `PATCH /skills/{id}` — partial. Author only; 403 otherwise. */
+export async function updateCatalogueSkill(
+  skillId: string,
+  changes: {
+    readonly categoryId?: string;
+    readonly name?: string;
+    readonly description?: string | null;
+    readonly active?: boolean;
+  },
+): Promise<MutationOutcome<CatalogueSkill>> {
+  const outcome = await backendPatch<CatalogueSkill>(
+    `/skills/${encodeURIComponent(skillId)}`,
+    changes,
+  );
+  if (outcome.ok) return { ok: true, value: outcome.value };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/** `DELETE /skills/{id}` — 204, soft, author only. Existing assignments survive. */
+export async function deactivateCatalogueSkill(
+  skillId: string,
+): Promise<MutationOutcome<void>> {
+  const outcome = await backendDelete(`/skills/${encodeURIComponent(skillId)}`);
+  if (outcome.ok) return { ok: true, value: undefined };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/**
+ * `GET /department/projects` — the only endpoint that says which department the
+ * caller actually manages.
+ *
+ * A 403 here is the honest signal that somebody holds the Department Manager role
+ * without an appointment: they may author catalogue entries, but they have no
+ * department to link one to.
+ */
+export async function getManagedDepartment(): Promise<Loaded<ManagedDepartment>> {
+  const outcome = await load<{ readonly department: ManagedDepartment }>("/department/projects");
+  if (!outcome.ok) return outcome;
+  return { ok: true, value: outcome.value.department };
+}
+
+/**
+ * `POST /skills/{id}/departments/current` — links the caller's own department.
+ *
+ * There is no department in the path or the body by design: the backend resolves
+ * it from the authenticated principal, so no browser can aim a link at somebody
+ * else's department. Linking twice is an idempotent success.
+ */
+export async function linkSkillToCurrentDepartment(
+  skillId: string,
+): Promise<MutationOutcome<void>> {
+  const outcome = await backendPost<void>(
+    `/skills/${encodeURIComponent(skillId)}/departments/current`,
+    {},
+  );
+  if (outcome.ok) return { ok: true, value: undefined };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/** `DELETE /skills/{id}/departments/current` — 204. Idempotent, and works on inactive skills. */
+export async function unlinkSkillFromCurrentDepartment(
+  skillId: string,
+): Promise<MutationOutcome<void>> {
+  const outcome = await backendDelete(
+    `/skills/${encodeURIComponent(skillId)}/departments/current`,
+  );
   if (outcome.ok) return { ok: true, value: undefined };
   return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
 }

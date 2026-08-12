@@ -84,3 +84,14 @@ export type EmployeeSkill = {
   readonly createdAt: string;
   readonly updatedAt: string;
 };
+
+/**
+ * The department the caller actually manages, from `GET /department/projects`.
+ *
+ * Holding the Department Manager role does not imply one. The appointment is a
+ * separate fact, and it is what department links depend on.
+ */
+export type ManagedDepartment = {
+  readonly departmentId: string;
+  readonly name: string;
+};

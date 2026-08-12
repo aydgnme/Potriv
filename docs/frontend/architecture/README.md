@@ -981,3 +981,70 @@ sentence rather than one that reveals which.
 Removing an assignment removes one row from one profile. The catalogue skill, its
 category and everybody else's assignment to it are untouched, which is why the
 confirmation says "remove" and never "delete".
+
+## Skill administration: three authorities, kept apart
+
+Catalogue administration looks like one permission and is three. Flattening them
+would give each the reach of the widest, so they are checked separately and shown
+separately.
+
+**Authoring** needs the Department Manager role and nothing else. Any manager may
+create categories and skills, including one who manages no department.
+
+**Content** belongs to the skill's author. Only they may rename, re-describe,
+retire or restore it; another manager reads it and is told whose it is. The
+Server Action re-reads the skill and compares the author to the session on every
+attempt, so hiding the Edit button is convenience and the check is the protection
+— a tampered form from another manager fails before anything is written.
+
+**Department links** need an actual manager *appointment*, which the role does not
+imply. `GET /department/projects` is what answers it, and a 403 there is the
+honest signal that somebody holds the role without a department: they keep
+authoring, and simply have nothing to link to.
+
+Link authority is deliberately not authorship. A manager may link their own
+department to a skill somebody else wrote, because a link says "we use this here",
+not "this is mine".
+
+### The link endpoint takes no department
+
+`POST` and `DELETE /skills/{id}/departments/current` resolve the caller's
+department from the principal. There is no department id in the path or the body,
+so there is no picker to build and nothing a submission could point elsewhere.
+
+A retired skill cannot receive a *new* link — the backend refuses — but an existing
+one can still be removed, so retiring a skill never traps a department in a
+relationship it cannot end.
+
+### Retiring is soft, and stops where it says
+
+Categories and skills are both deactivated rather than deleted, and neither
+cascades. Retiring a category leaves its skills exactly as they were: their own
+state, their department links, and everybody's existing profiles. That means the
+backend can hold an active skill inside a retired category, and the product shows
+that rather than tidying it away — what changes is that no *new* skill can be
+created there, and an edit must move the skill to an active category before it
+saves.
+
+Retiring a skill leaves every existing assignment intact. It cannot be newly
+added; people who already have it keep it.
+
+## Team roles are staffing vocabulary, not permissions
+
+`/organization/team-roles` is the organization's list of what projects can ask to
+be staffed with. Administering it is organization-admin work.
+
+Project managers read the same catalogue through the backend — they need it to
+declare requirements, inactive entries included, because a project whose role was
+retired afterwards still has to render what is already attached. Reading it is not
+administering it, and the management surface is not theirs.
+
+The word "role" already means access in this product, so every team-role screen
+says what these are not: they describe project staffing needs and grant nobody
+permission to do anything. The module has no call that could change what somebody
+may do, which makes that structural rather than a claim.
+
+Deactivation is soft here too. A project that already requires a role keeps
+requiring it; what changes is that the role stops being offered for new work. The
+row stays resolvable so existing requirements keep rendering, and restoring is a
+single flag rather than a re-creation.

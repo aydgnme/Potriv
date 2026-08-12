@@ -10,6 +10,9 @@ import { EMPTY_SKILL_PROFILE_STATE } from "../model/skillsActionState";
 import type { CatalogueSkill, EmployeeSkill } from "../model/skillsData";
 import { SKILL_EXPERIENCES, SKILL_LEVELS } from "../model/skillVocabulary";
 import { assignOwnSkillAction } from "../server/actions/skillProfileActions";
+import type { SkillAdminCapabilities } from "../model/skillAdmin";
+
+import { SkillAdminPanel } from "./SkillAdminPanel";
 
 import styles from "./Skills.module.css";
 
@@ -19,6 +22,11 @@ export type SkillDetailProps = {
   readonly assignment: EmployeeSkill | null;
   /** False when the profile read failed — unknown, not "not assigned". */
   readonly profileLoaded: boolean;
+  /**
+   * What this reader may administer, when anything. Null for everybody without
+   * the department-manager role, which is most people.
+   */
+  readonly capabilities?: SkillAdminCapabilities | null;
 };
 
 /**
@@ -33,7 +41,12 @@ export type SkillDetailProps = {
  * Nothing here counts how many people hold the skill or how good they are at it.
  * No endpoint answers either question.
  */
-export function SkillDetail({ skill, assignment, profileLoaded }: SkillDetailProps) {
+export function SkillDetail({
+  skill,
+  assignment,
+  profileLoaded,
+  capabilities = null,
+}: SkillDetailProps) {
   return (
     <div className={styles.page}>
       <section className={styles.panel} aria-labelledby="skill-summary">
@@ -81,6 +94,10 @@ export function SkillDetail({ skill, assignment, profileLoaded }: SkillDetailPro
       </section>
 
       <SelfAssignment skill={skill} assignment={assignment} profileLoaded={profileLoaded} />
+
+      {/* Administration is a separate capability from having the skill; a manager
+          who administers it may also hold it, and both panels show. */}
+      {capabilities ? <SkillAdminPanel skill={skill} capabilities={capabilities} /> : null}
     </div>
   );
 }
