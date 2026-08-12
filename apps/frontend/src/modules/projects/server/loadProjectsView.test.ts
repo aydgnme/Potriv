@@ -5,6 +5,7 @@ import type { ProjectStatus } from "@/shared/types/projectStatus";
 import type {
   ManagedProject,
   MyProjectEpisode,
+  MyProjects,
   ProjectStaffingDetails,
 } from "../model/projectsData";
 import type { ProjectsQuery } from "../model/projectsQuery";
@@ -64,9 +65,23 @@ function episode(
     startDate: "2026-01-01",
     deadlineDate: "2026-06-30",
     workHoursPerDay: 4,
-    roles: [{ teamRoleId: "backend", name: "Backend" }],
+    roles: [{ teamRoleId: "backend", name: "Backend", active: true }],
+    technologyStack: [{ technologyId: "t1", name: "Java" }],
     allocatedAt: "2026-01-02T09:00:00Z",
     deallocatedAt: null,
+  };
+}
+
+/** The identity and snapshot fields the endpoint always returns. */
+function myProjects(overrides: Partial<MyProjects> = {}): MyProjects {
+  return {
+    userId: "u1",
+    userName: "Mert Aydogan",
+    userEmail: "mert@potriv.test",
+    currentProjects: [],
+    pastProjects: [],
+    generatedAt: "2026-08-12T16:22:00Z",
+    ...overrides,
   };
 }
 
@@ -74,10 +89,18 @@ function sources(overrides: Partial<ProjectsDataSources> = {}) {
   return {
     getManagedProjects: vi.fn(async () => ok([] as readonly ManagedProject[])),
     getDepartmentProjects: vi.fn(async () =>
-      ok({ department: { departmentId: "d1", name: "Platform" }, projects: [] }),
+      ok({
+        department: { departmentId: "d1", name: "Platform" },
+        projects: [],
+        generatedAt: "2026-08-12T16:22:00Z",
+      }),
     ),
-    getMyProjects: vi.fn(async () => ok({ currentProjects: [], pastProjects: [] })),
+    getMyProjects: vi.fn(async () => ok(myProjects())),
     getProjectStaffingDetails: vi.fn(async () => ok(NO_REQUIREMENTS)),
+    // Present so that "was it called?" is a real question rather than a
+    // missing-property error: neither history nor portfolio may reach for them.
+    getProjectDetails: vi.fn(),
+    getProjectTeam: vi.fn(),
     ...overrides,
   } as unknown as ProjectsDataSources & Record<string, ReturnType<typeof vi.fn>>;
 }
@@ -140,10 +163,10 @@ describe("status filtering", () => {
   it("filters allocations here, because that endpoint takes no status", async () => {
     const deps = sources({
       getMyProjects: vi.fn(async () =>
-        ok({
+        ok(myProjects({
           currentProjects: [episode("a1", "p1", "IN_PROGRESS"), episode("a2", "p2", "CLOSING")],
           pastProjects: [episode("a3", "p3", "IN_PROGRESS"), episode("a4", "p4", "CLOSED")],
-        }),
+        })),
       ),
     });
 
@@ -164,10 +187,10 @@ describe("allocation episodes", () => {
     // collapsing them by project id would delete part of their history.
     const deps = sources({
       getMyProjects: vi.fn(async () =>
-        ok({
+        ok(myProjects({
           currentProjects: [episode("a3", "p1", "IN_PROGRESS")],
           pastProjects: [episode("a1", "p1", "IN_PROGRESS"), episode("a2", "p1", "IN_PROGRESS")],
-        }),
+        })),
       ),
     });
 
@@ -182,10 +205,10 @@ describe("allocation episodes", () => {
   it("keeps every episode of a filtered project too", async () => {
     const deps = sources({
       getMyProjects: vi.fn(async () =>
-        ok({
+        ok(myProjects({
           currentProjects: [],
           pastProjects: [episode("a1", "p1", "CLOSED"), episode("a2", "p1", "CLOSED")],
-        }),
+        })),
       ),
     });
 
@@ -193,6 +216,77 @@ describe("allocation episodes", () => {
 
     if (result.view !== "mine" || !result.data.ok) throw new Error("expected my projects");
     expect(result.data.value.pastProjects.map((e) => e.allocationId)).toEqual(["a1", "a2"]);
+  });
+
+  it("removes rows without resorting the survivors", async () => {
+    // The backend ordered these by allocation date; filtering is a subtraction,
+    // not an excuse to impose a different order.
+    const deps = sources({
+      getMyProjects: vi.fn(async () =>
+        ok(myProjects({
+          currentProjects: [
+            episode("b", "pb", "CLOSED"),
+            episode("a", "pa", "IN_PROGRESS"),
+            episode("c", "pc", "CLOSED"),
+          ],
+        })),
+      ),
+    });
+
+    const result = await loadProjectsView(query({ view: "mine", status: "CLOSED" }), deps);
+
+    if (result.view !== "mine" || !result.data.ok) throw new Error("expected my projects");
+    expect(result.data.value.currentProjects.map((e) => e.allocationId)).toEqual(["b", "c"]);
+  });
+
+  it("keeps whose history it is when a filter empties it", async () => {
+    // Rebuilding the object around the filtered lists would drop the identity
+    // and snapshot fields, leaving a history that cannot say whose it is.
+    const deps = sources({
+      getMyProjects: vi.fn(async () =>
+        ok(myProjects({ currentProjects: [episode("a1", "p1", "IN_PROGRESS")] })),
+      ),
+    });
+
+    const result = await loadProjectsView(query({ view: "mine", status: "CLOSED" }), deps);
+
+    if (result.view !== "mine" || !result.data.ok) throw new Error("expected my projects");
+    expect(result.data.value.currentProjects).toEqual([]);
+    expect(result.data.value.userId).toBe("u1");
+    expect(result.data.value.userName).toBe("Mert Aydogan");
+    expect(result.data.value.generatedAt).toBe("2026-08-12T16:22:00Z");
+  });
+});
+
+describe("what the history and portfolio scopes never ask for", () => {
+  /**
+   * Both endpoints resolve their subject from the credential. Neither takes an
+   * identifier, so no browser-supplied value can widen either one, and neither
+   * scope enriches its rows from another endpoint.
+   */
+
+  it("asks for the caller's own history with no identifier at all", async () => {
+    const deps = sources();
+
+    await loadProjectsView(query({ view: "mine", status: "IN_PROGRESS" }), deps);
+
+    expect(deps.getMyProjects).toHaveBeenCalledWith();
+    expect(deps.getProjectDetails).not.toHaveBeenCalled();
+    expect(deps.getProjectTeam).not.toHaveBeenCalled();
+    expect(deps.getProjectStaffingDetails).not.toHaveBeenCalled();
+  });
+
+  it("asks the portfolio for a status and nothing else", async () => {
+    const deps = sources();
+
+    await loadProjectsView(query({ view: "department", status: "IN_PROGRESS" }), deps);
+
+    // One argument: no department id, from the URL or anywhere else.
+    expect(deps.getDepartmentProjects).toHaveBeenCalledWith("IN_PROGRESS");
+    expect(vi.mocked(deps.getDepartmentProjects).mock.calls[0]).toHaveLength(1);
+    expect(deps.getProjectDetails).not.toHaveBeenCalled();
+    expect(deps.getProjectTeam).not.toHaveBeenCalled();
+    expect(deps.getProjectStaffingDetails).not.toHaveBeenCalled();
   });
 });
 

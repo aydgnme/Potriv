@@ -2,10 +2,14 @@ import Link from "next/link";
 
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { StatusBadge } from "@/shared/ui/StatusBadge";
-import { formatDateRange } from "@/shared/utils/formatDate";
+import { formatDate, formatDateRange, formatDateTime } from "@/shared/utils/formatDate";
 import { projectStatusLabel, projectStatusTone } from "@/shared/utils/projectStatus";
 
-import type { DepartmentProject, DepartmentProjects } from "../model/projectsData";
+import type {
+  DepartmentProject,
+  DepartmentProjects,
+  TeamRoleSummary,
+} from "../model/projectsData";
 import type { ProjectsQuery } from "../model/projectsQuery";
 import type { Loaded } from "../server/projectsDataSources";
 import { projectPeriodLabel } from "../utils/projectPeriod";
@@ -19,15 +23,23 @@ export type DepartmentProjectsViewProps = {
 };
 
 /**
- * What the managed department's people are committed to.
+ * The allocations still owned by staffing decisions this department reviewed.
  *
- * The members column lists **this department's** active allocations on each
- * project, never the whole project team — a department manager can see their own
- * people's commitments, not everyone else's.
+ * Membership is not what puts somebody here. A project appears because an
+ * assignment proposal was reviewed *through* this department, and that
+ * relationship is a snapshot: it survives the person later moving to another
+ * department, and the new department does not inherit it. So the copy talks
+ * about how people were staffed, never about who currently belongs where — the
+ * response carries no current membership, and claiming it would be inventing
+ * evidence.
  *
- * No hours are summed into a capacity figure. The department's allocations on
- * these projects are not the department's whole workload, so a total would look
- * authoritative while being incomplete.
+ * It is also active-only. A project drops out entirely once its last allocation
+ * here ends, and there is no past section to build one from: this endpoint
+ * answers "what is still ours", and the history question belongs to My projects.
+ *
+ * No hours are summed. These are one department's allocations on each project,
+ * not anybody's whole workload, so a total would look authoritative while
+ * being incomplete.
  */
 export function DepartmentProjectsView({ data, query }: DepartmentProjectsViewProps) {
   if (!data.ok) {
@@ -47,7 +59,7 @@ export function DepartmentProjectsView({ data, query }: DepartmentProjectsViewPr
     return <ProjectsLoadError>Could not load department projects.</ProjectsLoadError>;
   }
 
-  const { department, projects } = data.value;
+  const { department, projects, generatedAt } = data.value;
 
   if (projects.length === 0) {
     return (
@@ -60,73 +72,119 @@ export function DepartmentProjectsView({ data, query }: DepartmentProjectsViewPr
         description={
           query.status ? "Clear the filter to see everything this department is on." : undefined
         }
+        action={
+          query.status ? <Link href="/projects?view=department">Clear filter</Link> : undefined
+        }
       />
     );
   }
 
   return (
-    <div className={styles.panel}>
-      <p className={styles.panelNote}>
-        {department.name} · {countLabel(projects.length)}
-      </p>
-      <table role="table" className={styles.table}>
-        <thead role="rowgroup">
-          <tr role="row">
-            <th role="columnheader" scope="col">Project</th>
-            <th role="columnheader" scope="col">Status</th>
-            <th role="columnheader" scope="col">Period</th>
-            <th role="columnheader" scope="col">Dates</th>
-            <th role="columnheader" scope="col">Department members</th>
-          </tr>
-        </thead>
-        <tbody role="rowgroup">
-          {projects.map((project) => (
-            <tr role="row" key={project.projectId}>
-              <td role="cell">
-                <Link className={styles.projectName} href={`/projects/${project.projectId}`}>
-                  {project.projectName}
-                </Link>
-              </td>
-              <td role="cell" data-label="Status">
-                <StatusBadge
-                  label={projectStatusLabel(project.status)}
-                  tone={projectStatusTone(project.status)}
-                />
-              </td>
-              <td role="cell" data-label="Period">
-                {projectPeriodLabel(project.period)}
-              </td>
-              <td role="cell" data-label="Dates" className={styles.muted}>
-                {formatDateRange(project.startDate, project.deadlineDate)}
-              </td>
-              <td role="cell" data-label="Department members">
-                <MemberSummary project={project} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className={styles.page}>
+      <div className={styles.historyMeta}>
+        <p className={styles.panelNote}>
+          {department.name} · {projectCount(projects.length)}
+        </p>
+        {formatDateTime(generatedAt) ? (
+          <p className={styles.panelNote}>{`Snapshot generated ${formatDateTime(generatedAt)}`}</p>
+        ) : null}
+      </div>
+
+      {projects.map((project) => (
+        <PortfolioProject
+          key={project.projectId}
+          project={project}
+          departmentName={department.name}
+        />
+      ))}
     </div>
   );
 }
 
-function MemberSummary({ project }: { readonly project: DepartmentProject }) {
-  if (project.teamMembers.length === 0) {
-    return <span className={styles.muted}>Nobody from this department</span>;
-  }
+function PortfolioProject({
+  project,
+  departmentName,
+}: {
+  readonly project: DepartmentProject;
+  readonly departmentName: string;
+}) {
+  const headingId = `portfolio-${project.projectId}`;
+  const membersId = `${headingId}-allocations`;
+
+  return (
+    <section className={styles.panel} aria-labelledby={headingId}>
+      <div className={styles.portfolioHeader}>
+        <h2 className={styles.groupHeading} id={headingId}>
+          <Link className={styles.projectName} href={`/projects/${project.projectId}`}>
+            {project.projectName}
+          </Link>
+        </h2>
+        <StatusBadge
+          label={projectStatusLabel(project.status)}
+          tone={projectStatusTone(project.status)}
+        />
+      </div>
+      <p className={styles.metaLine}>
+        {projectPeriodLabel(project.period)}
+        {" · "}
+        {formatDateRange(project.startDate, project.deadlineDate)}
+      </p>
+
+      {/* Names the relationship the payload actually describes. Not "the team":
+          the full project team spans departments and is not in this response. */}
+      <h3 className={styles.subHeading} id={membersId}>
+        {`Staffed through ${departmentName}`}
+      </h3>
+
+      {project.teamMembers.length === 0 ? (
+        <p className={styles.panelNote}>No active allocations here.</p>
+      ) : (
+        <table role="table" className={styles.table} aria-labelledby={membersId}>
+          <thead role="rowgroup">
+            <tr role="row">
+              <th role="columnheader" scope="col">Person</th>
+              <th role="columnheader" scope="col">Roles</th>
+              <th role="columnheader" scope="col">Hours/day</th>
+              <th role="columnheader" scope="col">Allocated</th>
+            </tr>
+          </thead>
+          <tbody role="rowgroup">
+            {project.teamMembers.map((member) => (
+              <tr role="row" key={member.allocationId}>
+                <td role="cell">
+                  {/* Deliberately not a link: `/people/{id}` is organization-admin
+                      only, and a department manager would land on a refusal. */}
+                  {member.employee.name}
+                  <span className={styles.metaLine}>{member.employee.email}</span>
+                </td>
+                <td role="cell" data-label="Roles">
+                  <RoleList roles={member.roles} />
+                </td>
+                <td role="cell" data-label="Hours/day">
+                  {hoursLabel(member.workHoursPerDay)}
+                </td>
+                <td role="cell" data-label="Allocated" className={styles.muted}>
+                  {formatDate(member.allocatedAt) ?? "Not recorded"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
+/** Retired roles stay visible and marked: the allocation was approved under one. */
+function RoleList({ roles }: { readonly roles: readonly TeamRoleSummary[] }) {
+  if (roles.length === 0) return <>No role recorded</>;
 
   return (
     <ul className={styles.memberList}>
-      {project.teamMembers.map((member) => (
-        <li key={member.allocationId}>
-          {member.employee.name}
-          <span className={styles.muted}>
-            {" — "}
-            {member.roles.length > 0
-              ? `${member.roles.map((role) => role.name).join(", ")}, `
-              : ""}
-            {hoursLabel(member.workHoursPerDay)}
-          </span>
+      {roles.map((role) => (
+        <li key={role.teamRoleId}>
+          {role.name}
+          {role.active ? null : <span className={styles.inactiveTag}> · retired role</span>}
         </li>
       ))}
     </ul>
@@ -137,6 +195,6 @@ function hoursLabel(hours: number): string {
   return hours === 1 ? "1 hour/day" : `${hours} hours/day`;
 }
 
-function countLabel(count: number): string {
+function projectCount(count: number): string {
   return count === 1 ? "1 project" : `${count} projects`;
 }

@@ -73,7 +73,11 @@ function descriptionFor(view: ProjectsQuery["view"]): string {
     case "managed":
       return "Projects you manage.";
     case "department":
-      return "Projects your department's people are allocated to.";
+      // Not "your department's people": the endpoint reports allocations your
+      // department reviewed, and somebody staffed through it may since have
+      // moved elsewhere. The relationship is the staffing decision, not
+      // membership today.
+      return "Active allocations staffed through the department you manage.";
     case "mine":
       return "Projects you are allocated to, and have been.";
   }

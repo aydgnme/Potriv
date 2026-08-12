@@ -103,9 +103,14 @@ async function loadMine(
   // than invented into the URL. Current and past stay separate: an episode does
   // not change group because of the project's status today, and every episode
   // survives — the same project appearing twice is two real allocations.
+  //
+  // Filtering removes rows and reorders nothing: `filter` keeps the backend's
+  // order, and the identity fields are carried through rather than rebuilt, so a
+  // filtered history still says whose it is and when it was read.
   return {
     ok: true,
     value: {
+      ...loaded.value,
       currentProjects: loaded.value.currentProjects.filter(
         (episode) => episode.projectStatus === status,
       ),
