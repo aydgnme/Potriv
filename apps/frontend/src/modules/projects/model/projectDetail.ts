@@ -1,6 +1,10 @@
 import type { ProjectStatus } from "@/shared/types/projectStatus";
 
-import type { ProjectPeriod, TeamRoleSummary } from "./projectsData";
+import type {
+  ProjectPeriod,
+  ProjectTechnologySummary,
+  TeamRoleSummary,
+} from "./projectsData";
 
 /**
  * The two relationship-aware project reads, and the owner-scoped one.
@@ -23,7 +27,7 @@ export type DepartmentSummary = {
 };
 
 /** A role as it was recorded on an allocation, including whether it still exists. */
-export type MemberRole = TeamRoleSummary & { readonly active: boolean };
+export type MemberRole = TeamRoleSummary;
 
 /** `GET /projects/{projectId}/details` */
 export type ProjectDetails = {
@@ -35,7 +39,7 @@ export type ProjectDetails = {
   readonly deadlineDate: string | null;
   readonly generalDescription: string | null;
   readonly projectManager: UserSummary;
-  readonly technologyStack: readonly { readonly technologyId: string; readonly name: string }[];
+  readonly technologyStack: readonly ProjectTechnologySummary[];
   readonly teamRoleRequirements: readonly {
     readonly requirementId: string;
     readonly teamRole: MemberRole;

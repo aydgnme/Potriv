@@ -80,7 +80,42 @@
 .table tbody tr:last-child td { border-bottom: none; }
 .projectName { font-size: var(--p-text-base); font-weight: var(--p-weight-medium); }
 .muted { color: var(--p-text-muted); }
-.memberList { display: flex; flex-direction: column; gap: 2px; }
+/* A list because these are several separate facts, not one sentence — but an
+   unmarked one: bullets and their indent belong to prose, not to a dense cell. */
+.memberList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0;
+  list-style: none;
+}
+
+/* What a scope is, before its rows: whose it is, what the counts count, and
+   when it was read. Quiet by design — it explains the table, it is not a card. */
+.historyMeta { display: flex; flex-direction: column; gap: var(--p-space-1); }
+
+/* The project name and its status read as one line until there is no room. */
+.portfolioHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--p-space-3);
+}
+
+.subHeading {
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  color: var(--p-text-muted);
+}
+
+/* Secondary evidence on its own line under whatever it qualifies — a project's
+   timeline under its name, an email under a person. Distinct from `.rowMeta`,
+   which trails inline after the text it extends. */
+.metaLine {
+  display: block;
+  font-size: var(--p-text-sm);
+  color: var(--p-text-muted);
+}
 
 /* Stacked rows on small screens. `display: block` drops the implicit table
    semantics, so every element carries its role explicitly and the markup stays

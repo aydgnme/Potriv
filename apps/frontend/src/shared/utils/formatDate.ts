@@ -22,6 +22,31 @@ export function formatDate(isoDate: string | null | undefined): string | null {
 }
 
 /**
+ * The same date with a time, for the backend's instants rather than its dates.
+ *
+ * `OffsetDateTime` fields — when a response was generated, when an allocation
+ * began — are moments, and rounding one to a bare day would make two things that
+ * happened hours apart look simultaneous. UTC for the same reason as above, and
+ * labelled as UTC because an unqualified clock time invites the reader to assume
+ * their own.
+ */
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "UTC",
+});
+
+export function formatDateTime(isoDateTime: string | null | undefined): string | null {
+  if (!isoDateTime) return null;
+  const parsed = new Date(isoDateTime);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return `${DATE_TIME_FORMATTER.format(parsed)} UTC`;
+}
+
+/**
  * The span a project runs for, as one readable phrase.
  *
  * An ongoing project legitimately has no deadline, so the missing end is stated
