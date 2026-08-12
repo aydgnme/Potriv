@@ -14,15 +14,18 @@ const getSkillCategories = vi.fn();
 const getSkills = vi.fn();
 const getSkill = vi.fn();
 const getOwnSkills = vi.fn();
+const getManagedDepartment = vi.fn();
 
 vi.mock("./skillsDataSources", () => ({
   getSkillCategories,
   getSkills,
   getSkill,
   getOwnSkills,
+  getManagedDepartment,
 }));
 
-const { loadCatalogue, loadSkillDetail, loadOwnSkills } = await import("./loadSkills");
+const { loadCatalogue, loadSkillDetail, loadOwnSkills, loadManagedDepartment } =
+  await import("./loadSkills");
 
 const JAVA = "3e38e3cc-140c-4b89-a51d-a184c6e85700";
 const BACKEND = "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d";
@@ -221,5 +224,50 @@ describe("the reader's own skills", () => {
     getOwnSkills.mockResolvedValue({ ok: false, reason: "ERROR" });
 
     expect(await loadOwnSkills()).toEqual({ ok: false, reason: "ERROR" });
+  });
+});
+
+describe("the caller's own department appointment", () => {
+  /**
+   * Three answers, not two. The role is not the appointment, so "we could not
+   * find out" has to stay distinct from "you have none" — otherwise an outage
+   * tells somebody something untrue about their own standing.
+   */
+  const MANAGER = ["EMPLOYEE", "DEPARTMENT_MANAGER"];
+  const PLATFORM = { departmentId: "686fcfea-14c7-493f-9c7a-2aa31267723a", name: "Platform" };
+
+  it("reports the department when the lookup succeeds", async () => {
+    getManagedDepartment.mockResolvedValue({ ok: true, value: PLATFORM });
+
+    expect(await loadManagedDepartment(MANAGER)).toEqual({
+      kind: "managed",
+      department: PLATFORM,
+    });
+  });
+
+  it("reads a 403 as holding the role without an appointment", async () => {
+    getManagedDepartment.mockResolvedValue({ ok: false, reason: "FORBIDDEN" });
+
+    expect(await loadManagedDepartment(MANAGER)).toEqual({ kind: "unassigned" });
+  });
+
+  it("does not turn a failed lookup into an absent appointment", async () => {
+    getManagedDepartment.mockResolvedValue({ ok: false, reason: "ERROR" });
+
+    expect(await loadManagedDepartment(MANAGER)).toEqual({ kind: "error" });
+  });
+
+  it("treats an unexpected 404 as a failure too, not as an answer", async () => {
+    // Only a 403 carries the appointment meaning; nothing else is interpreted.
+    getManagedDepartment.mockResolvedValue({ ok: false, reason: "NOT_FOUND" });
+
+    expect(await loadManagedDepartment(MANAGER)).toEqual({ kind: "error" });
+  });
+
+  it("asks nothing at all for somebody without the role", async () => {
+    expect(await loadManagedDepartment(["EMPLOYEE", "ORGANIZATION_ADMIN"])).toEqual({
+      kind: "unassigned",
+    });
+    expect(getManagedDepartment).not.toHaveBeenCalled();
   });
 });

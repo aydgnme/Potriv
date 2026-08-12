@@ -11,6 +11,8 @@ export type SkillCatalogueProps = {
   readonly query: CatalogueQuery;
   readonly categories: readonly SkillCategory[];
   readonly skills: readonly CatalogueSkill[];
+  /** Department managers may author catalogue entries; nobody else sees these. */
+  readonly canAuthorCatalogue?: boolean;
 };
 
 /**
@@ -26,11 +28,16 @@ export type SkillCatalogueProps = {
  * ranking to sort by and no pagination to page through, so the count says exactly
  * what was returned and implies no hidden remainder.
  *
- * There are no catalogue-management controls here for anyone, including
- * department managers who can create skills through the API. Those arrive with
- * the rest of that workflow; a button that half-worked would be worse than none.
+ * Catalogue authoring is offered only to department managers, and only as links
+ * to the screens that do it. Everybody else sees the vocabulary and nothing to
+ * change it with.
  */
-export function SkillCatalogue({ query, categories, skills }: SkillCatalogueProps) {
+export function SkillCatalogue({
+  query,
+  categories,
+  skills,
+  canAuthorCatalogue = false,
+}: SkillCatalogueProps) {
   const filtered = isFiltered(query);
 
   return (
@@ -61,6 +68,13 @@ export function SkillCatalogue({ query, categories, skills }: SkillCatalogueProp
       </nav>
 
       <div className={styles.section}>
+        {canAuthorCatalogue ? (
+          <div className={styles.filterRow}>
+            <Link href="/skills/new">New skill</Link>
+            <Link href="/skills/categories">Manage categories</Link>
+          </div>
+        ) : null}
+
         <CatalogueFilters query={query} />
 
         <p className={styles.resultCount} role="status">

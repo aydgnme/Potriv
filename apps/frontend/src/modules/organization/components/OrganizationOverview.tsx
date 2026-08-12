@@ -70,6 +70,22 @@ export function OrganizationOverview({ overview }: OrganizationOverviewProps) {
             place to put a joining credential in front of somebody. */}
         <Link href="/organization/invite">Open invite</Link>
       </section>
+
+      <section className={styles.panel} aria-labelledby="overview-team-roles">
+        <h2 className={styles.panelHeading} id="overview-team-roles">
+          Team roles
+        </h2>
+
+        {/* No count: the landing loads departments and the invite, and adding a
+            third read to print a number would make this page slower to say less
+            than the team-roles page itself does. */}
+        <p className={styles.panelNote}>
+          The vocabulary projects use to say what they need staffed. Team roles do not grant
+          application permissions.
+        </p>
+
+        <Link href="/organization/team-roles">Open team roles</Link>
+      </section>
     </div>
   );
 }

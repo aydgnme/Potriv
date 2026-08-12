@@ -38,6 +38,7 @@ export default async function Page({
           query={state.query}
           categories={state.categories}
           skills={state.skills.value}
+          canAuthorCatalogue={session.user.roles.includes("DEPARTMENT_MANAGER")}
         />
       ) : (
         <EmptyState title="Could not load skills." description="Try again shortly." />
