@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -9,7 +10,10 @@ import {
   loadSkillDetail,
 } from "@/modules/skills/server/loadSkills";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Skill · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -58,10 +62,10 @@ export default async function Page({
 
   return (
     <>
-      <PageHeader
-        title={state.skill.name}
-        actions={<Link href="/skills">Back to the catalogue</Link>}
-      />
+      {/* The trail replaces the ad-hoc back link: same destination, stated as
+          position rather than as an action, and correct from a bookmark. */}
+      <Breadcrumbs trail={[{ label: "Skills", href: "/skills" }]} current={state.skill.name} />
+      <PageHeader title={state.skill.name} />
       <SkillsNav active="catalogue" />
       <SkillDetail
         skill={state.skill}

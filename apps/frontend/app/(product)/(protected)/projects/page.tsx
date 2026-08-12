@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { ProjectsPage } from "@/modules/projects";
 import { normalizeProjectsQuery, type RawSearchParams } from "@/modules/projects/model/projectsQuery";
 import { loadProjectsView } from "@/modules/projects/server/loadProjectsView";
+
+export const metadata: Metadata = { title: "Projects · Potriv" };
 
 export const dynamic = "force-dynamic";
 

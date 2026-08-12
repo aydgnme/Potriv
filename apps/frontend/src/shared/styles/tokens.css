@@ -104,4 +104,9 @@
 
   /* ---- layout ---- */
   --p-sidebar-width: 232px;
+  /* Icon plus target padding, and nothing more: the rail is for icons. */
+  --p-sidebar-width-collapsed: 56px;
+  /* One value, used by the bar's own height and by the inset that keeps content
+     and focus rings clear of it. Two numbers here become a hidden last row. */
+  --p-mobile-nav-height: 56px;
 }

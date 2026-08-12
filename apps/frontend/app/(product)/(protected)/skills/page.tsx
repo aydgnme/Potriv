@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -6,6 +7,8 @@ import type { RawSearchParams } from "@/modules/skills/model/catalogueQuery";
 import { loadCatalogue } from "@/modules/skills/server/loadSkills";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Skills · Potriv" };
 
 export const dynamic = "force-dynamic";
 

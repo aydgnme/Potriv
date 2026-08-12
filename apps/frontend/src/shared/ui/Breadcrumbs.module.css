@@ -1,0 +1,30 @@
+.breadcrumbs { font-size: var(--p-text-sm); }
+
+.trail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--p-space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--p-text-muted);
+}
+
+/* The separator is decoration, so it is drawn rather than written: a screen
+   reader hears the list, not a row of chevrons. */
+.crumb + .crumb::before {
+  content: "›";
+  margin-right: var(--p-space-2);
+  color: var(--p-text-subtle);
+}
+
+/* Long object names wrap rather than pushing the page wider. */
+.crumb { overflow-wrap: anywhere; }
+
+.compact { display: none; }
+
+@media (max-width: 767px) {
+  .trail { display: none; }
+  .compact { display: block; margin: 0; }
+}

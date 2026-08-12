@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -5,6 +6,8 @@ import { OrganizationOverview } from "@/modules/organization";
 import { loadOrganizationOverview } from "@/modules/organization/server/loadOrganization";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Organization · Potriv" };
 
 export const dynamic = "force-dynamic";
 

@@ -1,0 +1,131 @@
+/* Present only below the sidebar's breakpoint. The desktop sidebar and this bar
+   are the same navigation on two surfaces, and exactly one is displayed at a
+   time, so only one reaches the accessibility tree. */
+.bar { display: none; }
+
+@media (max-width: 767px) {
+  .bar {
+    display: block;
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: 20;
+    background: var(--p-surface);
+    border-top: 1px solid var(--p-border);
+    /* Home indicators and rounded corners eat the last few pixels on some
+       devices; the inset is asked for rather than guessed at. */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .tabs {
+    display: flex;
+    align-items: stretch;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Equal shares, and each may shrink: five labels must fit 320px without the
+     bar itself becoming a scrolling surface. */
+  .tab { flex: 1 1 0; min-width: 0; }
+
+  .link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    /* Comfortably past the 24×24 minimum, and the whole cell is the target. */
+    min-height: var(--p-mobile-nav-height);
+    padding: var(--p-space-2) var(--p-space-1);
+    background: none;
+    border: none;
+    color: var(--p-text-muted);
+    font-size: var(--p-text-xs);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .link:hover { color: var(--p-text); text-decoration: none; }
+
+  /* Weight and fill, never hue: colour stays reserved for domain status. */
+  .linkCurrent,
+  .linkCurrentSection {
+    background: var(--p-surface-active);
+    color: var(--p-text);
+    font-weight: var(--p-weight-medium);
+  }
+
+  .icon { flex: none; }
+
+  /* Wraps rather than truncating: a clipped label is a control with no name. */
+  .label { text-align: center; overflow-wrap: anywhere; }
+}
+
+/* ── The More sheet ──────────────────────────────────────────────────────── */
+
+.sheet {
+  width: min(100%, 30rem);
+  max-width: 100%;
+  margin: auto auto 0;
+  padding: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-lg) var(--p-radius-lg) 0 0;
+  color: var(--p-text);
+}
+.sheet::backdrop { background: rgb(22 24 29 / 40%); }
+
+.sheetTitle { font-size: var(--p-text-lg); margin-bottom: var(--p-space-3); }
+
+.sheetItems {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  margin: 0 0 var(--p-space-4);
+  padding: 0;
+}
+
+.sheetLink {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  min-height: var(--p-control-lg);
+  padding: 0 var(--p-space-3);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  text-decoration: none;
+}
+.sheetLink:hover { background: var(--p-surface-hover); text-decoration: none; }
+.sheetLinkCurrent {
+  background: var(--p-surface-active);
+  font-weight: var(--p-weight-medium);
+}
+
+.sheetAccount {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-2);
+  align-items: flex-start;
+  padding-top: var(--p-space-4);
+  border-top: 1px solid var(--p-border);
+}
+.accountName { font-size: var(--p-text-sm); font-weight: var(--p-weight-medium); }
+.accountRoles {
+  font-size: var(--p-text-xs);
+  color: var(--p-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.sheetClose {
+  width: 100%;
+  min-height: var(--p-control-lg);
+  margin-top: var(--p-space-4);
+  background: none;
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  font-size: var(--p-text-base);
+  cursor: pointer;
+}
+.sheetClose:hover { background: var(--p-surface-hover); }

@@ -1,3 +1,4 @@
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { NavigationItem, NavigationItemId } from "@/shared/config/navigation";
@@ -6,6 +7,7 @@ import { roleLabel } from "@/shared/types/accessRole";
 
 import styles from "./Sidebar.module.css";
 import { SidebarItem } from "./SidebarItem";
+import { VisuallyHidden } from "./VisuallyHidden";
 
 export type SidebarUser = {
   readonly name: string;
@@ -30,14 +32,24 @@ export type SidebarProps = {
    * belongs to the auth domain.
    */
   readonly accountActions?: ReactNode;
+  /** Narrows to an icon rail. Labels stay in the accessibility tree. */
+  readonly collapsed?: boolean;
+  /** Absent when there is nobody to tell — the control is then not rendered. */
+  readonly onToggleCollapse?: () => void;
 };
 
 /**
- * Product navigation.
+ * Product navigation on desktop.
  *
  * It renders what it is given and contains no role conditions — capability
  * composition belongs to `getNavigationItems`, which is pure and tested. If a
  * role chain ever appears in this file, the rule has been broken.
+ *
+ * Collapsing narrows the rail to icons. The labels are still there, hidden from
+ * the eye rather than from the accessibility tree, so a collapsed link is named
+ * exactly as it was — this is a density preference, not a reduction in what the
+ * navigation says. Everything reachable expanded stays reachable collapsed,
+ * sign-out included, because a preference must not cost a capability.
  *
  * The organization name, when present, is context rather than a control: every
  * user belongs to exactly one organization and no endpoint changes it, so there
@@ -49,26 +61,72 @@ export function Sidebar({
   navigationItems,
   currentItemId,
   accountActions,
+  collapsed = false,
+  onToggleCollapse,
 }: SidebarProps) {
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
+
   return (
-    <nav className={styles.sidebar} aria-label="Product">
+    <nav
+      className={[styles.sidebar, collapsed ? styles.sidebarCollapsed : null]
+        .filter(Boolean)
+        .join(" ")}
+      aria-label="Product"
+    >
       <div className={styles.identity}>
-        <span className={styles.wordmark}>Potriv</span>
-        {organizationName ? (
+        {/* The mark alone when collapsed; the full name is still announced. */}
+        <span className={styles.wordmark} aria-hidden={collapsed ? "true" : undefined}>
+          {collapsed ? "P" : "Potriv"}
+        </span>
+        {collapsed ? <VisuallyHidden>Potriv</VisuallyHidden> : null}
+        {organizationName && !collapsed ? (
           <span className={styles.organization}>{organizationName}</span>
         ) : null}
       </div>
 
       <ul className={styles.items}>
         {navigationItems.map((item) => (
-          <SidebarItem key={item.id} item={item} current={item.id === currentItemId} />
+          <SidebarItem
+            key={item.id}
+            item={item}
+            current={item.id === currentItemId}
+            collapsed={collapsed}
+          />
         ))}
       </ul>
 
       <div className={styles.account}>
-        <span className={styles.accountName}>{user.name}</span>
-        <span className={styles.accountRoles}>{user.roles.map(roleLabel).join(" · ")}</span>
+        {/* Compacted, not dropped: who you are signed in as stays announced. */}
+        {collapsed ? (
+          <VisuallyHidden>
+            {`${user.name}. ${user.roles.map(roleLabel).join(", ")}`}
+          </VisuallyHidden>
+        ) : (
+          <>
+            <span className={styles.accountName}>{user.name}</span>
+            <span className={styles.accountRoles}>
+              {user.roles.map(roleLabel).join(" · ")}
+            </span>
+          </>
+        )}
         {accountActions ? <div className={styles.accountActions}>{accountActions}</div> : null}
+
+        {onToggleCollapse ? (
+          <button
+            type="button"
+            className={styles.collapseToggle}
+            /* Describes the navigation region this control governs. */
+            aria-expanded={!collapsed}
+            onClick={onToggleCollapse}
+          >
+            <ToggleIcon className={styles.itemIcon} size={16} aria-hidden="true" />
+            {collapsed ? (
+              <VisuallyHidden>Expand navigation</VisuallyHidden>
+            ) : (
+              <span className={styles.toggleLabel}>Collapse navigation</span>
+            )}
+          </button>
+        ) : null}
       </div>
     </nav>
   );

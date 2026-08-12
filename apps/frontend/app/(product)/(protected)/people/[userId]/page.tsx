@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -9,6 +10,8 @@ import {
 } from "@/modules/people/server/peopleDataSources";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Person · Potriv" };
 
 export const dynamic = "force-dynamic";
 

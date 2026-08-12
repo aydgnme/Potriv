@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -5,7 +6,10 @@ import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { TeamRoleDetail } from "@/modules/teamRoles";
 import { loadTeamRoleDetail } from "@/modules/teamRoles/server/loadTeamRoles";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Team role · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -52,10 +56,14 @@ export default async function Page({
 
   return (
     <>
-      <PageHeader
-        title={state.teamRole.name}
-        actions={<Link href="/organization/team-roles">Back to team roles</Link>}
+      <Breadcrumbs
+        trail={[
+          { label: "Organization", href: "/organization" },
+          { label: "Team roles", href: "/organization/team-roles" },
+        ]}
+        current={state.teamRole.name}
       />
+      <PageHeader title={state.teamRole.name} />
       <TeamRoleDetail teamRole={state.teamRole} />
     </>
   );

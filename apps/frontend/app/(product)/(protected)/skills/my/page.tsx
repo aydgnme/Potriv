@@ -1,10 +1,14 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { MySkills, SkillsNav } from "@/modules/skills";
 import { loadOwnSkills } from "@/modules/skills/server/loadSkills";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "My skills · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +26,7 @@ export default async function Page() {
 
   return (
     <>
+      <Breadcrumbs trail={[{ label: "Skills", href: "/skills" }]} current={"My skills"} />
       <PageHeader
         title="My skills"
         description="What you can do, in your organization's own vocabulary."
