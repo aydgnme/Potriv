@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
 import { StatusBadge } from "@/shared/ui/StatusBadge";
 import { formatDate, formatDateRange } from "@/shared/utils/formatDate";
@@ -43,6 +44,10 @@ export function ProjectOverview({ projectId, data, canManage }: ProjectOverviewP
 
   return (
     <div className={styles.page}>
+      <Breadcrumbs
+        trail={[{ label: "Projects", href: "/projects" }]}
+        current={project.projectName}
+      />
       <PageHeader
         title={project.projectName}
         status={

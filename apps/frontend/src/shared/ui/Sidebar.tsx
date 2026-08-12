@@ -51,6 +51,11 @@ export type SidebarProps = {
  * navigation says. Everything reachable expanded stays reachable collapsed,
  * sign-out included, because a preference must not cost a capability.
  *
+ * The preference only exists where there is room for it to mean something.
+ * Between 768px and 1100px the rail is what the layout gives you either way, so
+ * the stylesheet hides this control rather than letting it claim an expanded
+ * navigation and then change nothing when pressed.
+ *
  * The organization name, when present, is context rather than a control: every
  * user belongs to exactly one organization and no endpoint changes it, so there
  * is no switcher.

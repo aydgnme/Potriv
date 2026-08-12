@@ -125,7 +125,6 @@
   .sidebar .wordmark,
   .sidebar .organization,
   .sidebar .itemLabel,
-  .sidebar .toggleLabel,
   .sidebar .accountName,
   .sidebar .accountRoles {
     position: absolute;
@@ -138,6 +137,13 @@
     white-space: nowrap;
     border: 0;
   }
+
+  /* The rail is the layout's decision at this width, not the reader's, so the
+     control goes away entirely — UI and accessibility tree. Leaving it would
+     announce "Collapse navigation" beside an already-collapsed rail and then
+     do nothing visible when pressed, because the media query outranks the
+     state it toggles. */
+  .sidebar .collapseToggle { display: none; }
 }
 
 /* The bottom bar owns navigation on phones; this rail is not rendered there. */

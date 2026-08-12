@@ -61,14 +61,30 @@ names are unchanged. Verified live: 232px → 56px with identical accessible
 names, current state and sign-out. Not persisted.
 
 **768–1099px.** Icon rail by default, using the same clip technique, so the
-labels stay in the accessibility tree.
+labels stay in the accessibility tree. The collapse control is hidden here — UI
+and accessibility tree — because the media query outranks the React state it
+toggles: leaving it would announce "Collapse navigation" beside an
+already-collapsed rail and then change nothing when pressed. The preference is
+interactive only at ≥1100px, where `aria-expanded` always matches what is
+rendered.
 
 **Mobile.** The top strip is replaced by a fixed bottom bar of at most five
-controls. Six domains become four tabs plus More; the overflow sheet is a native
-modal `<dialog>` carrying the remaining domains, the account identity, the role
-list and sign-out. `aria-current` stays on the real link inside the sheet, and
-More is named `More, current section Organization` when the current domain is
-inside it. Content inset is `--p-mobile-nav-height` plus `env(safe-area-inset-bottom)`.
+controls. The **last slot always belongs to the account sheet**: the sidebar that
+normally carries sign-out is not rendered at this width, so giving that slot to a
+fourth or fifth domain strands the account entirely. Up to four domains are
+direct tabs; anything beyond moves into the sheet, which is named "More" when it
+carries domains and "Account" when it carries only the account block. Both are
+the same native modal `<dialog>`. `aria-current` stays on the real link inside
+it, and the trigger is named `More, current section Organization` when the
+current domain is inside. Content inset is `--p-mobile-nav-height` plus
+`env(safe-area-inset-bottom)`.
+
+| Domains | Bottom controls |
+| --- | --- |
+| 3 | 3 tabs + Account = 4 |
+| 4 | 4 tabs + Account = 5 |
+| 5 | 4 tabs + More = 5 |
+| 6 | 4 tabs + More = 5 |
 
 ## Orientation
 
@@ -82,10 +98,13 @@ a real route, so the trail works from a bookmark; the current page is text with
 links those pages carried were removed. At ≤767px the trail collapses to a
 "Back to {parent}" link to the same real route.
 
-**Not wired:** the four `/projects/{id}/**` routes and `/people/{id}`. Their
-headers are rendered inside module components rather than the route file, so the
-object name is not in scope where the trail would go. Left for a follow-up
-rather than restructured under time pressure.
+Also wired, inside the module components that already hold the loaded object:
+`/projects/{id}` (`ProjectOverview`), `/projects/{id}/team` (`ProjectTeamView`),
+`/projects/{id}/edit` (`ProjectSettingsPage`), `/projects/{id}/team-finder`
+(`TeamFinderScreen`) and `/people/{id}` (`PersonDetail`). Each takes the name
+from the payload the route already fetched, so no request was added for
+metadata; `TeamFinderScreen` uses `project.projectId` from that same payload.
+All 16 deep routes now carry a trail.
 
 **Titles.** All 23 protected routes now set one. Dynamic object routes use an
 honest route-level fallback (`Skill · Potriv`, `Project team · Potriv`) because

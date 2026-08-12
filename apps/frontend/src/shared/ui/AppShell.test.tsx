@@ -280,9 +280,62 @@ describe("the bottom bar", () => {
     expect(more).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("offers no More at all when everything fits", () => {
-    renderShell(["EMPLOYEE", "ORGANIZATION_ADMIN"]);
+  it.each([
+    [["EMPLOYEE"], "Account"],
+    [["EMPLOYEE", "PROJECT_MANAGER"], "Account"],
+    [["EMPLOYEE", "DEPARTMENT_MANAGER"], "More"],
+    [["EMPLOYEE", "ORGANIZATION_ADMIN"], "More"],
+    [["EMPLOYEE", "PROJECT_MANAGER", "DEPARTMENT_MANAGER", "ORGANIZATION_ADMIN"], "More"],
+  ] as const)("keeps sign-out reachable for %s", async (held, trigger) => {
+    // The sidebar that carries sign-out is not rendered at this width, so the
+    // sheet is the only route to it. Every role set must have one.
+    const user = userEvent.setup();
+    renderShell([...held]);
 
+    await user.click(inBar().getByRole("button", { name: trigger, hidden: true }));
+
+    const sheet = screen.getByRole("dialog", { hidden: true });
+    expect(
+      within(sheet).getByRole("button", { name: "Sign out", hidden: true }),
+    ).toBeInTheDocument();
+    expect(within(sheet).getByText("Mert Aydoğan")).toBeInTheDocument();
+  });
+
+  it.each([
+    [["EMPLOYEE"]],
+    [["EMPLOYEE", "PROJECT_MANAGER"]],
+    [["EMPLOYEE", "DEPARTMENT_MANAGER"]],
+    [["EMPLOYEE", "ORGANIZATION_ADMIN"]],
+    [["EMPLOYEE", "PROJECT_MANAGER", "DEPARTMENT_MANAGER", "ORGANIZATION_ADMIN"]],
+  ] as const)("stays within five controls and loses no domain for %s", async (held) => {
+    const user = userEvent.setup();
+    renderShell([...held]);
+
+    const inTheBarItself = (element: HTMLElement) => element.closest("dialog") === null;
+    const barLinks = inBar().getAllByRole("link", { hidden: true }).filter(inTheBarItself);
+    const barButtons = inBar().getAllByRole("button", { hidden: true }).filter(inTheBarItself);
+
+    expect(barLinks.length + barButtons.length).toBeLessThanOrEqual(5);
+    expect(barButtons).toHaveLength(1);
+
+    // Every granted domain is reachable exactly once, wherever it lives.
+    await user.click(barButtons[0]!);
+    const sheet = screen.getByRole("dialog", { hidden: true });
+    const reachable = [
+      ...barLinks.map((link) => link.textContent),
+      // `queryAll`: a sheet with nothing overflowed carries no links at all.
+      ...within(sheet)
+        .queryAllByRole("link", { hidden: true })
+        .map((link) => link.textContent),
+    ];
+
+    expect(reachable).toEqual(getNavigationItems([...held]).map((item) => item.label));
+  });
+
+  it("names the control for what it holds", () => {
+    // Nothing overflows, so it is not "More" — it is the account.
+    renderShell(["EMPLOYEE"]);
+    expect(inBar().getByRole("button", { name: "Account", hidden: true })).toBeInTheDocument();
     expect(inBar().queryByRole("button", { name: /^More/, hidden: true })).toBeNull();
   });
 });

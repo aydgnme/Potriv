@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, UserRound } from "lucide-react";
 
 import {
   splitMobileNavigation,
@@ -67,28 +67,31 @@ export function MobileNavigation({
           );
         })}
 
-        {overflow.length > 0 ? (
-          <li className={styles.tab}>
-            <MoreSheet
-              user={user}
-              overflow={overflow}
-              currentItemId={currentItemId}
-              currentSectionLabel={currentInOverflow?.label}
-              accountActions={accountActions}
-            />
-          </li>
-        ) : null}
+        {/* Always present. The sidebar that carries the account block is not
+            rendered at this width, so this control is the only route to it —
+            dropping it when every domain happened to fit is how sign-out went
+            missing for every role set below six domains. */}
+        <li className={styles.tab}>
+          <AccountSheet
+            user={user}
+            overflow={overflow}
+            currentItemId={currentItemId}
+            currentSectionLabel={currentInOverflow?.label}
+            accountActions={accountActions}
+          />
+        </li>
       </ul>
     </nav>
   );
 }
 
 /**
- * The overflow surface.
+ * The account surface, and the overflow one when there is overflow.
  *
- * It carries the domains that did not fit *and* the account block, which is the
- * better home for a name, a role list and sign-out than a bar with five things
- * already in it.
+ * It always carries the account block — a name, a role list and sign-out — which
+ * has nowhere else to live at this width. When domains overflow it carries those
+ * too, and is named "More" rather than "Account" so the control says what it
+ * actually holds.
  *
  * A native `<dialog>` opened modally, so focus entry, Escape, background
  * inertness and focus return to the trigger are the platform's behaviour rather
@@ -96,7 +99,7 @@ export function MobileNavigation({
  * `aria-current` stays on the real link inside it, because a button that is not
  * the page cannot claim to be the page.
  */
-function MoreSheet({
+function AccountSheet({
   user,
   overflow,
   currentItemId,
@@ -111,7 +114,9 @@ function MoreSheet({
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
-  const titleId = "mobile-more-title";
+  const titleId = "mobile-account-sheet-title";
+  const hasOverflow = overflow.length > 0;
+  const label = hasOverflow ? "More" : "Account";
 
   // `open` mirrors the element rather than driving it, so Escape — which the
   // platform handles without telling React — cannot leave the two disagreeing.
@@ -142,13 +147,17 @@ function MoreSheet({
           setOpen(true);
         }}
       >
-        <Ellipsis className={styles.icon} size={18} aria-hidden="true" />
-        <span className={styles.label}>More</span>
+        {hasOverflow ? (
+          <Ellipsis className={styles.icon} size={18} aria-hidden="true" />
+        ) : (
+          <UserRound className={styles.icon} size={18} aria-hidden="true" />
+        )}
+        <span className={styles.label}>{label}</span>
       </button>
 
       <dialog ref={dialogRef} className={styles.sheet} aria-labelledby={titleId}>
         <h2 className={styles.sheetTitle} id={titleId}>
-          More
+          {label}
         </h2>
 
         <ul className={styles.sheetItems}>

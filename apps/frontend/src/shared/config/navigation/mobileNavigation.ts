@@ -12,7 +12,7 @@ export const MAX_BOTTOM_CONTROLS = 5;
 export type MobileNavigation = {
   /** Rendered directly in the bar, in source order. */
   readonly tabs: readonly NavigationItem[];
-  /** Rendered inside the More sheet. Empty when everything fits. */
+  /** Rendered inside the sheet. Empty when every domain fits in the bar. */
   readonly overflow: readonly NavigationItem[];
 };
 
@@ -24,15 +24,18 @@ export type MobileNavigation = {
  * twice in two places that could disagree. Source order is preserved, so the
  * bar reads in the same order as the sidebar.
  *
- * Nothing is ever dropped — an item that does not fit is in `overflow`, and the
- * caller is expected to render it.
+ * The last slot always belongs to the account sheet, whether or not any domain
+ * overflows. Giving it away when everything happened to fit is what stranded
+ * sign-out on mobile for every role set smaller than six domains: the sidebar
+ * that normally carries it is not rendered at that width, so the sheet is the
+ * only place it exists.
+ *
+ * Nothing is ever dropped — a domain that does not fit is in `overflow`, and the
+ * caller renders it inside the sheet.
  */
 export function splitMobileNavigation(
   items: readonly NavigationItem[],
 ): MobileNavigation {
-  if (items.length <= MAX_BOTTOM_CONTROLS) return { tabs: items, overflow: [] };
-
-  // One slot goes to More itself, so the remaining domains stay reachable.
   const direct = MAX_BOTTOM_CONTROLS - 1;
   return { tabs: items.slice(0, direct), overflow: items.slice(direct) };
 }

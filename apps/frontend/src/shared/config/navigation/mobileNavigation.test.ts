@@ -17,40 +17,47 @@ const roles = {
 } as const;
 
 describe("fitting navigation into a bottom bar", () => {
-  it("renders everything directly when it fits", () => {
-    const { tabs, overflow } = splitMobileNavigation(getNavigationItems(roles.employee));
+  /**
+   * The fifth control is the account sheet, always. The sidebar that normally
+   * carries sign-out is not rendered at this width, so a bar that gives that
+   * slot away strands the account for whatever role set happened to fit.
+   */
 
-    expect(tabs.map((item) => item.id)).toEqual(["home", "projects", "skills"]);
-    expect(overflow).toEqual([]);
+  it.each([
+    [roles.employee, 3, 0],
+    [roles.manager, 4, 0],
+    [roles.admin, 4, 1],
+    [roles.everything, 4, 2],
+  ])("splits %#: %s domains into tabs and overflow", (held, expectedTabs, expectedOverflow) => {
+    const { tabs, overflow } = splitMobileNavigation(getNavigationItems(held));
+
+    expect(tabs).toHaveLength(expectedTabs);
+    expect(overflow).toHaveLength(expectedOverflow);
+    // Tabs plus the ever-present account control.
+    expect(tabs.length + 1).toBeLessThanOrEqual(MAX_BOTTOM_CONTROLS);
   });
 
-  it("still fits at exactly the limit", () => {
+  it("never fills the last slot with a domain, even when one would fit", () => {
+    // Five domains could sit in five slots — and then there would be no way to
+    // reach sign-out at all.
     const items = getNavigationItems(roles.admin);
-    const { tabs, overflow } = splitMobileNavigation(items);
 
-    expect(items).toHaveLength(MAX_BOTTOM_CONTROLS);
-    expect(tabs).toHaveLength(MAX_BOTTOM_CONTROLS);
-    expect(overflow).toEqual([]);
+    expect(items).toHaveLength(5);
+    expect(splitMobileNavigation(items).tabs).toHaveLength(4);
+    expect(splitMobileNavigation(items).overflow.map((item) => item.id)).toEqual([
+      "organization",
+    ]);
   });
 
-  it("keeps a slot for More once it does not", () => {
-    const items = getNavigationItems(roles.everything);
-    const { tabs, overflow } = splitMobileNavigation(items);
+  it("loses nothing and duplicates nothing, for every role set", () => {
+    for (const held of Object.values(roles)) {
+      const items = getNavigationItems(held);
+      const { tabs, overflow } = splitMobileNavigation(items);
+      const shown = [...tabs, ...overflow].map((item) => item.id);
 
-    expect(items).toHaveLength(6);
-    // Four direct plus More is five controls, not six.
-    expect(tabs).toHaveLength(MAX_BOTTOM_CONTROLS - 1);
-    expect(tabs.map((item) => item.id)).toEqual(["home", "projects", "staffing", "people"]);
-    expect(overflow.map((item) => item.id)).toEqual(["skills", "organization"]);
-  });
-
-  it("loses nothing and duplicates nothing", () => {
-    const items = getNavigationItems(roles.everything);
-    const { tabs, overflow } = splitMobileNavigation(items);
-    const shown = [...tabs, ...overflow].map((item) => item.id);
-
-    expect(shown).toEqual(items.map((item) => item.id));
-    expect(new Set(shown).size).toBe(shown.length);
+      expect(shown).toEqual(items.map((item) => item.id));
+      expect(new Set(shown).size).toBe(shown.length);
+    }
   });
 
   it("preserves the sidebar's order", () => {
