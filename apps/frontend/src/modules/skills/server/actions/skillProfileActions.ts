@@ -47,12 +47,31 @@ const FALLBACK = {
   SERVER: "Something went wrong. Try again.",
 } as const;
 
-function messageFor(status: number, detail: string | null): string {
+/**
+ * Which object a failure is about.
+ *
+ * `assign` acts on a catalogue skill; `profile` acts on one of the caller's own
+ * assignments. It matters for the wordless cases: a 404 with no usable body
+ * means "that skill" for one and "that assignment" for the other, and a shared
+ * fallback would have edit and remove apologise for the wrong thing whenever the
+ * backend sent no message or the sanitizer rejected the one it did send.
+ */
+type MutationKind = "assign" | "profile";
+
+function mutationMessage(
+  operation: MutationKind,
+  status: number,
+  detail: string | null,
+): string {
   if (detail !== null) return detail;
   if (status === 400 || status === 422) return FALLBACK.VALIDATION;
   if (status === 401) return FALLBACK.UNAUTHENTICATED;
-  if (status === 404) return FALLBACK.SKILL_UNAVAILABLE;
-  if (status === 409) return FALLBACK.DUPLICATE;
+  if (status === 404) {
+    return operation === "assign" ? FALLBACK.SKILL_UNAVAILABLE : FALLBACK.ASSIGNMENT_UNAVAILABLE;
+  }
+  // Only assignment can collide; a conflict on an edit or a removal is not a
+  // duplicate and must not be described as one.
+  if (status === 409 && operation === "assign") return FALLBACK.DUPLICATE;
   return FALLBACK.SERVER;
 }
 
@@ -106,7 +125,7 @@ export async function assignOwnSkillAction(
     // A duplicate can still win the race between the read and the write; the
     // backend stays the authority and its refusal is reported as a refusal.
     refreshProfile(skillId);
-    return { error: messageFor(assigned.status, assigned.detail) };
+    return { error: mutationMessage("assign", assigned.status, assigned.detail) };
   }
 
   refreshProfile(skillId);
@@ -150,7 +169,7 @@ export async function updateOwnSkillAction(
 
   const saved = await updateOwnSkill(employeeSkillId, level, experience);
   if (!saved.ok) {
-    return { error: messageFor(saved.status, saved.detail) };
+    return { error: mutationMessage("profile", saved.status, saved.detail) };
   }
 
   refreshProfile(saved.value.skill.skillId);
@@ -186,7 +205,7 @@ export async function removeOwnSkillAction(
 
   const removed = await removeOwnSkill(employeeSkillId);
   if (!removed.ok) {
-    return { error: messageFor(removed.status, removed.detail) };
+    return { error: mutationMessage("profile", removed.status, removed.detail) };
   }
 
   refreshProfile(existing.skill.skillId);

@@ -322,6 +322,38 @@ describe("the skill detail", () => {
     expect(screen.getByText(/inactive and cannot be newly added/)).toBeInTheDocument();
   });
 
+  it("never claims an inactive skill can be added, even when it has links", () => {
+    // The department note used to promise "anyone in the organization can add
+    // it" unconditionally, so an inactive skill with links said both that it
+    // could not be newly added and that anybody could add it.
+    render(
+      <SkillDetail
+        skill={skill({ active: false, departments: [{ departmentId: "d-1", name: "Platform" }] })}
+        assignment={null}
+        profileLoaded
+      />,
+    );
+
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("cannot be newly added");
+    expect(text).not.toMatch(/[Aa]nyone in the organization can add it/);
+    // The note itself still appears, saying what a link is not.
+    expect(screen.getByText(/do not determine who may add an active skill/)).toBeInTheDocument();
+  });
+
+  it("keeps the department note truthful on an active skill too", () => {
+    render(
+      <SkillDetail
+        skill={skill({ departments: [{ departmentId: "d-1", name: "Platform" }] })}
+        assignment={null}
+        profileLoaded
+      />,
+    );
+
+    expect(screen.getByText(/do not determine who may add an active skill/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add to my skills" })).toBeInTheDocument();
+  });
+
   it("keeps an inactive skill manageable when it is already held", () => {
     render(
       <SkillDetail

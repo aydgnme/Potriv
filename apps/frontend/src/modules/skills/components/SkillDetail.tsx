@@ -70,9 +70,12 @@ export function SkillDetail({ skill, assignment, profileLoaded }: SkillDetailPro
         </dl>
 
         {skill.departments.length > 0 ? (
+          // Says what a link is *not* rather than promising the skill can be
+          // added: on an inactive skill the promise would contradict the notice
+          // directly above it.
           <p className={styles.panelNote}>
-            Department links describe where this skill is used. Anyone in the organization can
-            add it.
+            Department links describe where this skill is used. They do not determine who may
+            add an active skill.
           </p>
         ) : null}
       </section>

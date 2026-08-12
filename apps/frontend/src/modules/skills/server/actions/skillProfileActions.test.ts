@@ -347,6 +347,74 @@ describe("the catalogue is never touched", () => {
   });
 });
 
+describe("a wordless failure names the right object", () => {
+  /**
+   * The backend normally sends a usable sentence. When it does not — no body, or
+   * one the sanitizer refuses — the fallback has to know which object the caller
+   * was acting on: a catalogue skill for an add, one of their own assignments for
+   * an edit or a removal.
+   */
+  it("says the skill for a failed add", async () => {
+    assignOwnSkill.mockResolvedValue({ ok: false, status: 404, detail: null });
+
+    const state = await assignOwnSkillAction(EMPTY_SKILL_PROFILE_STATE, form(VALID_ADD));
+
+    expect(state.error).toBe("This skill does not exist or is not visible to you.");
+  });
+
+  it("says the assignment for a failed edit", async () => {
+    updateOwnSkill.mockResolvedValue({ ok: false, status: 404, detail: null });
+
+    const state = await updateOwnSkillAction(EMPTY_SKILL_PROFILE_STATE, form(VALID_EDIT));
+
+    expect(state.error).toBe(
+      "This skill assignment no longer exists or is not visible to you.",
+    );
+  });
+
+  it("says the assignment for a failed removal", async () => {
+    removeOwnSkill.mockResolvedValue({ ok: false, status: 404, detail: null });
+
+    const state = await removeOwnSkillAction(
+      EMPTY_SKILL_PROFILE_STATE,
+      form({ employeeSkillId: ASSIGNMENT }),
+    );
+
+    expect(state.error).toBe(
+      "This skill assignment no longer exists or is not visible to you.",
+    );
+  });
+
+  it("calls nothing a duplicate except an add", async () => {
+    // A conflict on an edit or a removal is some other collision entirely.
+    updateOwnSkill.mockResolvedValue({ ok: false, status: 409, detail: null });
+    removeOwnSkill.mockResolvedValue({ ok: false, status: 409, detail: null });
+
+    for (const state of [
+      await updateOwnSkillAction(EMPTY_SKILL_PROFILE_STATE, form(VALID_EDIT)),
+      await removeOwnSkillAction(
+        EMPTY_SKILL_PROFILE_STATE,
+        form({ employeeSkillId: ASSIGNMENT }),
+      ),
+    ]) {
+      expect(state.error).not.toMatch(/already in your profile/);
+      expect(state.error).toBe("Something went wrong. Try again.");
+    }
+  });
+
+  it("still prefers the backend's own sentence when there is one", async () => {
+    updateOwnSkill.mockResolvedValue({
+      ok: false,
+      status: 404,
+      detail: "Skill assignment was not found.",
+    });
+
+    const state = await updateOwnSkillAction(EMPTY_SKILL_PROFILE_STATE, form(VALID_EDIT));
+
+    expect(state.error).toBe("Skill assignment was not found.");
+  });
+});
+
 describe("what crosses back to the browser", () => {
   const LEAKS = [
     "Bearer",
