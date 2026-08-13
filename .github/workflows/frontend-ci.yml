@@ -1,0 +1,78 @@
+name: Frontend CI
+
+# The same gates the frontend has always been verified against locally, run from
+# a clean runner on every change that can reach main. Until now "1119 tests pass"
+# meant "on one machine, if somebody remembered to run them".
+#
+# There is deliberately no `paths:` filter, matching Backend CI: a path-filtered
+# workflow reports no status at all on a PR that misses the filter, which would
+# permanently block every such PR once this is a required check.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Read-only token: this workflow builds and inspects, and needs nothing else.
+permissions:
+  contents: read
+
+# A newer commit on the same ref supersedes an in-flight run.
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-verify:
+    name: frontend-verify
+    runs-on: ubuntu-latest
+    # The whole suite plus a production build finishes in a few minutes; twenty
+    # is a stuck-run ceiling rather than a target.
+    timeout-minutes: 20
+
+    env:
+      CI: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          # The frontend keeps its own lockfile; there is no root workspace, and
+          # inventing one for CI would change how everybody installs locally.
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      # `ci`, never `install`: the lockfile is the contract, and a CI run that
+      # quietly resolves different versions is not verifying the same tree.
+      - name: Install frontend dependencies
+        working-directory: apps/frontend
+        run: npm ci
+
+      # Four separate steps so a failure names itself in the checks UI rather
+      # than surfacing as one opaque red script.
+      - name: Typecheck
+        working-directory: apps/frontend
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: apps/frontend
+        run: npm run lint
+
+      - name: Test
+        working-directory: apps/frontend
+        run: npm test
+
+      - name: Build
+        working-directory: apps/frontend
+        run: npm run build
+
+      # `npm audit` is deliberately not a step here. Today's tree carries a
+      # known 4 high / 1 critical backlog, so a blocking audit gate would land
+      # this workflow permanently red and teach everyone to ignore it. The
+      # backlog is reported in the PR and belongs to a separate security change.
