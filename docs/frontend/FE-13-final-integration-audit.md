@@ -340,6 +340,23 @@ equals viewport width at every one, the full 5000 characters remain present, and
 Accept/Reject stay reachable. A regression pins it and was confirmed failing
 against the unclassed paragraph first.
 
+## Frontend CI — added after FE-13
+
+FE-13's gates were local only, and this document said so throughout. That is no
+longer the operational state, and the note is placed here rather than woven into
+the sections above so the record stays accurate about *when* it became true:
+during PR #92 there was no frontend CI.
+
+Added afterwards in PR #93: `.github/workflows/frontend-ci.yml`, job
+`frontend-verify`, blocking on typecheck → lint → the full Vitest suite →
+production build, from a clean Node 22 runner on every pull request and push to
+`main`. Its first run reported the same totals this document records locally:
+**1119 tests / 68 files**.
+
+`npm audit` is not one of those gates. The tree carries a known 4 high /
+1 critical backlog, so a blocking audit step would have made the workflow
+permanently red; that backlog is real and belongs to a separate security change.
+
 ## Remaining gaps
 
 - **Real keyboard operation and real Escape.** The environment cannot deliver
@@ -351,5 +368,4 @@ against the unclassed paragraph first.
 - **Actual browser 200% zoom** — unproven for the reason given above. The
   CSS-zoom approximation passed; 1.4.10 is satisfied separately by the 320px
   matrix.
-- **FRONTEND CI STILL NEEDED** — no workflow runs these tests.
 - Organization display-name backend gap; the name is omitted rather than invented.

@@ -146,6 +146,37 @@ and passes when the behaviour breaks, which is precisely backwards.
 
 ---
 
+## Frontend CI
+
+- workflow: `.github/workflows/frontend-ci.yml`, job `frontend-verify`
+- runtime: Node 22
+- install: `npm ci`
+- gates: typecheck → lint → test → build, all blocking
+- no secrets required
+
+Runs on every pull request and push to `main`, with no `paths:` filter — a
+path-filtered workflow reports no status at all on a PR that misses the filter,
+which would permanently block that PR the moment the check is required.
+
+The same sequence locally, and there is no CI-only wrapper script:
+
+```bash
+cd apps/frontend
+
+npm ci
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
+
+`npm audit` is not a gate. The dependency tree carries a known backlog, and a
+blocking audit step would leave the workflow permanently red — which teaches
+people to ignore the checks UI rather than to fix the tree. Remediation is its
+own change.
+
+---
+
 ## Capability-aware navigation
 
 `getNavigationItems(roles)` is pure: same roles in, same items out. It composes
