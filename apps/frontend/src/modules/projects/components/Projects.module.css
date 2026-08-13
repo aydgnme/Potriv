@@ -173,6 +173,10 @@
   border: 1px solid var(--p-border);
   border-radius: var(--p-radius-pill);
   font-size: var(--p-text-sm);
+  /* Free text — technology names are organization-authored and may have no spaces
+     in them. Without this a single long value widens the document instead of
+     wrapping inside its own pill. */
+  overflow-wrap: anywhere;
 }
 
 .rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
@@ -282,4 +286,13 @@
   .definitions > div { flex-direction: column; gap: 2px; }
   .definitions dd { text-align: left; }
   .editorCount { flex: 1 1 100%; }
+}
+
+/* A project's description is free text the backend accepts up to 10000
+   characters, written by whoever set the project up. Same reason as the chips:
+   one unbroken value — a pasted link, an identifier — otherwise sets the width
+   of the whole document rather than wrapping inside its own paragraph. */
+.longText {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }

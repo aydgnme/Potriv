@@ -109,6 +109,10 @@
   font-size: var(--p-text-sm);
   border: 1px solid var(--p-border);
   border-radius: 999px;
+  /* Free text — category and department names are organization-authored and may have no spaces
+     in them. Without this a single long value widens the document instead of
+     wrapping inside its own pill. */
+  overflow-wrap: anywhere;
 }
 
 /* Inactive is a real catalogue state with a real consequence — it cannot be

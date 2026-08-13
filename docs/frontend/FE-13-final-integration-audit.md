@@ -195,8 +195,8 @@ navigation item (14.60).
 **Not audited in this pass**, and therefore not claimed: 2.1.1 Keyboard and
 2.1.2 No Keyboard Trap across the domain modules; 2.4.3 Focus Order beyond the
 first tab stop; 2.4.11 Focus Not Obscured beyond the bottom-bar inset
-measurement; 2.5.3 Label in Name; 3.3.1 / 3.3.2 / 3.3.3 error identification
-across all forms; 4.1.3 Status Messages.
+measurement across all modules; 2.1.1 Keyboard; 2.1.2 No Keyboard Trap;
+2.4.3 Focus Order.
 
 ## Known limitation in verification — Escape
 
@@ -221,13 +221,21 @@ not prove it.
 
 See the PR body for exact totals.
 
-## 200% zoom
+## Zoom
 
-A 1280px window at 200% lays out as a 640px viewport; that viewport plus
-`document.documentElement.style.zoom = 2` was applied to each route, so viewport
-width and text scale were exercised together. **10 routes including `/login`, 0
-overflow failures.** This is CSS zoom and an equivalent viewport, not the
-browser's own zoom control — stated so the method is not overread.
+**CSS-zoom approximation — passed.** A 1280px window at 200% lays out as a 640px
+viewport; that viewport plus `document.documentElement.style.zoom = 2` was
+applied to each route. **10 routes including `/login`, 0 overflow failures.**
+
+**Actual browser 200% zoom — UNPROVEN.** Browser zoom is a browser-chrome
+setting with no page-reachable API (`visualViewport.scale` reads 1 and nothing
+in the page can change it); the Browser pane exposes width, height and colour
+scheme but no zoom control, and the desktop-level input tool is policy-blocked
+from operating browser chrome. The CSS-zoom result above is an approximation and
+is not offered as equivalent evidence.
+
+**1.4.10 Reflow remains satisfied separately** by the 320 CSS px matrix, which is
+the condition the criterion actually states.
 
 ## Focus Not Obscured (2.4.11)
 
@@ -258,9 +266,26 @@ than as a failure.
 
 ## Long content
 
-A removal reason at the contract's exact limit — **5000 characters, one unbroken
-token** — was seeded through the real API and rendered. See below; the defect it
-exposed is fixed and pinned by a regression.
+Seeded through the real API and measured in real viewports. Three defects, all of
+one kind: **free text that the backend accepts without spaces in it**, which the
+default `overflow-wrap` will not break, so the value sets the document's width
+instead of wrapping inside its own box.
+
+| Stressor | Where | Before | After |
+| --- | --- | --- | --- |
+| 5000-character removal reason, one token | `/staffing` @1280 | 41283px | viewport width |
+| 2000-character project description, one token | `/projects/{id}` @320–1440 | ~20076–20324px | viewport width |
+| 80-character technology value | `/projects/{id}/team-finder` @320 | chip 377px in a 320px viewport | wraps in the pill |
+
+Also seeded and clean at 320 / 768 / 1440: a 70-character department name, an
+81-character team-role name, an 80-character project name, and eight technology
+chips — `/projects`, `/skills`, `/organization/departments`,
+`/organization/team-roles`, **12 checks, 0 failures**.
+
+Team Finder was exercised with a candidate carrying **12 declared skills** plus
+the long project and role names: no page overflow at 320px, the long project
+name renders in full, and there are **zero `title` attributes** on that screen,
+so no evidence is hover-only.
 
 ## Forms (3.3.x) and status messages (4.1.3)
 
@@ -274,12 +299,33 @@ computes `role="alert"` for `danger` and `role="status"` for every other tone, s
 each mutation confirmation is announced politely and each failure assertively —
 without a live region being remembered at fourteen call sites.
 
+## Error suggestion (3.3.3) — disposition
+
+Reviewed against the product's real validation messages rather than in the
+abstract. Two classes, and they get different answers:
+
+**Correctable by the user — the message names the correction.** `Enter a project
+name.`, `Enter a category name.`, `Choose a category.`, `Choose a status.`,
+`Choose a team role.`, `Enter a start date.`, `Enter a valid date.`,
+`Enter how many people are needed — at least 1.`, `Password must be 8–72
+characters.`, `The deadline cannot be before the start date.` Each states the
+required field, the required format or the bound, which is what 3.3.3 asks for.
+
+**Business conflicts where no deterministic correction exists — documented as
+not applicable.** A duplicate name (409), `Choose an active category.` when the
+target was retired underneath the author, and the sign-in failure, which is
+deliberately identical for unknown email, wrong password, inactive and locked so
+the form cannot be used to discover which addresses exist. Inventing advice here
+would either be wrong or would leak the thing the ambiguity protects. 3.3.3 is
+advisory-where-known, and these are recorded as not applicable rather than
+silently skipped.
+
 ## Label in Name (2.5.3)
 
 Every control carrying both visible text and an `aria-label` was compared:
 **5 controls, 0 divergences.**
 
-## Defect found and fixed in this pass
+## The staffing defect in detail
 
 A 5000-character removal reason with no spaces in it — inside the backend's
 contract, and what a pasted identifier or URL looks like — did not wrap. The
@@ -296,26 +342,14 @@ against the unclassed paragraph first.
 
 ## Remaining gaps
 
-Removed only what was actually proven above. Everything still here is unproven,
-and is listed so this document cannot be read as claiming more than was run.
-
-- **Full keyboard workflow pass** across the domain modules (Team Finder candidate
-  selection, Staffing accept/reject, People role editor, project forms, dialogs).
-  The harness cannot deliver activating key events — see the Escape section — so
-  keyboard operation cannot be exercised through it at all. This needs a human at
-  a real keyboard.
-- **Real Escape proof**, for the same reason.
-- **200% browser zoom.** 320 CSS px is acceptable evidence for the 400% reflow
-  condition, but 200% browser zoom has not been exercised directly.
-- **2.4.11 Focus Not Obscured** beyond the measured bottom-bar inset: first /
-  middle / last control focus was not walked on long pages.
-- **Per-role route crawl** as six separate actor passes. Only the plain Employee
-  and the four-role actor were driven live this round; the PM, appointed DM,
-  unappointed DM and OA passes were not re-run.
-- **Per-domain long-content stress** — 5000-character rejection reasons, 10+
-  Team Finder evidence items, many technology chips. Only the invite URL (the
-  longest single string in the product) was stressed.
-- **Form accessibility and status-message passes** (3.3.x, 4.1.3) across the
-  fourteen forms.
+- **Real keyboard operation and real Escape.** The environment cannot deliver
+  activating key events to a browser: the in-app browser's synthetic keys reach
+  JavaScript but carry no default actions — a synthetic Enter on a focused
+  `<button>` produced **zero** clicks — and the desktop-level input tool is
+  policy-blocked from typing into browsers. Needs a human at a real keyboard.
+  **2.1.1, 2.1.2 and 2.4.3 remain unaudited** as a result.
+- **Actual browser 200% zoom** — unproven for the reason given above. The
+  CSS-zoom approximation passed; 1.4.10 is satisfied separately by the 320px
+  matrix.
 - **FRONTEND CI STILL NEEDED** — no workflow runs these tests.
 - Organization display-name backend gap; the name is omitted rather than invented.

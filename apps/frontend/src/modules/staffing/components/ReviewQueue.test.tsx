@@ -6,6 +6,7 @@ import type { ReviewActionState } from "../model/reviewActionState";
 import type { CapacityContext, ReviewProposal } from "../model/reviewQueue";
 
 import { ReviewQueue } from "./ReviewQueue";
+import styles from "./Staffing.module.css";
 
 /**
  * The review queue and the request being read.
@@ -393,7 +394,10 @@ describe("free text at the contract's limit", () => {
     const shown = screen.getByText(UNBROKEN);
     // Present in full — never truncated, and never behind a hover.
     expect(shown.textContent).toHaveLength(5000);
-    // The one property that decides whether an unbreakable token wraps.
-    expect(shown.className).toBeTruthy();
+    // Pinned to the class that carries `overflow-wrap: anywhere`, not to "has
+    // some class": an unrelated class must not be able to keep this green while
+    // the wrapping is removed. The layout proof itself is a browser measurement
+    // — 41283px before, viewport width after — which jsdom cannot make.
+    expect(shown).toHaveClass(styles.longText);
   });
 });

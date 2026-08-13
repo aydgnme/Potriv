@@ -23,6 +23,10 @@
   border: 1px solid var(--p-border);
   border-radius: var(--p-radius-pill);
   font-size: var(--p-text-sm);
+  /* Free text — technology names are organization-authored and may have no spaces
+     in them. Without this a single long value widens the document instead of
+     wrapping inside its own pill. */
+  overflow-wrap: anywhere;
 }
 
 .rows { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }

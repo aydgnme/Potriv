@@ -71,7 +71,7 @@ export function ProjectOverview({ projectId, data, canManage }: ProjectOverviewP
               About
             </h2>
             {/* Rendered as text, never as markup: this is data the backend stored. */}
-            <p>{project.generalDescription?.trim() || "No description."}</p>
+            <p className={styles.longText}>{project.generalDescription?.trim() || "No description."}</p>
           </section>
 
           <section className={styles.panel} aria-labelledby="project-schedule">
