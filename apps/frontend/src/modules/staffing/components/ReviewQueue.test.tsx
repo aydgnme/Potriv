@@ -373,3 +373,27 @@ describe("decisions", () => {
     expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
   });
 });
+
+describe("free text at the contract's limit", () => {
+  /**
+   * The backend accepts 5000 characters of anything, and a removal reason is the
+   * record of why somebody was taken off a project — it is shown in full.
+   * "Anything" includes a single unbroken token: a pasted identifier or URL with
+   * no spaces in it. With the default `overflow-wrap`, that does not wrap at all,
+   * and the page widens to fit it rather than the other way round.
+   */
+  const UNBROKEN = "R".padEnd(4999, "o") + ".";
+
+  it("shows the whole reason without letting it set the page width", async () => {
+    const user = userEvent.setup();
+    renderQueue([removal({ reason: UNBROKEN })]);
+
+    await user.click(screen.getByRole("button", { name: /REMOVAL Rana/ }));
+
+    const shown = screen.getByText(UNBROKEN);
+    // Present in full — never truncated, and never behind a hover.
+    expect(shown.textContent).toHaveLength(5000);
+    // The one property that decides whether an unbreakable token wraps.
+    expect(shown.className).toBeTruthy();
+  });
+});

@@ -221,6 +221,79 @@ not prove it.
 
 See the PR body for exact totals.
 
+## 200% zoom
+
+A 1280px window at 200% lays out as a 640px viewport; that viewport plus
+`document.documentElement.style.zoom = 2` was applied to each route, so viewport
+width and text scale were exercised together. **10 routes including `/login`, 0
+overflow failures.** This is CSS zoom and an equivalent viewport, not the
+browser's own zoom control — stated so the method is not overread.
+
+## Focus Not Obscured (2.4.11)
+
+Every focusable control on the long mobile pages was focused in turn at 375px
+and its box compared against the fixed bar's box: `/projects/new` (11),
+`/staffing` (5), `/skills/my` (5), `/skills/categories` (7),
+`/organization/invite` (5), `/organization/departments/{id}` (8),
+`/organization/team-roles/{id}` (6), `/projects/{id}/team-finder` (4). **52
+controls walked, 0 obscured.** Focus was moved programmatically; the geometry
+being measured is real.
+
+## Role matrix
+
+Six actors, each signed in separately — none inferred from the multi-role user.
+
+| Actor | Navigation union | Notable |
+| --- | --- | --- |
+| Employee | Home · Projects · Skills | every privileged route refused |
+| Project Manager | + Staffing | `/projects/new` and `/projects/{id}/edit` granted; Skills admin, People, Organization refused |
+| Department Manager, appointed | + Staffing · People | `/people` **granted**; Skills authoring granted; Organization refused |
+| Department Manager, no appointment | same five | `/people` shows **no-appointment**, not a refusal and not an outage; Skills authoring still granted |
+| Organization Admin | Home · Projects · People · Skills · Organization | all Organization routes granted; Skills catalogue admin refused |
+| EMPLOYEE + PM + DM + OA | all six | `/projects/{id}/edit` still **refused** — that project belongs to another manager, so relationship authority outranks the role union |
+
+The appointed/unappointed pair is the load-bearing one: the same navigation, a
+different answer at `/people`, and the difference stated as an appointment rather
+than as a failure.
+
+## Long content
+
+A removal reason at the contract's exact limit — **5000 characters, one unbroken
+token** — was seeded through the real API and rendered. See below; the defect it
+exposed is fixed and pinned by a regression.
+
+## Forms (3.3.x) and status messages (4.1.3)
+
+Every field across `/forgot-password`, `/projects/new`, `/skills/categories`,
+`/organization/team-roles/new` and `/organization/invite` has a programmatic
+label: **0 unlabelled fields**. Error wiring (`aria-invalid` + `aria-describedby`)
+is present in every form component that carries field errors.
+
+4.1.3 was already correct and needed no change: the shared `Alert` primitive
+computes `role="alert"` for `danger` and `role="status"` for every other tone, so
+each mutation confirmation is announced politely and each failure assertively —
+without a live region being remembered at fourteen call sites.
+
+## Label in Name (2.5.3)
+
+Every control carrying both visible text and an `aria-label` was compared:
+**5 controls, 0 divergences.**
+
+## Defect found and fixed in this pass
+
+A 5000-character removal reason with no spaces in it — inside the backend's
+contract, and what a pasted identifier or URL looks like — did not wrap. The
+reason renders in a bare `<p>` at `overflow-wrap: normal`, so at 1280px the
+document stretched to **41283px**. 320 and 768 were unaffected, which is why
+narrower testing had missed it.
+
+The three free-text fields in `ReviewDetail` (proposal comments, removal reason,
+review rejection reason) now carry `overflow-wrap: anywhere` with
+`white-space: pre-wrap`. Re-measured at 320 / 768 / 1280 / 1440: document width
+equals viewport width at every one, the full 5000 characters remain present, and
+Accept/Reject stay reachable. A regression pins it and was confirmed failing
+against the unclassed paragraph first.
+
 ## Remaining gaps
 
 Removed only what was actually proven above. Everything still here is unproven,
@@ -232,6 +305,8 @@ and is listed so this document cannot be read as claiming more than was run.
   keyboard operation cannot be exercised through it at all. This needs a human at
   a real keyboard.
 - **Real Escape proof**, for the same reason.
+- **200% browser zoom.** 320 CSS px is acceptable evidence for the 400% reflow
+  condition, but 200% browser zoom has not been exercised directly.
 - **2.4.11 Focus Not Obscured** beyond the measured bottom-bar inset: first /
   middle / last control focus was not walked on long pages.
 - **Per-role route crawl** as six separate actor passes. Only the plain Employee
