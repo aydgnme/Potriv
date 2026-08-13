@@ -170,10 +170,30 @@ npm test
 npm run build
 ```
 
-`npm audit` is not a gate. The dependency tree carries a known backlog, and a
-blocking audit step would leave the workflow permanently red — which teaches
-people to ignore the checks UI rather than to fix the tree. Remediation is its
-own change.
+### Dependency security
+
+`npm audit` is not a gate, and the reason is specific rather than general.
+
+SEC-01 took the tree from 1 critical / 4 high to **0 critical / 3 high**: `next`
+moved 15.5.6 → 15.5.23 within its major, which closed the critical RCE and the
+Server Actions, cache-poisoning and middleware-bypass advisories, and the two
+dev-only findings (`js-yaml`, `brace-expansion`) were resolved in the lockfile.
+
+The three that remain are one problem counted three times. `next@15.5.23` pins
+`postcss` to an exact `8.4.31` and `sharp` to `^0.34.3`; the patched releases sit
+outside both ranges, so no override is legitimate and no 15.x release fixes them.
+The only remaining fix is a **Next 16 major migration**, which is its own
+decision and its own PR.
+
+`npm audit --audit-level=high` therefore still exits non-zero, so the gate stays
+out of the workflow rather than landing permanently red. The step to add once
+Next 16 lands is written down in `frontend-ci.yml` beside that explanation.
+
+Neither remaining package sits on a path this product uses: there is no
+`next/image` anywhere in the app and no `images` config, so sharp's optimizer is
+never invoked and sharp is an optional dependency; there is no postcss config,
+and every stylesheet processed is first-party. That is exposure context, not a
+reason to call the advisories closed.
 
 ---
 
