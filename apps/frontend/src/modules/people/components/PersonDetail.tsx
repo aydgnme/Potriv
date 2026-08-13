@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
 import { formatDate } from "@/shared/utils/formatDate";
 
@@ -50,6 +51,10 @@ export function PersonDetail({ userId, person, editor }: PersonDetailProps) {
 
   return (
     <div className={styles.page}>
+      <Breadcrumbs
+        trail={[{ label: "People", href: "/people" }]}
+        current={detail.name}
+      />
       <PageHeader
         title={detail.name}
         description={detail.email}

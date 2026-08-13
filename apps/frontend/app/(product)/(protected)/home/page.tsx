@@ -1,8 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { HomePage } from "@/modules/home";
 import { SECTION_PREVIEW_LIMIT, loadHomeData } from "@/modules/home/server/loadHome";
 import { resolveProductSession } from "@/modules/auth/server/productSession";
+
+export const metadata: Metadata = { title: "Home · Potriv" };
 
 export const dynamic = "force-dynamic";
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -5,7 +6,10 @@ import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { DepartmentDetail } from "@/modules/organization";
 import { loadDepartmentDetail } from "@/modules/organization/server/loadOrganization";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Department · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -53,10 +57,14 @@ export default async function Page({
 
   return (
     <>
-      <PageHeader
-        title={state.detail.department.name}
-        actions={<Link href="/organization/departments">Back to departments</Link>}
+      <Breadcrumbs
+        trail={[
+          { label: "Organization", href: "/organization" },
+          { label: "Departments", href: "/organization/departments" },
+        ]}
+        current={state.detail.department.name}
       />
+      <PageHeader title={state.detail.department.name} />
       <DepartmentDetail detail={state.detail} />
     </>
   );

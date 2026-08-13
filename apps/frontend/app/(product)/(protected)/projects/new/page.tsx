@@ -1,9 +1,12 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { CreateProjectPage } from "@/modules/projects/components/CreateProjectPage";
 import { ProjectPermissionDenied } from "@/modules/projects/components/ProjectPermissionDenied";
 import { loadCreateForm } from "@/modules/projects/server/loadProjectViews";
+
+export const metadata: Metadata = { title: "New project · Potriv" };
 
 export const dynamic = "force-dynamic";
 

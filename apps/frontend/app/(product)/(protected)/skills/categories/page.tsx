@@ -1,4 +1,4 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -8,7 +8,10 @@ import {
   readIncludeInactive,
 } from "@/modules/skills/server/loadSkills";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Skill categories · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -45,10 +48,10 @@ export default async function Page({
 
   return (
     <>
+      <Breadcrumbs trail={[{ label: "Skills", href: "/skills" }]} current={"Skill categories"} />
       <PageHeader
         title="Skill categories"
         description="Every skill belongs to a category."
-        actions={<Link href="/skills">Back to the catalogue</Link>}
       />
       <SkillsNav active="catalogue" />
 

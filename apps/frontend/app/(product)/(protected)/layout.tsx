@@ -34,7 +34,7 @@ export default async function ProtectedLayout({
   return (
     <AppShell
       user={{ name: user.displayName, roles: user.roles }}
-      navigationItems={getNavigationItems(user.roles)}
+      navigationItemIds={getNavigationItems(user.roles).map((item) => item.id)}
       accountActions={<SignOutButton />}
     >
       {children}

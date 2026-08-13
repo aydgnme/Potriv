@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Alert } from "@/shared/ui/Alert";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
 import { StatusBadge } from "@/shared/ui/StatusBadge";
 import { formatDateRange } from "@/shared/utils/formatDate";
@@ -120,6 +121,13 @@ function ProjectContextHeader({ project }: { readonly project: StaffingProjectCo
 
   return (
     <>
+      <Breadcrumbs
+        trail={[
+          { label: "Projects", href: "/projects" },
+          { label: project.projectName, href: `/projects/${project.projectId}` },
+        ]}
+        current="Find team"
+      />
       <PageHeader
         title={project.projectName}
         status={

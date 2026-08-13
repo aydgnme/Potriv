@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -5,7 +6,10 @@ import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { SkillEditor, SkillsNav } from "@/modules/skills";
 import { loadSkillCreationCategories } from "@/modules/skills/server/loadSkills";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "New skill · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +40,10 @@ export default async function Page() {
 
   return (
     <>
+      <Breadcrumbs trail={[{ label: "Skills", href: "/skills" }]} current={"New skill"} />
       <PageHeader
         title="New skill"
         description="Skills belong to a category, and the catalogue is shared across the organization."
-        actions={<Link href="/skills">Back to the catalogue</Link>}
       />
       <SkillsNav active="catalogue" />
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
 
 import { updateProjectAction } from "../server/actions/projectActions";
@@ -44,10 +45,16 @@ export function ProjectSettingsPage({ projectId, data }: ProjectSettingsPageProp
 
   return (
     <div className={styles.page}>
+      <Breadcrumbs
+        trail={[
+          { label: "Projects", href: "/projects" },
+          { label: project.name, href: `/projects/${projectId}` },
+        ]}
+        current="Settings"
+      />
       <PageHeader
         title={project.name}
         description="Project settings"
-        actions={<Link href={`/projects/${projectId}`}>Back to overview</Link>}
       />
 
       <ProjectForm

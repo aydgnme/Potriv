@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
 import { StatusBadge } from "@/shared/ui/StatusBadge";
 import { formatDate, formatDateRange } from "@/shared/utils/formatDate";
@@ -43,6 +44,10 @@ export function ProjectOverview({ projectId, data, canManage }: ProjectOverviewP
 
   return (
     <div className={styles.page}>
+      <Breadcrumbs
+        trail={[{ label: "Projects", href: "/projects" }]}
+        current={project.projectName}
+      />
       <PageHeader
         title={project.projectName}
         status={
@@ -66,7 +71,7 @@ export function ProjectOverview({ projectId, data, canManage }: ProjectOverviewP
               About
             </h2>
             {/* Rendered as text, never as markup: this is data the backend stored. */}
-            <p>{project.generalDescription?.trim() || "No description."}</p>
+            <p className={styles.longText}>{project.generalDescription?.trim() || "No description."}</p>
           </section>
 
           <section className={styles.panel} aria-labelledby="project-schedule">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
 import { StatusBadge } from "@/shared/ui/StatusBadge";
 import { formatDate } from "@/shared/utils/formatDate";
@@ -63,6 +64,13 @@ export function ProjectTeamView({
 
   return (
     <div className={styles.page}>
+      <Breadcrumbs
+        trail={[
+          { label: "Projects", href: "/projects" },
+          { label: team.projectName, href: `/projects/${projectId}` },
+        ]}
+        current="Team"
+      />
       <PageHeader
         title={team.projectName}
         status={

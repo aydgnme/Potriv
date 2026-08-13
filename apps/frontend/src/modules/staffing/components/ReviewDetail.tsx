@@ -129,14 +129,14 @@ export function ReviewDetail({ proposal }: ReviewDetailProps) {
         {isAssignment ? (
           <>
             <h4 className={styles.groupHeading}>Comments</h4>
-            <p>{proposal.comments?.trim() || "No comments."}</p>
+            <p className={styles.longText}>{proposal.comments?.trim() || "No comments."}</p>
           </>
         ) : (
           <>
             {/* The manager's own words, shown in full — this is the record of why
                 somebody was asked to leave a project. */}
             <h4 className={styles.groupHeading}>Removal reason</h4>
-            <p>{proposal.reason?.trim() || "No reason recorded."}</p>
+            <p className={styles.longText}>{proposal.reason?.trim() || "No reason recorded."}</p>
           </>
         )}
       </section>
@@ -172,7 +172,7 @@ export function ReviewDetail({ proposal }: ReviewDetailProps) {
               {/* A different statement by a different person from the removal
                   reason above, and never merged with it. */}
               <h4 className={styles.groupHeading}>Review rejection reason</h4>
-              <p>{proposal.rejectionReason?.trim() || "No reason given"}</p>
+              <p className={styles.longText}>{proposal.rejectionReason?.trim() || "No reason given"}</p>
             </>
           ) : null}
         </section>

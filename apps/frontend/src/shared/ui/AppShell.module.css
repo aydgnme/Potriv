@@ -1,11 +1,18 @@
 .shell { display: flex; min-height: 100vh; }
 .main { flex: 1; min-width: 0; padding: var(--p-space-6); }
+/* Programmatically focusable for the skip link, but never focus-ringed for a
+   mouse user who happened to click the page. */
+.main:focus { outline: none; }
+.main:focus-visible {
+  outline: var(--p-focus-ring-width) solid var(--p-focus-ring);
+  outline-offset: calc(var(--p-focus-ring-offset) * -1);
+}
 
 .skipLink {
   position: absolute;
   left: var(--p-space-3);
   top: -48px;
-  z-index: 10;
+  z-index: 30;
   padding: var(--p-space-2) var(--p-space-3);
   background: var(--p-surface);
   border: 1px solid var(--p-border-strong);
@@ -16,5 +23,13 @@
 
 @media (max-width: 767px) {
   .shell { flex-direction: column; }
-  .main { padding: var(--p-space-4); }
+  .main {
+    padding: var(--p-space-4);
+    /* The bar is fixed, so the last row, the last field and any focus ring on
+       them would otherwise sit underneath it. The inset is the bar's own height
+       plus the device's safe area, from the same tokens the bar uses. */
+    padding-bottom: calc(
+      var(--p-mobile-nav-height) + env(safe-area-inset-bottom, 0px) + var(--p-space-5)
+    );
+  }
 }

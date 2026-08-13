@@ -24,12 +24,22 @@
   /* ---- text ---- */
   --p-text: #16181d;
   --p-text-muted: #5c6270;
-  --p-text-subtle: #858b98;
+  /* Measured at 4.83:1 on `surface` and 4.55:1 on `bg`. It was #858b98 — 3.42:1
+     — which failed 1.4.3 for the one thing it actually carries: the "(required)"
+     and "(optional)" markers on form labels. Quiet is a weight, not a licence to
+     be unreadable. */
+  --p-text-subtle: #6b7280;
   --p-text-inverse: #ffffff;
 
   /* ---- borders ---- */
+  /* Separators between content, and decorative by nature: 1.4.11 asks 3:1 of
+     things that *identify a component*, which a divider does not. */
   --p-border: #dcdfe4;
-  --p-border-strong: #b9bec8;
+  /* This one does identify components — it is the outline of every input,
+     select, textarea and secondary button. Measured at 3.41:1 on `surface` and
+     3.21:1 on `bg`; it was #b9bec8 at 1.86:1, so a field's own edge was below
+     the non-text-contrast minimum. */
+  --p-border-strong: #858b99;
 
   /* ---- primary action: the strongest neutral, never a hue ---- */
   --p-primary: #16181d;
@@ -104,4 +114,9 @@
 
   /* ---- layout ---- */
   --p-sidebar-width: 232px;
+  /* Icon plus target padding, and nothing more: the rail is for icons. */
+  --p-sidebar-width-collapsed: 56px;
+  /* One value, used by the bar's own height and by the inset that keeps content
+     and focus rings clear of it. Two numbers here become a hidden last row. */
+  --p-mobile-nav-height: 56px;
 }

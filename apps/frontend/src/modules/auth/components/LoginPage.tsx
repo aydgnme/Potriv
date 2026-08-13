@@ -76,8 +76,11 @@ export function LoginPage() {
     <div className={styles.page}>
       <main className={styles.card}>
         <div className={styles.identity}>
-          <span className={styles.wordmark}>Potriv</span>
-          <span className={styles.tagline}>Team allocation and skill matching</span>
+          {/* The page's only heading. It was a `span`, which left the sign-in
+              screen with no heading at all — nothing for a screen reader to
+              land on, and no name for the one thing the page does. */}
+          <h1 className={styles.wordmark}>Potriv</h1>
+          <p className={styles.tagline}>Team allocation and skill matching</p>
         </div>
 
         {notice ? <Alert tone="info">{notice}</Alert> : null}

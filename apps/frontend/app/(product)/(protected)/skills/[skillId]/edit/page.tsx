@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -5,7 +6,10 @@ import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { SkillEditor, SkillsNav } from "@/modules/skills";
 import { loadSkillEditor } from "@/modules/skills/server/loadSkills";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Edit skill · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -74,10 +78,14 @@ export default async function Page({
 
   return (
     <>
-      <PageHeader
-        title={`Edit ${state.skill.name}`}
-        actions={<Link href={`/skills/${state.skill.skillId}`}>Back to the skill</Link>}
+      <Breadcrumbs
+        trail={[
+          { label: "Skills", href: "/skills" },
+          { label: state.skill.name, href: `/skills/${state.skill.skillId}` },
+        ]}
+        current="Edit"
       />
+      <PageHeader title={`Edit ${state.skill.name}`} />
       <SkillsNav active="catalogue" />
       <SkillEditor categories={state.categories} skill={state.skill} />
     </>

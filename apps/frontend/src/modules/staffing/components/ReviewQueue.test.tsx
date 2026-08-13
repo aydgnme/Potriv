@@ -6,6 +6,7 @@ import type { ReviewActionState } from "../model/reviewActionState";
 import type { CapacityContext, ReviewProposal } from "../model/reviewQueue";
 
 import { ReviewQueue } from "./ReviewQueue";
+import styles from "./Staffing.module.css";
 
 /**
  * The review queue and the request being read.
@@ -371,5 +372,32 @@ describe("decisions", () => {
     expect(await screen.findByText(/no longer has enough available capacity/)).toBeInTheDocument();
     // Nobody decided it, so it can still be rejected.
     expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+  });
+});
+
+describe("free text at the contract's limit", () => {
+  /**
+   * The backend accepts 5000 characters of anything, and a removal reason is the
+   * record of why somebody was taken off a project — it is shown in full.
+   * "Anything" includes a single unbroken token: a pasted identifier or URL with
+   * no spaces in it. With the default `overflow-wrap`, that does not wrap at all,
+   * and the page widens to fit it rather than the other way round.
+   */
+  const UNBROKEN = "R".padEnd(4999, "o") + ".";
+
+  it("shows the whole reason without letting it set the page width", async () => {
+    const user = userEvent.setup();
+    renderQueue([removal({ reason: UNBROKEN })]);
+
+    await user.click(screen.getByRole("button", { name: /REMOVAL Rana/ }));
+
+    const shown = screen.getByText(UNBROKEN);
+    // Present in full — never truncated, and never behind a hover.
+    expect(shown.textContent).toHaveLength(5000);
+    // Pinned to the class that carries `overflow-wrap: anywhere`, not to "has
+    // some class": an unrelated class must not be able to keep this green while
+    // the wrapping is removed. The layout proof itself is a browser measurement
+    // — 41283px before, viewport width after — which jsdom cannot make.
+    expect(shown).toHaveClass(styles.longText);
   });
 });

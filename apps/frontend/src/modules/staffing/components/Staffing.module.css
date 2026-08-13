@@ -149,3 +149,13 @@
   .figureRow { flex-direction: column; gap: 0; }
   .figureRow dd { text-align: left; }
 }
+
+/* Free text the backend accepts up to 5000 characters, written by a person and
+   shown in full because it is the record of why somebody was moved off a
+   project. `anywhere` rather than `normal`: one unbroken 5000-character token —
+   a pasted identifier, a URL — is inside the contract, and with the default it
+   does not wrap at all. It pushed the document to 41283px at 1280px wide. */
+.longText {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

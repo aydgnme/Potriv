@@ -1,11 +1,14 @@
-import Link from "next/link";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { InvitePanel } from "@/modules/organization";
 import { loadInviteState } from "@/modules/organization/server/loadOrganization";
 import { EmptyState } from "@/shared/ui/EmptyState";
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { PageHeader } from "@/shared/ui/PageHeader";
+
+export const metadata: Metadata = { title: "Invite · Potriv" };
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +39,10 @@ export default async function Page() {
 
   return (
     <>
+      <Breadcrumbs trail={[{ label: "Organization", href: "/organization" }]} current={"Invite link"} />
       <PageHeader
         title="Invite link"
         description="People join the organization as employees with this link."
-        actions={<Link href="/organization">Back to organization</Link>}
       />
       <InvitePanel invite={invite} />
     </>

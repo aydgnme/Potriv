@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -8,6 +9,8 @@ import {
   loadProjectTeamView,
   ownsProject,
 } from "@/modules/projects/server/loadProjectViews";
+
+export const metadata: Metadata = { title: "Project team · Potriv" };
 
 export const dynamic = "force-dynamic";
 

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -7,6 +8,8 @@ import {
   type RawSearchParams,
 } from "@/modules/staffing/model/teamFinderQuery";
 import { loadTeamFinder } from "@/modules/staffing/server/loadTeamFinder";
+
+export const metadata: Metadata = { title: "Find team · Potriv" };
 
 export const dynamic = "force-dynamic";
 
