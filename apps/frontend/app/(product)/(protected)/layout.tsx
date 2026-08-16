@@ -8,7 +8,7 @@ import { AppShell } from "@/shared/ui/AppShell";
 /**
  * The authenticated product frame.
  *
- * Middleware only checked that a cookie exists; this is where the session is
+ * The proxy only checked that a cookie exists; this is where the session is
  * actually established, by asking the backend who the caller is. If that fails
  * the user goes to login — the cookies are cleared by the route that owns them,
  * not here, because a layout cannot set cookies.
@@ -24,7 +24,7 @@ export default async function ProtectedLayout({
   const session = await resolveProductSession();
 
   if (!session.authenticated) {
-    // A stale access cookie would otherwise bounce between here and middleware
+    // A stale access cookie would otherwise bounce between here and the proxy
     // forever, so the destination clears cookies before showing the form.
     redirect("/login?session=expired");
   }

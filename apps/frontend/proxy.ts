@@ -3,20 +3,22 @@ import { NextResponse, type NextRequest } from "next/server";
 /**
  * Coarse routing based on cookie presence — and nothing more.
  *
- * Middleware runs on the edge without the backend, so it cannot know whether a
- * token is valid, who it belongs to, or what they may do. It therefore makes no
- * authorization decision: a present access cookie only earns the request the
- * chance to be checked properly by the protected layout, which asks
- * `/auth/me`.
+ * Next 16 renames this convention from `middleware` to `proxy`; the file moved
+ * and the export was renamed, and nothing else about it changed. It still runs
+ * before the request reaches a route, still without the backend, so it still
+ * cannot know whether a token is valid, who it belongs to, or what they may do.
+ * It therefore makes no authorization decision: a present access cookie only
+ * earns the request the chance to be checked properly by the protected layout,
+ * which asks `/auth/me`. That layout remains the authority.
  *
  * Cookie names are duplicated here rather than imported because the auth module
- * is `server-only` and this file runs in the edge runtime. The comment is the
+ * is `server-only` and this file runs outside that boundary. The comment is the
  * link; there are two of them and they change roughly never.
  */
 const ACCESS_COOKIE = "potriv_access_token";
 const REFRESH_COOKIE = "potriv_refresh_token";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
   const hasAccess = Boolean(request.cookies.get(ACCESS_COOKIE)?.value);

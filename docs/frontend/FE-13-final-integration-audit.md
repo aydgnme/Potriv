@@ -353,11 +353,13 @@ production build, from a clean Node 22 runner on every pull request and push to
 `main`. Its first run reported the same totals this document records locally:
 **1119 tests / 68 files**.
 
-`npm audit` is not one of those gates. At that time the tree carried 4 high and
+`npm audit` was not one of those gates. At that time the tree carried 4 high and
 1 critical, so a blocking audit step would have made the workflow permanently
-red. SEC-01 has since cleared the critical and both dev-tree highs; three high
-findings remain behind a Next 16 major migration, so the gate is still not
-added. See the architecture README for the current state.
+red. SEC-01 then cleared the critical and both dev-tree highs, leaving three
+high findings that only a Next 16 major migration could reach; MIG-01 performed
+that migration, took the tree to zero, and added `npm audit --audit-level=high`
+as a blocking step. The gate exists as of MIG-01. See the architecture README
+for the current state.
 
 ## Remaining gaps
 

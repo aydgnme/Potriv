@@ -31,8 +31,8 @@ The backend dev CORS config allows both `http://localhost:5173` and
 `http://localhost:3000`.
 
 Scripts: `npm run dev`, `npm run build`, `npm run start`, `npm run lint`
-(`next lint`, deprecated by Next.js in v16 — migrate to the ESLint CLI when
-upgrading).
+(`eslint .` — Next 16 removed `next lint`, and MIG-01 moved the frontend to the
+ESLint CLI with flat config in `eslint.config.mjs`).
 
 ## Using the console
 

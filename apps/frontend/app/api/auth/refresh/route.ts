@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  * The controlled recovery path: exchange the refresh cookie for a new pair and
  * continue to where the user was going.
  *
- * Reached by middleware redirect when the access cookie has expired but the
+ * Reached by a proxy redirect when the access cookie has expired but the
  * refresh cookie has not. `returnTo` is validated before it is used — this route
  * sets credentials and then redirects, so an unvalidated destination would be an
  * open redirect with a session attached.

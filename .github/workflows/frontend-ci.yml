@@ -1,8 +1,8 @@
 name: Frontend CI
 
 # The same gates the frontend has always been verified against locally, run from
-# a clean runner on every change that can reach main. Until now "1119 tests pass"
-# meant "on one machine, if somebody remembered to run them".
+# a clean runner on every change that can reach main. Before this workflow, "the
+# suite passes" meant "on one machine, if somebody remembered to run it".
 #
 # There is deliberately no `paths:` filter, matching Backend CI: a path-filtered
 # workflow reports no status at all on a PR that misses the filter, which would
@@ -54,8 +54,21 @@ jobs:
         working-directory: apps/frontend
         run: npm ci
 
-      # Four separate steps so a failure names itself in the checks UI rather
-      # than surfacing as one opaque red script.
+      # Runs before the other gates because a known-vulnerable dependency is a
+      # reason to stop, not something worth spending a build on first.
+      #
+      # `high` rather than `critical`: the tree is at zero across every severity
+      # as of the Next 16 migration, so the stricter threshold costs nothing
+      # today and is the one that would have caught what SEC-01 had to clean up
+      # by hand. Advisories are published against existing releases, so this can
+      # go red without anybody changing a line — that is the point, and the fix
+      # is to upgrade the dependency rather than to lower this number.
+      - name: Audit high-severity dependencies
+        working-directory: apps/frontend
+        run: npm audit --audit-level=high
+
+      # Separate steps so a failure names itself in the checks UI rather than
+      # surfacing as one opaque red script.
       - name: Typecheck
         working-directory: apps/frontend
         run: npm run typecheck
@@ -71,14 +84,3 @@ jobs:
       - name: Build
         working-directory: apps/frontend
         run: npm run build
-
-      # `npm audit` is deliberately not a step here. SEC-01 cleared the
-      # critical and both dev-tree highs, but three high advisories survive:
-      # next pins postcss and sharp to versions with no patched release inside
-      # Next 15, so the only fix is a Next 16 major migration. A blocking audit
-      # gate would therefore still be permanently red and teach everyone to
-      # ignore it. Add this step when that migration lands:
-      #
-      #   - name: Audit high-severity dependencies
-      #     working-directory: apps/frontend
-      #     run: npm audit --audit-level=high

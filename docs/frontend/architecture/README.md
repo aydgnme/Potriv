@@ -151,7 +151,7 @@ and passes when the behaviour breaks, which is precisely backwards.
 - workflow: `.github/workflows/frontend-ci.yml`, job `frontend-verify`
 - runtime: Node 22
 - install: `npm ci`
-- gates: typecheck → lint → test → build, all blocking
+- gates: audit → typecheck → lint → test → build, all blocking
 - no secrets required
 
 Runs on every pull request and push to `main`, with no `paths:` filter — a
@@ -164,6 +164,7 @@ The same sequence locally, and there is no CI-only wrapper script:
 cd apps/frontend
 
 npm ci
+npm audit --audit-level=high
 npm run typecheck
 npm run lint
 npm test
@@ -172,28 +173,25 @@ npm run build
 
 ### Dependency security
 
-`npm audit` is not a gate, and the reason is specific rather than general.
+`npm audit --audit-level=high` is a blocking CI step, and the tree is at **0
+across every severity**.
 
-SEC-01 took the tree from 1 critical / 4 high to **0 critical / 3 high**: `next`
-moved 15.5.6 → 15.5.23 within its major, which closed the critical RCE and the
-Server Actions, cache-poisoning and middleware-bypass advisories, and the two
-dev-only findings (`js-yaml`, `brace-expansion`) were resolved in the lockfile.
+It took two passes to get there. SEC-01 moved `next` 15.5.6 → 15.5.23 within its
+major, closing the critical RCE and the Server Actions, cache-poisoning and
+middleware-bypass advisories, and resolved two dev-only findings (`js-yaml`,
+`brace-expansion`) in the lockfile — ending at 0 critical / 3 high. The three
+that survived were one problem counted three times: `next@15.5.23` pinned
+`postcss` to an exact `8.4.31` and `sharp` to `^0.34.3`, with the patched
+releases outside both ranges, so no override was legitimate and no 15.x release
+fixed them. That left a major migration as the only real fix, and MIG-01 did it:
+`next@16.3.1` carries `postcss@8.5.23` and `sharp@^0.35.3`, and all three
+advisories fall out of the tree as a consequence rather than being suppressed.
 
-The three that remain are one problem counted three times. `next@15.5.23` pins
-`postcss` to an exact `8.4.31` and `sharp` to `^0.34.3`; the patched releases sit
-outside both ranges, so no override is legitimate and no 15.x release fixes them.
-The only remaining fix is a **Next 16 major migration**, which is its own
-decision and its own PR.
-
-`npm audit --audit-level=high` therefore still exits non-zero, so the gate stays
-out of the workflow rather than landing permanently red. The step to add once
-Next 16 lands is written down in `frontend-ci.yml` beside that explanation.
-
-Neither remaining package sits on a path this product uses: there is no
-`next/image` anywhere in the app and no `images` config, so sharp's optimizer is
-never invoked and sharp is an optional dependency; there is no postcss config,
-and every stylesheet processed is first-party. That is exposure context, not a
-reason to call the advisories closed.
+The gate is set at `high` rather than `critical` because at zero the stricter
+threshold costs nothing and is the one that would have caught what SEC-01 had to
+clean up by hand. It can go red without anybody changing a line — advisories are
+published against releases that already exist — and the response is to upgrade
+the dependency, not to lower the threshold.
 
 ---
 
@@ -318,7 +316,7 @@ race a single-process deployment does not hit would be the wrong trade.
 
 | Layer | Decides | Does not decide |
 | --- | --- | --- |
-| `middleware.ts` | is a cookie present — route to the page, to refresh, or to login | anything about identity or permission |
+| `proxy.ts` | is a cookie present — route to the page, to refresh, or to login | anything about identity or permission |
 | protected layout | is this a real session, via `/auth/me` | which backend operations are allowed |
 | `getNavigationItems` | which domains to show | **nothing about access** |
 
