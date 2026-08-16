@@ -21,7 +21,10 @@ export default defineConfig({
     environment: "jsdom",
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
-    include: ["src/**/*.test.{ts,tsx}"],
+    // `src/**` plus the app root, where Next requires `proxy.ts` to live. The
+    // convention is unchanged — tests sit beside the code they cover — but that
+    // code is not all under `src/`.
+    include: ["src/**/*.test.{ts,tsx}", "*.test.{ts,tsx}"],
     css: true,
   },
 });

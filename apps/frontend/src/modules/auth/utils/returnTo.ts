@@ -26,7 +26,6 @@ export function safeReturnTo(candidate: string | null | undefined): string {
 
   // Control characters — a newline or NUL can smuggle a scheme past a naive
   // check, or split a header further downstream.
-  // eslint-disable-next-line no-control-regex
   if (/[\u0000-\u001f\u007f]/.test(candidate)) return DEFAULT_RETURN_TO;
 
   // Never bounce back into the auth API — those are endpoints, not pages.

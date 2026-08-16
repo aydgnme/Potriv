@@ -115,7 +115,7 @@ async function request<T>(
   }
 
   // A 401 here means the access token expired mid-request. Recovery belongs to
-  // the single refresh architecture in middleware and the refresh route; this
+  // the single refresh architecture in the proxy and the refresh route; this
   // must never grow a second one.
   return {
     ok: false,
