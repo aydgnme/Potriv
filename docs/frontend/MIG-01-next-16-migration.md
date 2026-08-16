@@ -206,7 +206,141 @@ creation and staffing review each require a role this actor does not hold. Every
 denial rendered the same single sentence, and nothing leaked into a difference
 between "not permitted" and "does not exist".
 
-## 6. What this pass did not prove
+## 6. Follow-up: the protected POST edge case
+
+Found in review of PR #95, after the migration commit. Reproduced, then fixed.
+
+### What was wrong
+
+The proxy recovered every unauthenticated-but-refreshable request the same way,
+regardless of method:
+
+```ts
+return NextResponse.redirect(refreshUrl);   // defaults to 307
+```
+
+307 is method-preserving: the client must repeat the request verbatim, method
+and body included, at the new location. That is correct for a navigation and
+wrong for a mutation — and protected routes host Server Actions, which arrive as
+`POST` to the page's own URL, which the matcher guards.
+
+Reproduced live against Next 16 before any fix, with a refresh-only session:
+
+```
+POST /organization/departments
+  → 307 /api/auth/refresh?returnTo=%2Forganization%2Fdepartments
+  → POST /api/auth/refresh
+  → 405 Method Not Allowed
+```
+
+Confirmed for both a plain form POST and the real Server Action transport (a
+`Next-Action` header with an RSC body). The refresh route exports only `GET`, so
+the session was never recovered and the user got a hard failure. The request
+body — the user's form data — was also re-sent to an endpoint with no reason to
+receive it.
+
+### What it was not
+
+The mutation did **not** execute, and could not have. Two independent reasons:
+
+1. The proxy intercepts before the route runs, so the action never started.
+2. Every product write goes through `backendPost` / `backendPatch` / `backendPut`
+   / `backendDelete` → `request()` in `backendTransport.ts`, which returns
+   `401` **before** issuing any backend fetch when the access cookie is absent.
+   The only `fetch` calls outside that transport are the unauthenticated auth
+   endpoints and the browser's calls to this app's own `/api/auth/*` handlers.
+
+So this was a broken recovery path and an unnecessary body disclosure, not a
+double-submit. The fix keeps it that way rather than introducing a replay.
+
+### The fix
+
+One change, in `proxy.ts`: choose the redirect status by method.
+
+```ts
+const SAFE_METHODS = new Set(["GET", "HEAD"]);
+
+function recoveryStatus(method: string): 303 | 307 {
+  return SAFE_METHODS.has(method) ? 307 : 303;
+}
+```
+
+| Request | access absent, refresh present | no cookies |
+| --- | --- | --- |
+| `GET` / `HEAD` | 307 → `/api/auth/refresh?returnTo=…` | 307 → `/login` |
+| `POST` `PUT` `PATCH` `DELETE`, and any unrecognised verb | **303** → `/api/auth/refresh?returnTo=…` | **303** → `/login` |
+
+303 See Other is the status defined for this: RFC 9110 requires the client to
+re-issue as `GET` and drop the body. An interrupted mutation therefore degrades
+into an ordinary navigation — session recovered, user back on the page they were
+on, and the action left for them to repeat deliberately.
+
+Unrecognised methods fall to 303 rather than being enumerated, so an unfamiliar
+verb fails to the careful branch.
+
+Navigation recovery is byte-for-byte unchanged, which is why `GET` keeps 307.
+
+### Why not the alternatives
+
+- **Adding `POST` to `/api/auth/refresh`** — explicitly rejected. It would couple
+  token rotation to an intercepted mutation and invite exactly the replay
+  semantics this avoids.
+- **Letting mutations through with `next()`** — the action would fail closed at
+  the transport, but the user would be told they lack permission when in fact
+  their session expired. That collapses two different facts into one message.
+- **Failing closed to `/login`** — safe, but it discards a session that is still
+  recoverable. 303 gets the same safety without that cost.
+
+Nothing was added to the refresh route, `refreshOnce`, `safeReturnTo`, or the
+same-origin guard.
+
+### Verified live on Next 16
+
+| Check | Result |
+| --- | --- |
+| form `POST`, refresh-only | 303 → refresh → rotated → `/organization/departments` **200** |
+| Server Action `POST` (`Next-Action`), refresh-only | 303 → recovered → **200**, no 405 anywhere in the chain |
+| was the mutation applied? | **no** — the name never appears in the recovered page |
+| `GET` navigation recovery | still 307, query preserved through `returnTo` |
+| open-redirect guard | absolute and protocol-relative both still collapse to `/home` |
+| normal Server Action, valid session | unchanged — created, announced, list revalidated |
+| network log | no `POST` to `/api/auth/refresh` at any point |
+
+### Matcher tests now use Next's own matcher
+
+The hand-written `matches()` helper that approximated `:path*` was replaced with
+Next 16's `unstable_doesMiddlewareMatch`, so the assertions exercise the
+framework's real matcher semantics instead of a re-implementation that could
+drift from them. The two agreed on all 17 checked paths before the swap, so this
+is a strengthening rather than a correction.
+
+Two notes on using it. Next 16.3.1's own documentation names this export
+`unstable_doesProxyMatch`, but the shipped package exports only
+`unstable_doesMiddlewareMatch` — verified against the installed package, and the
+shipped name is the one used. It is imported from the module path rather than
+the `next/experimental/testing/server` barrel, because the barrel additionally
+pulls in server internals that require `AsyncLocalStorage` and throw under
+jsdom.
+
+### Tests
+
+`proxy.test.ts` goes 21 → 45 tests; the suite goes **1140 → 1164** across the
+same 69 files.
+
+The 24 new cases cover all six methods against all three cookie states, that an
+unsafe method is never answered with 307 or 308, that recovery still reaches the
+refresh route with `returnTo` intact, that an unrecognised verb is treated as
+unsafe, and that a valid access cookie passes every method through untouched.
+
+Nine of them failed against the pre-fix implementation and pass after it —
+demonstrated in that order rather than written to match the new code.
+
+### Gates after the fix
+
+`npm audit --audit-level=high` exit 0 · `typecheck` exit 0 · `lint` exit 0 ·
+**1164 passed / 69 files** · Turbopack build clean.
+
+## 7. What this pass did not prove
 
 - **Real keyboard operation.** Unchanged from FE-13: the environment cannot
   deliver activating key events to a browser. Two interactions here (opening the
