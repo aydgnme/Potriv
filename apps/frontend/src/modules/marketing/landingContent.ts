@@ -109,9 +109,14 @@ export const WORKFLOW_STEPS = [
   },
 ] as const;
 
+/**
+ * `glyph` names what the role is responsible for, which is how the four are
+ * actually distinguished — not by who they are.
+ */
 export const ROLES = [
   {
     title: "Project manager",
+    glyph: "project",
     owns: "Owns the requirement, not the people.",
     body:
       "Defines technologies and team roles, runs Team Finder and asks for the " +
@@ -119,6 +124,7 @@ export const ROLES = [
   },
   {
     title: "Department manager",
+    glyph: "department",
     owns: "Owns the people.",
     body:
       "Reviews every request against real capacity — allocated now, available " +
@@ -126,6 +132,7 @@ export const ROLES = [
   },
   {
     title: "Organization admin",
+    glyph: "organization",
     owns: "Owns the structure.",
     body:
       "Creates departments and team roles, curates the skill catalogue and " +
@@ -133,6 +140,7 @@ export const ROLES = [
   },
   {
     title: "Employee",
+    glyph: "skills",
     owns: "Owns their own record.",
     body:
       "Declares skills, levels and experience, and sees the projects they are " +

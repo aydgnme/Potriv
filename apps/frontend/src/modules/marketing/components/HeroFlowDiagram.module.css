@@ -129,10 +129,11 @@
 }
 
 /**
- * The only glass in the diagram, and one of two on the whole page.
+ * The only glass on the page, and only on the two floating context panels.
  *
- * `backdrop-filter` is progressive: without support this stays a legible
- * translucent panel, so nothing depends on the blur landing.
+ * A translucent fill rather than a blur: this is inside an SVG, where softening
+ * would mean a filter primitive and a raster pass, applied to a diagram whose
+ * whole job is to read as precise.
  */
 .glassPanel {
   fill: var(--p-glass-strong);

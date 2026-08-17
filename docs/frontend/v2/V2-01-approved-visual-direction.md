@@ -129,10 +129,46 @@ to draw.
 Demonstration content (Orion, Java/PostgreSQL/React, three candidate names,
 Platform Engineering) is inert — no product behaviour reads it.
 
+## 5a. The human layer
+
+Potriv shows people, in Potriv's own language rather than borrowed illustration.
+
+`PersonMark` is the whole vocabulary: a circle for the head, an arc for the
+shoulders, monoline, **no face**. No expression, hair or skin — none of it
+carries information, and a figure with a face becomes a character, at which
+point the page stops being about staffing.
+
+It renders a `<g>`, not an `<svg>`, because every use is *inside* an existing
+diagram; a nested `<svg>` per person would create a viewport each and make them
+impossible to place in the parent's coordinates. `transform` positions and
+scales instead, so one definition serves every size. It sets no colour: the
+caller supplies stroke and fill, so a person takes the tone of its context —
+charcoal when neutral, brand tint when selected — and the human layer never
+introduces a second palette.
+
+Used in three places today, which is what justified extracting it: the hero's
+candidate rows and active team, and the closing motif's department and team. It
+is the same mark a Team Finder row will use for identity, without profile
+photography.
+
+The four role glyphs are one shared bust plus a different context mark —
+project node, department tree, organization topology, skill nodes — because the
+roles differ by *what they are responsible for*, not by who they are. No colour
+varies per role; a per-role hue would invent a taxonomy the product does not
+have.
+
 ## 6. Glass and grid, and where they are not
 
 Glass appears on exactly two surfaces: the hero's evidence panel and its review
 panel. Not on sections, tables, forms, cards or lists.
+
+A `--p-glass-blur` token was declared and never used, and a comment claimed
+`backdrop-filter` was applied progressively when it was not. Both were removed
+rather than justified after the fact: these are translucent fills, and inside an
+SVG a blur would need a filter primitive and a raster pass to soften a diagram
+whose whole job is to read as precise. The closing motif's review step, which
+briefly used glass, is flat and bordered — it sits on plain white, where a
+10%-alpha glass edge is invisible and the step read as a floating word.
 
 The technical grid appears in the hero and the security section, as a pair of
 repeating gradients masked to fade before it reaches body copy. At 4% alpha it

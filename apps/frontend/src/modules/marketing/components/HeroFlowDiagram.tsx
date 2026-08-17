@@ -1,3 +1,4 @@
+import { PersonMark } from "./PersonMark";
 import styles from "./HeroFlowDiagram.module.css";
 
 /**
@@ -121,11 +122,11 @@ function DesktopFlow() {
         const y = 44 + index * 32;
         return (
           <g key={candidate.name}>
-            <circle
+            <PersonMark
+              x={458}
+              y={y - 4}
+              scale={1.15}
               className={candidate.selected ? styles.personSelected : styles.person}
-              cx="458"
-              cy={y - 4}
-              r="7"
             />
             <text className={styles.labelMuted} x="474" y={y}>
               {candidate.name}
@@ -169,7 +170,7 @@ function DesktopFlow() {
         ACTIVE TEAM
       </text>
       <rect className={styles.node} x="0" y="340" width="450" height="54" rx="4" />
-      <circle className={styles.personSelected} cx="26" cy="367" r="8" />
+      <PersonMark x={26} y={367} scale={1.3} className={styles.personSelected} />
       <text className={styles.label} x="44" y="364">
         Mert Aydogan
       </text>
@@ -260,11 +261,10 @@ function MobileFlow() {
         const y = 246 + index * 28;
         return (
           <g key={candidate.name}>
-            <circle
+            <PersonMark
+              x={18}
+              y={y - 4}
               className={candidate.selected ? styles.personSelected : styles.person}
-              cx="18"
-              cy={y - 4}
-              r="6"
             />
             <text className={styles.labelMuted} x="34" y={y}>
               {candidate.name}
@@ -304,7 +304,7 @@ function MobileFlow() {
         ACTIVE TEAM
       </text>
       <rect className={styles.node} x="0" y="450" width="320" height="20" rx="4" />
-      <circle className={styles.personSelected} cx="16" cy="460" r="5" />
+      <PersonMark x={16} y={460} scale={0.9} className={styles.personSelected} />
       <text className={styles.labelMono} x="30" y="464">
         Mert Aydogan · accepted · 6 / 8 h
       </text>

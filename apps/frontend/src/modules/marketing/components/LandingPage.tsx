@@ -149,7 +149,7 @@ function RoleResponsibilities() {
           {ROLES.map((role) => (
             <li className={styles.role} key={role.title}>
               <h3 className={styles.roleHeading}>
-                <RoleGlyph className={styles.roleIcon} />
+                <RoleGlyph className={styles.roleIcon} context={role.glyph} />
                 {role.title}
               </h3>
               <div>

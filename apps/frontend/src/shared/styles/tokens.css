@@ -82,13 +82,17 @@
    *
    * Permitted on floating high-context surfaces only — the hero's evidence and
    * review panels, and later a selected candidate's detail. Never on sections,
-   * tables, forms, or ordinary cards; flat stays the default. The blur is small
-   * because a heavy one turns a technical diagram into decoration.
+   * tables, forms, or ordinary cards; flat stays the default.
+   *
+   * These are translucent fills, not blurs. Inside an SVG a blur would need a
+   * filter primitive rather than `backdrop-filter`, and it would cost a raster
+   * pass to soften a diagram that is meant to read as precise. A `--p-glass-blur`
+   * token was declared here and never used; it was removed rather than kept
+   * against a use that had not arrived.
    */
   --p-glass-soft: rgb(255 255 255 / 72%);
   --p-glass-strong: rgb(255 255 255 / 88%);
   --p-glass-border: rgb(22 24 29 / 10%);
-  --p-glass-blur: 10px;
 
   /**
    * ---- technical grid: must disappear behind content ----
