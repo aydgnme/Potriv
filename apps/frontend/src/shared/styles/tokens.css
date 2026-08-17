@@ -52,6 +52,70 @@
   --p-accent-hover: #16509f;
   --p-accent-subtle: #e8f0fc;
 
+  /**
+   * ---- brand teal: Potriv's identity, deliberately not an interaction cue ----
+   *
+   * `--p-accent` above answers "can I act on this?". These answer "whose product
+   * is this?" — marketing, technical diagrams, relationship lines, section
+   * eyebrows, and later the selected row in Team Finder. Keeping them apart is
+   * the point: if brand and affordance were the same colour, a teal line in a
+   * diagram would read as a link, and Signal Discipline would be lost.
+   *
+   * Contrast, measured on --p-surface (#ffffff):
+   *   --p-brand         #0f6d63  6.20:1  passes 1.4.3 for text of any size
+   *   --p-brand-strong  #0a4f48  9.44:1  passes 1.4.6 (AAA)
+   *   --p-brand-line    #2a9d8f  3.32:1  clears 1.4.11, fails 1.4.3
+   *
+   * --p-brand-line carries the 3:1 a non-text mark needs and not the 4.5:1 text
+   * needs, so it is for diagram strokes and marks only. Those strokes always sit
+   * beside a written label, which keeps the colour redundant rather than
+   * load-bearing — no meaning is ever carried by hue alone.
+   */
+  --p-brand-soft: #eef7f5;
+  --p-brand: #0f6d63;
+  --p-brand-strong: #0a4f48;
+  --p-brand-line: #2a9d8f;
+  --p-brand-selection: #d8ece8;
+
+  /**
+   * ---- glass: sparse by policy ----
+   *
+   * Permitted on floating high-context surfaces only — the hero's evidence and
+   * review panels, and later a selected candidate's detail. Never on sections,
+   * tables, forms, or ordinary cards; flat stays the default.
+   *
+   * These are translucent fills, not blurs. Inside an SVG a blur would need a
+   * filter primitive rather than `backdrop-filter`, and it would cost a raster
+   * pass to soften a diagram that is meant to read as precise. A `--p-glass-blur`
+   * token was declared here and never used; it was removed rather than kept
+   * against a use that had not arrived.
+   */
+  --p-glass-soft: rgb(255 255 255 / 72%);
+  --p-glass-strong: rgb(255 255 255 / 88%);
+  --p-glass-border: rgb(22 24 29 / 10%);
+
+  /**
+   * ---- technical grid: must disappear behind content ----
+   *
+   * A CSS background rather than an asset, at an opacity chosen to survive being
+   * looked for and ignored otherwise. It never sits under body copy at a
+   * strength that would move the text's effective contrast.
+   */
+  --p-grid-line: rgb(22 24 29 / 4%);
+  --p-grid-size: 32px;
+
+  /* ---- dark section: the security block, and nothing else so far ---- */
+  --p-inverse-bg: #14161a;
+  --p-inverse-surface: #1c1f24;
+  /* 16.60:1 on --p-inverse-bg. */
+  --p-inverse-text: #f4f5f7;
+  /* 8.29:1 on --p-inverse-bg. Muted, still comfortably readable. */
+  --p-inverse-text-muted: #a9b0bb;
+  --p-inverse-border: rgb(244 245 247 / 14%);
+  /* Lifted off --p-brand-line, which is far too dark on this ground to read:
+     8.92:1 on --p-inverse-bg, so it may carry small text here. */
+  --p-inverse-brand: #5ec7b8;
+
   /* ---- status: always rendered with an accompanying word ---- */
   --p-success: #1a6b3c;
   --p-success-surface: #e7f4ec;
@@ -97,12 +161,43 @@
   --p-text-xl: 20px;
   --p-text-2xl: 24px;
 
+  /**
+   * Marketing display sizes, used by the public landing and nothing else.
+   *
+   * They are a separate family rather than an extension of the scale above
+   * because the two have opposite jobs: the product scale is dense because an
+   * operator scans it all day, and the landing is loud because a stranger reads
+   * it once. Naming them apart is what stops a 44px heading appearing on a
+   * screen full of tables.
+   *
+   * clamp() rather than breakpoints so the step down to 390px is continuous —
+   * the approved mobile composition keeps a strong headline, it does not get a
+   * shrunken desktop one.
+   */
+  --p-display-1: clamp(2rem, 1.35rem + 2.8vw, 3.5rem);
+  --p-display-2: clamp(1.5rem, 1.15rem + 1.5vw, 2.25rem);
+  --p-display-3: clamp(1.125rem, 1rem + 0.55vw, 1.5rem);
+  --p-lead: clamp(1rem, 0.95rem + 0.3vw, 1.1875rem);
+
   --p-weight-normal: 400;
   --p-weight-medium: 500;
   --p-weight-semibold: 600;
+  --p-weight-bold: 700;
 
   --p-leading-tight: 1.25;
   --p-leading: 1.5;
+  /* For display sizes, where 1.25 is still too loose to hold a headline together. */
+  --p-leading-display: 1.08;
+
+  /* ---- motion: restrained, and one duration for the whole landing ---- */
+  --p-motion-fast: 120ms;
+  --p-motion: 180ms;
+  --p-ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* ---- landing layout ---- */
+  --p-measure: 62ch;
+  --p-container: 1200px;
+  --p-container-pad: var(--p-space-5);
 
   /* ---- control heights: dense, operational ---- */
   --p-control-sm: 28px;

@@ -1,0 +1,184 @@
+/**
+ * A restrained, bordered header — deliberately not a floating glass pill.
+ * It is 64px of chrome that gets out of the way of the hero underneath it.
+ */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--p-surface);
+  border-bottom: 1px solid var(--p-border);
+}
+
+/* One container definition for the whole landing, reused rather than repeated. */
+.inner {
+  composes: container from "../styles/landing.module.css";
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-5);
+  min-height: 64px;
+}
+
+.wordmark {
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-bold);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+
+.wordmark:hover {
+  text-decoration: none;
+}
+
+/* ---------- desktop navigation ---------- */
+
+.nav {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: var(--p-space-5);
+  }
+}
+
+.navLink {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: var(--p-text);
+  text-decoration: none;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  margin-left: auto;
+}
+
+.signIn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding-inline: var(--p-space-3);
+  color: var(--p-text);
+  font-size: var(--p-text-base);
+  font-weight: var(--p-weight-medium);
+  text-decoration: none;
+}
+
+.signIn:hover {
+  text-decoration: underline;
+}
+
+/* The strongest action in the header, matching the hero's primary CTA. */
+.create {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .create {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding-inline: var(--p-space-4);
+    background: var(--p-primary);
+    border-radius: var(--p-radius);
+    color: var(--p-primary-text);
+    font-size: var(--p-text-base);
+    font-weight: var(--p-weight-semibold);
+    text-decoration: none;
+    transition: background-color var(--p-motion) var(--p-ease);
+  }
+
+  .create:hover {
+    background: var(--p-primary-hover);
+    text-decoration: none;
+  }
+}
+
+/* ---------- mobile menu ---------- */
+
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 44px minimum target, per 2.5.5. */
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  cursor: pointer;
+}
+
+@media (min-width: 900px) {
+  .menuButton {
+    display: none;
+  }
+}
+
+/**
+ * The panel is rendered only while open, so nothing hidden is left focusable.
+ * It is a plain block under the header rather than an overlay — at 390px there
+ * is nothing to overlay, and a full-screen sheet would be heavier than the four
+ * links it holds.
+ */
+.panel {
+  composes: container from "../styles/landing.module.css";
+  border-top: 1px solid var(--p-border);
+  padding-block: var(--p-space-3);
+}
+
+@media (min-width: 900px) {
+  .panel {
+    display: none;
+  }
+}
+
+.panelList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.panelLink {
+  display: block;
+  padding: var(--p-space-3) 0;
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  text-decoration: none;
+}
+
+.panelLink:hover {
+  text-decoration: underline;
+}
+
+.panelCreate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  margin-top: var(--p-space-3);
+  background: var(--p-primary);
+  border-radius: var(--p-radius);
+  color: var(--p-primary-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.panelCreate:hover {
+  text-decoration: none;
+}

@@ -1,0 +1,638 @@
+/**
+ * Landing-wide layout and section rhythm.
+ *
+ * Everything here is public-marketing only. The product's own screens keep the
+ * dense operational language in src/shared/ui; nothing in this file is imported
+ * by a product module, and the developer console is untouched by it.
+ */
+
+.page {
+  /* The landing owns a white canvas rather than the product's grey, because the
+     sections themselves supply the structure that grey would otherwise carry. */
+  background: var(--p-surface);
+  color: var(--p-text);
+  /* Belt and braces against a wide child (the diagram, a long token) turning
+     into a horizontally scrolling page on a 320px screen. */
+  overflow-x: hidden;
+}
+
+.container {
+  width: 100%;
+  max-width: var(--p-container);
+  margin-inline: auto;
+  padding-inline: var(--p-container-pad);
+}
+
+@media (min-width: 768px) {
+  .container {
+    padding-inline: var(--p-space-6);
+  }
+}
+
+/* ---------- section rhythm ---------- */
+
+.section {
+  border-top: 1px solid var(--p-border);
+  padding-block: var(--p-space-7);
+}
+
+@media (min-width: 768px) {
+  .section {
+    padding-block: 80px;
+  }
+}
+
+/**
+ * The small uppercase brand label above a section title.
+ *
+ * One of the few places brand teal is spent, and it passes 4.5:1, so the colour
+ * is decoration on top of a word rather than the word's only signal.
+ */
+.eyebrow {
+  margin: 0 0 var(--p-space-3);
+  color: var(--p-brand);
+  font-size: var(--p-text-xs);
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sectionTitle {
+  margin: 0;
+  max-width: 20ch;
+  font-size: var(--p-display-2);
+  font-weight: var(--p-weight-bold);
+  line-height: var(--p-leading-display);
+  letter-spacing: -0.02em;
+}
+
+.sectionIntro {
+  margin: var(--p-space-4) 0 0;
+  max-width: var(--p-measure);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+/* ---------- hero ---------- */
+
+.hero {
+  position: relative;
+  padding-block: var(--p-space-6) var(--p-space-7);
+}
+
+/**
+ * The technical grid, and the only place on the page it appears at full strength.
+ *
+ * It is a pair of repeating-linear-gradients rather than an asset, masked so it
+ * fades out before it reaches the copy below. At 4% alpha it reads as texture
+ * when looked for and disappears otherwise; it sits behind the text rather than
+ * over it, so it cannot move any measured contrast.
+ */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      var(--p-grid-line) 0 1px,
+      transparent 1px var(--p-grid-size)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--p-grid-line) 0 1px,
+      transparent 1px var(--p-grid-size)
+    );
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 100%), transparent 78%);
+}
+
+.heroInner {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: var(--p-space-6);
+}
+
+@media (min-width: 1024px) {
+  .heroInner {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    align-items: center;
+    gap: var(--p-space-7);
+  }
+}
+
+.heroTitle {
+  margin: var(--p-space-4) 0 0;
+  font-size: var(--p-display-1);
+  font-weight: var(--p-weight-bold);
+  line-height: var(--p-leading-display);
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.heroLead {
+  margin: var(--p-space-5) 0 0;
+  max-width: 54ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-lead);
+  line-height: 1.55;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-3);
+  margin-top: var(--p-space-6);
+}
+
+/**
+ * The product-truth note under the CTAs.
+ *
+ * It earns its place by explaining the diagram's grammar in words, which is what
+ * keeps solid-versus-dashed from being a colour-only distinction.
+ */
+.truthNote {
+  margin-top: var(--p-space-6);
+  padding-top: var(--p-space-4);
+  border-top: 1px solid var(--p-border);
+  max-width: 52ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  line-height: 1.6;
+}
+
+.truthLine {
+  display: flex;
+  align-items: baseline;
+  gap: var(--p-space-3);
+}
+
+.truthLine + .truthLine {
+  margin-top: var(--p-space-2);
+}
+
+/* Small inline rules that mirror the diagram's two stroke states. */
+.markSolid,
+.markDashed {
+  flex: none;
+  width: 22px;
+  height: 0;
+  margin-top: 8px;
+}
+
+.markSolid {
+  border-top: 2px solid var(--p-brand);
+}
+
+.markDashed {
+  border-top: 2px dashed var(--p-brand-line);
+}
+
+/* ---------- buttons ---------- */
+
+/**
+ * Landing CTAs are their own thing rather than the product Button.
+ *
+ * The product button is 34px tall and built for dense toolbars; a landing hero
+ * needs a 48px target. Reusing it would have meant adding a "marketing size" to
+ * a component the whole product depends on, to serve one page.
+ */
+.cta,
+.ctaSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding-inline: var(--p-space-5);
+  border-radius: var(--p-radius);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+  transition:
+    background-color var(--p-motion) var(--p-ease),
+    border-color var(--p-motion) var(--p-ease),
+    color var(--p-motion) var(--p-ease);
+}
+
+/* The strongest neutral, not the brand — same rule the product follows. */
+.cta {
+  background: var(--p-primary);
+  border: 1px solid var(--p-primary);
+  color: var(--p-primary-text);
+}
+
+.cta:hover {
+  background: var(--p-primary-hover);
+  border-color: var(--p-primary-hover);
+  text-decoration: none;
+}
+
+.ctaSecondary {
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  color: var(--p-text);
+}
+
+.ctaSecondary:hover {
+  background: var(--p-surface-hover);
+  text-decoration: none;
+}
+
+/* ---------- value pillars ---------- */
+
+/**
+ * One structured surface with thin separators, not four floating cards.
+ * The separators are borders on the grid items themselves so they collapse
+ * correctly when the columns reflow.
+ */
+.pillars {
+  display: grid;
+  margin-top: var(--p-space-6);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+  background: var(--p-surface);
+  overflow: hidden;
+}
+
+@media (min-width: 900px) {
+  .pillars {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.pillar {
+  padding: var(--p-space-5);
+  border-top: 1px solid var(--p-border);
+  /* The teal top rule that marks the block as brand territory. */
+  box-shadow: inset 0 2px 0 0 transparent;
+}
+
+.pillar:first-child {
+  border-top: 0;
+}
+
+@media (min-width: 900px) {
+  .pillar {
+    border-top: 0;
+    border-left: 1px solid var(--p-border);
+  }
+
+  .pillar:first-child {
+    border-left: 0;
+  }
+}
+
+.pillarNumber {
+  display: block;
+  margin-bottom: var(--p-space-3);
+  color: var(--p-brand);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+}
+
+.pillarTitle {
+  margin: 0 0 var(--p-space-2);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.pillarBody {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: 1.55;
+}
+
+/* ---------- workflow ---------- */
+
+.steps {
+  display: grid;
+  gap: 0;
+  margin: var(--p-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1024px) {
+  .steps {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: var(--p-space-3);
+  }
+}
+
+/**
+ * Desktop is a horizontal connected progression; mobile is a vertical sequence.
+ * The connector is drawn per step with a pseudo-element so it changes axis with
+ * the layout instead of being a separate absolutely-positioned rail.
+ */
+.step {
+  position: relative;
+  padding: var(--p-space-4) 0 var(--p-space-4) var(--p-space-6);
+}
+
+.step::before {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--p-border);
+}
+
+.step:first-child::before {
+  top: 22px;
+}
+
+.step:last-child::before {
+  bottom: calc(100% - 22px);
+}
+
+/* The dot on the spine. */
+.step::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--p-surface);
+  border: 2px solid var(--p-brand-line);
+}
+
+@media (min-width: 1024px) {
+  .step {
+    padding: var(--p-space-6) var(--p-space-3) 0 0;
+  }
+
+  .step::before {
+    left: 0;
+    right: 0;
+    top: 5px;
+    bottom: auto;
+    width: auto;
+    height: 1px;
+  }
+
+  .step:first-child::before {
+    left: 5px;
+    top: 5px;
+  }
+
+  .step:last-child::before {
+    right: calc(100% - 6px);
+    bottom: auto;
+  }
+
+  .step::after {
+    top: 0;
+  }
+}
+
+.stepNumber {
+  display: block;
+  margin-bottom: var(--p-space-2);
+  color: var(--p-brand);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-xs);
+  font-weight: var(--p-weight-semibold);
+}
+
+.stepTitle {
+  margin: 0 0 var(--p-space-1);
+  font-size: var(--p-text-base);
+  font-weight: var(--p-weight-semibold);
+}
+
+.stepBody {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  line-height: 1.5;
+}
+
+/* ---------- roles ---------- */
+
+.roles {
+  margin: var(--p-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--p-border);
+}
+
+.role {
+  display: grid;
+  gap: var(--p-space-2);
+  padding-block: var(--p-space-5);
+  border-bottom: 1px solid var(--p-border);
+}
+
+@media (min-width: 768px) {
+  .role {
+    grid-template-columns: 20ch minmax(0, 1fr);
+    gap: var(--p-space-5);
+    align-items: start;
+  }
+}
+
+.roleHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--p-space-3);
+  margin: 0;
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.roleIcon {
+  flex: none;
+  color: var(--p-brand);
+}
+
+.roleOwns {
+  margin: 0 0 var(--p-space-2);
+  font-size: var(--p-text-base);
+  font-weight: var(--p-weight-semibold);
+}
+
+.roleBody {
+  max-width: var(--p-measure);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: 1.55;
+}
+
+/* ---------- security (dark) ---------- */
+
+.security {
+  background: var(--p-inverse-bg);
+  color: var(--p-inverse-text);
+  padding-block: var(--p-space-7);
+  position: relative;
+}
+
+@media (min-width: 768px) {
+  .security {
+    padding-block: 80px;
+  }
+}
+
+.security::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      rgb(244 245 247 / 4%) 0 1px,
+      transparent 1px var(--p-grid-size)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      rgb(244 245 247 / 4%) 0 1px,
+      transparent 1px var(--p-grid-size)
+    );
+  mask-image: linear-gradient(to bottom, rgb(0 0 0 / 100%), transparent 60%);
+}
+
+.securityInner {
+  position: relative;
+}
+
+.securityEyebrow {
+  composes: eyebrow;
+  color: var(--p-inverse-brand);
+}
+
+.securityTitle {
+  composes: sectionTitle;
+  color: var(--p-inverse-text);
+}
+
+.securityIntro {
+  composes: sectionIntro;
+  color: var(--p-inverse-text-muted);
+}
+
+.facts {
+  display: grid;
+  margin: var(--p-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--p-inverse-border);
+}
+
+@media (min-width: 768px) {
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: var(--p-space-7);
+  }
+}
+
+.fact {
+  padding-block: var(--p-space-4);
+  border-bottom: 1px solid var(--p-inverse-border);
+}
+
+.factTitle {
+  margin: 0 0 var(--p-space-1);
+  font-size: var(--p-text-base);
+  font-weight: var(--p-weight-semibold);
+  color: var(--p-inverse-text);
+}
+
+.factBody {
+  color: var(--p-inverse-text-muted);
+  font-size: var(--p-text-sm);
+  line-height: 1.55;
+}
+
+/* ---------- final CTA ---------- */
+
+.finalInner {
+  display: grid;
+  gap: var(--p-space-6);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .finalInner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--p-space-7);
+  }
+}
+
+.finalTitle {
+  margin: 0;
+  max-width: 18ch;
+  font-size: var(--p-display-2);
+  font-weight: var(--p-weight-bold);
+  line-height: var(--p-leading-display);
+  letter-spacing: -0.02em;
+}
+
+.finalBody {
+  margin: var(--p-space-4) 0 0;
+  max-width: var(--p-measure);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+.finalMotif {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .finalMotif {
+    display: block;
+  }
+}
+
+/* ---------- footer ---------- */
+
+.footer {
+  border-top: 1px solid var(--p-border);
+  padding-block: var(--p-space-5);
+}
+
+.footerInner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footerBrand {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+}
+
+.footerWordmark {
+  color: var(--p-text);
+  font-weight: var(--p-weight-bold);
+  letter-spacing: 0.04em;
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.footerLink {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+}
+
+.footerLink:hover {
+  color: var(--p-text);
+}

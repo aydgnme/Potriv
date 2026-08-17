@@ -9,6 +9,7 @@ import {
   type ProductAuthError,
 } from "../model/errors";
 import { backendBaseUrl } from "./authConfig";
+import { safeBackendMessage } from "./backendTransport";
 
 /**
  * The only place that talks to the Spring backend's auth endpoints.
@@ -178,6 +179,90 @@ export async function logout(accessToken: string): Promise<void> {
   } catch {
     // Intentionally ignored — see above.
   }
+}
+
+/**
+ * Exactly what `RegisterAdminResponse` provides.
+ *
+ * Note what is absent: no access token, no refresh token. The backend does not
+ * sign the new administrator in, so neither does this — the caller cannot invent
+ * a session the contract did not grant.
+ */
+export type BackendWorkspaceRegistration = {
+  readonly userId: string;
+  readonly organizationId: string;
+  /**
+   * The backend builds this from its own `app.frontend-url`, which currently
+   * points at an origin this app does not serve. It is therefore accepted and
+   * discarded rather than shown — see the V2-02 note in the migration doc.
+   */
+  readonly employeeInviteUrl?: string;
+};
+
+/**
+ * Creates an organization and its first administrator.
+ *
+ * `POST /auth/register-admin` is `permitAll` on the backend and takes no
+ * credentials, so this touches no cookie and rotates nothing. It is a plain
+ * create, and the session boundary is deliberately untouched by it.
+ */
+export async function registerWorkspace(
+  input: {
+    readonly name: string;
+    readonly email: string;
+    readonly password: string;
+    readonly organizationName: string;
+    readonly headquarterAddress: string;
+  },
+  userAgent: string | null,
+): Promise<BackendResult<BackendWorkspaceRegistration>> {
+  let response: Response;
+  try {
+    response = await callBackend({
+      method: "POST",
+      path: "/auth/register-admin",
+      body: input,
+      userAgent,
+    });
+  } catch {
+    return { ok: false, error: productAuthError("NETWORK", NETWORK_MESSAGE) };
+  }
+
+  if (response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const userId = readId(body, "userId");
+    const organizationId = readId(body, "organizationId");
+    if (!userId || !organizationId) {
+      // A 201 we cannot read is not a success we can report.
+      return { ok: false, error: productAuthError("SERVER", GENERIC_SERVER_MESSAGE) };
+    }
+    return { ok: true, value: { userId, organizationId } };
+  }
+
+  if (response.status === 400 || response.status === 409) {
+    // The backend's own sentence — "Email address is already used." is the
+    // common one — but only when it passes the same leak check every other
+    // forwarded message goes through. Registration necessarily reveals that an
+    // address is taken; that is the endpoint's existing, unavoidable behaviour
+    // for self-service signup, not something added here.
+    const body: unknown = await response.json().catch(() => null);
+    const detail = safeBackendMessage(body);
+    return {
+      ok: false,
+      error: productAuthError(
+        "VALIDATION",
+        detail ?? "Check the details and try again.",
+      ),
+    };
+  }
+
+  return { ok: false, error: productAuthError("SERVER", GENERIC_SERVER_MESSAGE) };
+}
+
+function readId(body: unknown, key: string): string | null {
+  if (!body || typeof body !== "object") return null;
+  const value = (body as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 export async function requestPasswordReset(email: string): Promise<BackendResult<null>> {
