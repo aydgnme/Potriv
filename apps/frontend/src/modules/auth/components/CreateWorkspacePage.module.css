@@ -1,0 +1,153 @@
+/**
+ * The workspace creation screen.
+ *
+ * Same centred-card language as login and password reset, one step wider because
+ * this form asks five questions rather than two.
+ */
+
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--p-space-6) var(--p-space-4);
+  background: var(--p-bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 520px;
+  padding: var(--p-space-6);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-lg);
+}
+
+.wordmark {
+  display: inline-block;
+  margin-bottom: var(--p-space-2);
+  color: var(--p-text);
+  font-weight: var(--p-weight-bold);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--p-text-2xl);
+  font-weight: var(--p-weight-bold);
+  letter-spacing: -0.01em;
+}
+
+.intro {
+  margin: var(--p-space-3) 0 var(--p-space-5);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: 1.55;
+}
+
+.fields {
+  display: grid;
+  gap: var(--p-space-4);
+}
+
+.field {
+  display: grid;
+  gap: var(--p-space-2);
+}
+
+.label {
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+}
+
+.hint {
+  color: var(--p-text-subtle);
+  font-size: var(--p-text-xs);
+}
+
+.input {
+  width: 100%;
+  min-height: var(--p-control-lg);
+  padding: 0 var(--p-space-3);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  font-family: inherit;
+  font-size: var(--p-text-base);
+}
+
+.fieldError {
+  color: var(--p-danger);
+  font-size: var(--p-text-xs);
+}
+
+.submit {
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--p-space-5);
+  background: var(--p-primary);
+  border: 1px solid var(--p-primary);
+  border-radius: var(--p-radius);
+  color: var(--p-primary-text);
+  font-family: inherit;
+  font-size: var(--p-text-base);
+  font-weight: var(--p-weight-semibold);
+  cursor: pointer;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--p-primary-hover);
+}
+
+.submit:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.footerNote {
+  margin-top: var(--p-space-5);
+  padding-top: var(--p-space-4);
+  border-top: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+}
+
+/* ---------- success ---------- */
+
+.success {
+  display: grid;
+  gap: var(--p-space-4);
+}
+
+.successMark {
+  color: var(--p-brand);
+}
+
+.successBody {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: 1.55;
+}
+
+.successActions {
+  display: flex;
+  gap: var(--p-space-3);
+}
+
+.successPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding-inline: var(--p-space-5);
+  background: var(--p-primary);
+  border-radius: var(--p-radius);
+  color: var(--p-primary-text);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.successPrimary:hover {
+  text-decoration: none;
+}

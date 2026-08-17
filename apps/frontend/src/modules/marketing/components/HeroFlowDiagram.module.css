@@ -1,0 +1,141 @@
+/**
+ * The hero diagram's frame. The drawing itself is SVG; this file owns only the
+ * surface it sits on and the desktop/mobile swap.
+ */
+
+.figure {
+  margin: 0;
+  position: relative;
+}
+
+/**
+ * Two drawings, not one drawing scaled.
+ *
+ * Shrinking the desktop flow to 390px would leave 9px labels, so the mobile
+ * variant is a genuinely different composition carrying the same five stages.
+ * Both are always in the DOM and one is hidden, which keeps the whole thing
+ * server-rendered — no measurement, no client component, no layout flash.
+ */
+.desktop {
+  display: none;
+}
+
+.mobile {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+@media (min-width: 860px) {
+  .desktop {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .mobile {
+    display: none;
+  }
+}
+
+/* Stroke roles, shared by both variants. */
+.structure {
+  stroke: var(--p-border-strong);
+  fill: none;
+  stroke-width: 1;
+}
+
+.node {
+  fill: var(--p-surface);
+  stroke: var(--p-border-strong);
+  stroke-width: 1;
+}
+
+.nodeSunken {
+  fill: var(--p-surface-sunken);
+  stroke: var(--p-border);
+  stroke-width: 1;
+}
+
+/**
+ * The two relationship states, and the reason this diagram exists.
+ *
+ * Dashed is a proposal — asked for, not yet agreed. Solid is an accepted
+ * allocation. The distinction is Potriv's, not decoration, so it is carried by
+ * dash pattern first and colour second: a reader who cannot separate the hues
+ * still sees the difference.
+ */
+.proposed {
+  stroke: var(--p-brand-line);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  fill: none;
+}
+
+.accepted {
+  stroke: var(--p-brand);
+  stroke-width: 2;
+  fill: none;
+}
+
+.person {
+  fill: var(--p-surface);
+  stroke: var(--p-text-muted);
+  stroke-width: 1;
+}
+
+.personSelected {
+  fill: var(--p-brand-selection);
+  stroke: var(--p-brand);
+  stroke-width: 1.5;
+}
+
+/* Text inside the drawing. Sizes are in SVG user units, which map 1:1 to px
+   here because both variants scale by viewBox rather than by font size. */
+.label {
+  fill: var(--p-text);
+  font-family: var(--p-font-sans);
+  font-size: 12px;
+  font-weight: var(--p-weight-semibold);
+}
+
+.labelMuted {
+  fill: var(--p-text-muted);
+  font-family: var(--p-font-sans);
+  font-size: 11px;
+  font-weight: var(--p-weight-normal);
+}
+
+.labelMono {
+  fill: var(--p-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: 10.5px;
+}
+
+.score {
+  fill: var(--p-brand-strong);
+  font-family: var(--p-font-mono);
+  font-size: 11px;
+  font-weight: var(--p-weight-semibold);
+}
+
+.stage {
+  fill: var(--p-brand);
+  font-family: var(--p-font-sans);
+  font-size: 9.5px;
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/**
+ * The only glass in the diagram, and one of two on the whole page.
+ *
+ * `backdrop-filter` is progressive: without support this stays a legible
+ * translucent panel, so nothing depends on the blur landing.
+ */
+.glassPanel {
+  fill: var(--p-glass-strong);
+  stroke: var(--p-glass-border);
+  stroke-width: 1;
+}

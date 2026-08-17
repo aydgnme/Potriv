@@ -44,6 +44,55 @@ export async function signIn(email: string, password: string): Promise<LoginOutc
   return { ok: true, user: body.user };
 }
 
+export type CreateWorkspaceOutcome =
+  | { readonly ok: true; readonly email: string }
+  | {
+      readonly ok: false;
+      readonly error: ProductAuthError;
+      readonly fieldErrors?: Record<string, string>;
+    };
+
+/**
+ * Creates an organization and its first administrator.
+ *
+ * Returns the email the account was created with so the success screen can name
+ * it. No token crosses this boundary because the backend issues none here — the
+ * new administrator signs in afterwards like anybody else.
+ */
+export async function createWorkspace(input: {
+  name: string;
+  email: string;
+  password: string;
+  organizationName: string;
+  headquarterAddress: string;
+}): Promise<CreateWorkspaceOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/register-workspace", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    return { ok: false, error: productAuthError("NETWORK", NETWORK_MESSAGE) };
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      error?: ProductAuthError;
+      fieldErrors?: Record<string, string>;
+    } | null;
+    return {
+      ok: false,
+      error: body?.error ?? productAuthError("SERVER", GENERIC_SERVER_MESSAGE),
+      fieldErrors: body?.fieldErrors,
+    };
+  }
+
+  const body = (await response.json()) as { email: string };
+  return { ok: true, email: body.email };
+}
+
 export async function signOut(): Promise<void> {
   try {
     await fetch("/api/auth/logout", { method: "POST" });
