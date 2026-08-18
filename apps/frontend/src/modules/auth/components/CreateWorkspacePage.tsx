@@ -13,6 +13,7 @@ import {
   type WorkspaceFieldErrors,
 } from "../model/workspaceRegistration";
 
+import { PublicAuthShell } from "./PublicAuthShell";
 import styles from "./CreateWorkspacePage.module.css";
 
 /**
@@ -111,98 +112,98 @@ export function CreateWorkspacePage() {
 
   if (createdEmail) {
     return (
-      <main className={styles.page}>
-        <div className={styles.card}>
-          <div className={styles.success}>
-            <CheckMark className={styles.successMark} />
-            <h1 className={styles.title}>Workspace created</h1>
-            <p className={styles.successBody}>
-              Your organization exists and <strong>{createdEmail}</strong> is its
-              administrator. Sign in to add departments, team roles and the
-              people who will work in it.
-            </p>
-            <div className={styles.successActions}>
-              <Link className={styles.successPrimary} href="/login">
-                Sign in
-              </Link>
-            </div>
+      <PublicAuthShell
+        title="Your workspace is ready"
+        contextTitle="One organization, and its first administrator."
+        contextBody="Everything else — departments, skills, projects — is set up inside the workspace afterwards."
+        topology="createWorkspace"
+        /* No footer link: the primary action below is already Sign in, and a
+           second one saying the same thing is just two ways to leave. */
+      >
+        <div className={styles.success}>
+          <CheckMark className={styles.successMark} />
+          <p className={styles.successBody}>
+            The organization and the administrator account{" "}
+            <strong>{createdEmail}</strong> were created. Sign in to add
+            departments, team roles and the people who will work in it.
+          </p>
+          <div className={styles.successActions}>
+            <Link className={styles.successPrimary} href="/login">
+              Sign in
+            </Link>
           </div>
         </div>
-      </main>
+      </PublicAuthShell>
     );
   }
 
   return (
-    <main className={styles.page}>
-      <div className={styles.card}>
-        <Link className={styles.wordmark} href="/">
-          POTRIV
-        </Link>
-        <h1 className={styles.title}>Create your workspace</h1>
-        <p className={styles.intro}>
-          This creates one organization and you as its administrator. Everything
-          else — departments, skills, projects — you set up inside it afterwards.
-        </p>
-
-        {/* Alert announces the `danger` tone assertively on its own. */}
-        {formError ? <Alert tone="danger">{formError}</Alert> : null}
-
-        <form onSubmit={handleSubmit} noValidate>
-          <div className={styles.fields}>
-            {FIELDS.map((field) => {
-              const errorId = `${field.name}-error`;
-              const hintId = `${field.name}-hint`;
-              const error = fieldErrors[field.name];
-              return (
-                <div className={styles.field} key={field.name}>
-                  <label className={styles.label} htmlFor={field.name}>
-                    {field.label}
-                  </label>
-                  {field.hint ? (
-                    <span className={styles.hint} id={hintId}>
-                      {field.hint}
-                    </span>
-                  ) : null}
-                  <input
-                    className={styles.input}
-                    id={field.name}
-                    name={field.name}
-                    type={field.type}
-                    autoComplete={field.autoComplete}
-                    value={values[field.name]}
-                    onChange={(event) =>
-                      setValues((previous) => ({
-                        ...previous,
-                        [field.name]: event.target.value,
-                      }))
-                    }
-                    aria-invalid={error ? true : undefined}
-                    aria-describedby={
-                      [error ? errorId : null, field.hint ? hintId : null]
-                        .filter(Boolean)
-                        .join(" ") || undefined
-                    }
-                  />
-                  {error ? (
-                    <span className={styles.fieldError} id={errorId}>
-                      {error}
-                    </span>
-                  ) : null}
-                </div>
-              );
-            })}
-          </div>
-
-          <button className={styles.submit} type="submit" disabled={submitting}>
-            {submitting ? "Creating workspace…" : "Create workspace"}
-          </button>
-        </form>
-
-        <p className={styles.footerNote}>
+    <PublicAuthShell
+      title="Create your workspace"
+      intro="This creates one organization and you as its administrator."
+      contextTitle="One organization, and its first administrator."
+      contextBody="Everything else — departments, skills, projects — is set up inside the workspace afterwards."
+      topology="createWorkspace"
+      footer={
+        <>
           Already have a workspace? <Link href="/login">Sign in</Link>
-        </p>
-      </div>
-    </main>
+        </>
+      }
+    >
+      {/* Alert announces the `danger` tone assertively on its own. */}
+      {formError ? <Alert tone="danger">{formError}</Alert> : null}
+
+      <form onSubmit={handleSubmit} noValidate>
+        <div className={styles.fields}>
+          {FIELDS.map((field) => {
+            const errorId = `${field.name}-error`;
+            const hintId = `${field.name}-hint`;
+            const error = fieldErrors[field.name];
+            return (
+              <div className={styles.field} key={field.name}>
+                <label className={styles.label} htmlFor={field.name}>
+                  {field.label}
+                </label>
+                {field.hint ? (
+                  <span className={styles.hint} id={hintId}>
+                    {field.hint}
+                  </span>
+                ) : null}
+                <input
+                  className={styles.input}
+                  id={field.name}
+                  name={field.name}
+                  type={field.type}
+                  autoComplete={field.autoComplete}
+                  value={values[field.name]}
+                  onChange={(event) =>
+                    setValues((previous) => ({
+                      ...previous,
+                      [field.name]: event.target.value,
+                    }))
+                  }
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={
+                    [error ? errorId : null, field.hint ? hintId : null]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                />
+                {error ? (
+                  <span className={styles.fieldError} id={errorId}>
+                    {error}
+                  </span>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+
+        <button className={styles.submit} type="submit" disabled={submitting}>
+          {submitting ? "Creating workspace…" : "Create workspace"}
+        </button>
+      </form>
+    </PublicAuthShell>
   );
 }
 

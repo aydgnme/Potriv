@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 
@@ -30,6 +31,9 @@ import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.support.RecordingMailSender;
 
 class PasswordResetIntegrationTest extends AbstractMockMvcIntegrationTest {
+
+    @Value("${app.frontend-url}")
+    private String frontendUrl;
 
     private static final Pattern TOKEN_PATTERN = Pattern.compile("token=([A-Za-z0-9_-]+)");
 
@@ -77,8 +81,12 @@ class PasswordResetIntegrationTest extends AbstractMockMvcIntegrationTest {
 
         SimpleMailMessage message = latestMessageTo(email);
         assertThat(message.getSubject()).contains("Potriv");
+        // Asserted against the configured base rather than a literal: this test
+        // previously pinned http://localhost:5173, an origin no application in
+        // this repository serves, and so it defended a broken link instead of a
+        // working one.
         assertThat(Objects.requireNonNull(message.getText()))
-            .contains("http://localhost:5173/reset-password?token=");
+            .contains(frontendUrl + "/reset-password?token=");
     }
 
     @Test

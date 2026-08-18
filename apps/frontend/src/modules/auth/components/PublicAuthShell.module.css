@@ -1,0 +1,178 @@
+/**
+ * The frame every public auth page sits in.
+ *
+ * Quieter than the landing and unmistakably related to it: same canvas, same
+ * thin borders, same charcoal typography, same teal used only as a micro-accent.
+ * The landing is trying to explain a product; these pages are trying to get one
+ * task done, so the form is the subject and the visual panel is context.
+ */
+
+.page {
+  min-height: 100dvh;
+  display: grid;
+  background: var(--p-surface);
+  color: var(--p-text);
+  /* A wide topology panel must never turn a 320px screen into a scrollable one. */
+  overflow-x: hidden;
+}
+
+@media (min-width: 900px) {
+  .page {
+    /* Context is the smaller half. The form is what the visitor came for. */
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+}
+
+/* ---------- context panel ---------- */
+
+.context {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .context {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--p-space-6);
+    padding: var(--p-space-6) var(--p-space-7);
+    border-right: 1px solid var(--p-border);
+  }
+
+  /* The same technical grid as the landing hero, at the same strength, faded
+     out before it reaches the copy. */
+  .context::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      repeating-linear-gradient(
+        to right,
+        var(--p-grid-line) 0 1px,
+        transparent 1px var(--p-grid-size)
+      ),
+      repeating-linear-gradient(
+        to bottom,
+        var(--p-grid-line) 0 1px,
+        transparent 1px var(--p-grid-size)
+      );
+    mask-image: linear-gradient(to bottom, rgb(0 0 0 / 100%), transparent 82%);
+  }
+}
+
+.contextInner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-5);
+  margin-block: auto;
+}
+
+.contextTitle {
+  margin: 0;
+  max-width: 22ch;
+  font-size: var(--p-display-3);
+  font-weight: var(--p-weight-bold);
+  line-height: var(--p-leading-display);
+  letter-spacing: -0.02em;
+}
+
+.contextBody {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: 1.55;
+}
+
+.backLink {
+  position: relative;
+  align-self: start;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+}
+
+.backLink:hover {
+  color: var(--p-text);
+}
+
+/* ---------- form side ---------- */
+
+.main {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--p-space-6) var(--p-space-5);
+}
+
+@media (min-width: 900px) {
+  .main {
+    padding: var(--p-space-7);
+  }
+}
+
+.panel {
+  width: 100%;
+  /* Wide enough for the five-field workspace form, narrow enough that sign-in
+     does not look stranded. No card, no shadow — the page is the surface. */
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+.wordmark {
+  display: inline-block;
+  margin-bottom: var(--p-space-6);
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-bold);
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+
+.wordmark:hover {
+  text-decoration: none;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--p-display-3);
+  font-weight: var(--p-weight-bold);
+  line-height: var(--p-leading-display);
+  letter-spacing: -0.02em;
+}
+
+.intro {
+  margin: var(--p-space-3) 0 0;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: 1.55;
+}
+
+/* On mobile the context panel is gone, so a one-line version rides with the
+   form rather than being lost entirely. */
+.mobileContext {
+  margin: var(--p-space-3) 0 0;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  line-height: 1.5;
+}
+
+@media (min-width: 900px) {
+  .mobileContext {
+    display: none;
+  }
+}
+
+.body {
+  margin-top: var(--p-space-6);
+}
+
+.footer {
+  margin-top: var(--p-space-6);
+  padding-top: var(--p-space-4);
+  border-top: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+}

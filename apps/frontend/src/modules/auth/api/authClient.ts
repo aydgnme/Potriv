@@ -93,6 +93,56 @@ export async function createWorkspace(input: {
   return { ok: true, email: body.email };
 }
 
+export type InviteRegistrationOutcome =
+  | { readonly ok: true; readonly email: string }
+  | {
+      readonly ok: false;
+      readonly code: string;
+      readonly message: string;
+      readonly fieldErrors?: Record<string, string>;
+    };
+
+/**
+ * Registers an employee against an invitation.
+ *
+ * The token is passed through to the BFF in the request body and is never
+ * stored, echoed or logged here. No token crosses back: the backend issues none
+ * for this operation, so the new employee signs in afterwards like anybody else.
+ */
+export async function registerWithInvite(input: {
+  token: string;
+  name: string;
+  email: string;
+  password: string;
+}): Promise<InviteRegistrationOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/register-invite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+  } catch {
+    return { ok: false, code: "NETWORK", message: NETWORK_MESSAGE };
+  }
+
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as {
+      error?: { code?: string; message?: string };
+      fieldErrors?: Record<string, string>;
+    } | null;
+    return {
+      ok: false,
+      code: body?.error?.code ?? "SERVER",
+      message: body?.error?.message ?? GENERIC_SERVER_MESSAGE,
+      fieldErrors: body?.fieldErrors,
+    };
+  }
+
+  const body = (await response.json()) as { email: string };
+  return { ok: true, email: body.email };
+}
+
 export async function signOut(): Promise<void> {
   try {
     await fetch("/api/auth/logout", { method: "POST" });

@@ -8,10 +8,14 @@
  * becomes a character, and the page stops being about staffing.
  *
  * It renders a `<g>` rather than its own `<svg>`, because every use is *inside*
- * an existing diagram: the hero flow, the closing motif, and later a Team Finder
- * row. Nesting an `<svg>` per mark would create a viewport per person and make
- * them impossible to place in the parent's coordinate space. `transform` does
- * the positioning instead, so one definition serves every scale.
+ * an existing diagram: the landing's hero flow and closing motif, the public
+ * auth topology panels, and later a Team Finder row. Nesting an `<svg>` per mark
+ * would create a viewport per person and make them impossible to place in the
+ * parent's coordinate space. `transform` does the positioning instead, so one
+ * definition serves every scale.
+ *
+ * It lives in `shared/ui` rather than in a feature module because marketing and
+ * auth both draw people and neither may import the other.
  *
  * Colour is not set here. The caller supplies `stroke` and `fill` through a
  * class or a parent `<g>`, so a person takes the tone of its context — charcoal

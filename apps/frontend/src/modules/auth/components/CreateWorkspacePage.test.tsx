@@ -109,7 +109,7 @@ describe("when the backend accepts", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
-    expect(await screen.findByRole("heading", { name: /workspace created/i }))
+    expect(await screen.findByRole("heading", { name: /workspace is ready/i }))
       .toBeInTheDocument();
     expect(screen.getByText(VALID["Work email"], { exact: false })).toBeInTheDocument();
   });
@@ -129,7 +129,7 @@ describe("when the backend accepts", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
-    await screen.findByRole("heading", { name: /workspace created/i });
+    await screen.findByRole("heading", { name: /workspace is ready/i });
 
     // It sends them to sign in, rather than to the product.
     const next = screen.getByRole("link", { name: /sign in/i });
@@ -145,7 +145,7 @@ describe("when the backend accepts", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
-    await screen.findByRole("heading", { name: /workspace created/i });
+    await screen.findByRole("heading", { name: /workspace is ready/i });
     const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
     // A same-origin path: the browser never learns the backend's address.
     expect(url).toBe("/api/auth/register-workspace");
@@ -169,7 +169,7 @@ describe("when the backend refuses", () => {
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/already used/i);
-    expect(screen.queryByRole("heading", { name: /workspace created/i })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /workspace is ready/i })).toBeNull();
   });
 
   it("keeps what was typed so the form can be corrected, not retyped", async () => {
@@ -201,6 +201,6 @@ describe("when the backend refuses", () => {
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /workspace created/i })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /workspace is ready/i })).toBeNull();
   });
 });

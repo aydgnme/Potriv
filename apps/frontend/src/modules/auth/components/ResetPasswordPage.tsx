@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -9,6 +11,7 @@ import { Input } from "@/shared/ui/Input";
 
 import { confirmPasswordReset } from "../api/authClient";
 
+import { PublicAuthShell } from "./PublicAuthShell";
 import styles from "./AuthPage.module.css";
 
 /**
@@ -61,68 +64,59 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div className={styles.page}>
-        <main className={styles.card}>
-          <div className={styles.identity}>
-            <span className={styles.wordmark}>Potriv</span>
-          </div>
-          <Alert tone="danger">
-            This password reset link is no longer valid. Request a new one.
-          </Alert>
-          <div className={styles.footer}>
-            <a href="/forgot-password">Request a new link</a>
-          </div>
-        </main>
-      </div>
+      <PublicAuthShell
+        title="This link is no longer valid"
+        contextTitle="Getting back into your account."
+        contextBody="A one-time link restores access. It does not change anything else about your account or your workspace."
+        topology="recover"
+        footer={<Link href="/login">Back to sign in</Link>}
+      >
+        <Alert tone="danger">
+          This password reset link is no longer valid. Request a new one.
+        </Alert>
+        <p className={styles.footerLink}>
+          <Link href="/forgot-password">Request a new link</Link>
+        </p>
+      </PublicAuthShell>
     );
   }
 
   return (
-    <div className={styles.page}>
-      <main className={styles.card}>
-        <div className={styles.identity}>
-          <span className={styles.wordmark}>Potriv</span>
-        </div>
+    <PublicAuthShell
+      title="Set a new password"
+      intro="Choose a password between 8 and 72 characters."
+      contextTitle="Getting back into your account."
+      contextBody="A one-time link restores access. It does not change anything else about your account or your workspace."
+      topology="recover"
+      footer={<Link href="/login">Back to sign in</Link>}
+    >
+      {/* One state for every rejected token: the backend does not say whether
+          it was expired, already used or unknown, and neither should this. */}
+      {formError ? <Alert tone="danger">{formError}</Alert> : null}
 
-        <div>
-          <h1 className={styles.heading}>Set a new password</h1>
-          <p className={styles.intro}>
-            Choose a password between 8 and 72 characters.
-          </p>
-        </div>
-
-        {/* One state for every rejected token: the backend does not say whether
-            it was expired, already used or unknown, and neither should this. */}
-        {formError ? <Alert tone="danger">{formError}</Alert> : null}
-
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <Input
-            label="New password"
-            type="password"
-            name="newPassword"
-            autoComplete="new-password"
-            value={password}
-            error={passwordError ?? undefined}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-          <Input
-            label="Confirm new password"
-            type="password"
-            name="confirmPassword"
-            autoComplete="new-password"
-            value={confirmation}
-            error={confirmationError ?? undefined}
-            onChange={(event) => setConfirmation(event.target.value)}
-          />
-          <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>
-            Set new password
-          </Button>
-        </form>
-
-        <div className={styles.footer}>
-          <a href="/login">Back to sign in</a>
-        </div>
-      </main>
-    </div>
+      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <Input
+          label="New password"
+          type="password"
+          name="newPassword"
+          autoComplete="new-password"
+          value={password}
+          error={passwordError ?? undefined}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+        <Input
+          label="Confirm new password"
+          type="password"
+          name="confirmPassword"
+          autoComplete="new-password"
+          value={confirmation}
+          error={confirmationError ?? undefined}
+          onChange={(event) => setConfirmation(event.target.value)}
+        />
+        <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>
+          {submitting ? "Resetting password…" : "Set new password"}
+        </Button>
+      </form>
+    </PublicAuthShell>
   );
 }

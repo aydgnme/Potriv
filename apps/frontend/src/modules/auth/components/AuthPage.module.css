@@ -27,3 +27,9 @@
 
 .form { display: flex; flex-direction: column; gap: var(--p-space-4); }
 .footer { display: flex; justify-content: space-between; align-items: center; font-size: var(--p-text-sm); }
+
+/* Secondary link under a form, on the V2 public auth shell. */
+.footerLink {
+  margin-top: var(--p-space-4);
+  font-size: var(--p-text-sm);
+}
