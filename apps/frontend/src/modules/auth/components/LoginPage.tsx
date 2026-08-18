@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
@@ -10,6 +11,7 @@ import { Input } from "@/shared/ui/Input";
 import { signIn } from "../api/authClient";
 import { INVALID_CREDENTIALS_MESSAGE } from "../model/errors";
 
+import { PublicAuthShell } from "./PublicAuthShell";
 import styles from "./AuthPage.module.css";
 
 /**
@@ -73,47 +75,47 @@ export function LoginPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <main className={styles.card}>
-        <div className={styles.identity}>
-          {/* The page's only heading. It was a `span`, which left the sign-in
-              screen with no heading at all — nothing for a screen reader to
-              land on, and no name for the one thing the page does. */}
-          <h1 className={styles.wordmark}>Potriv</h1>
-          <p className={styles.tagline}>Team allocation and skill matching</p>
-        </div>
+    <PublicAuthShell
+      title="Sign in"
+      contextTitle="Your workspace, and the work in it."
+      contextBody="Potriv keeps project requirements, the people who can meet them, and the staffing decisions between the two in one place."
+      topology="signIn"
+      footer={
+        <>
+          New to Potriv? <Link href="/create-workspace">Create your workspace</Link>
+        </>
+      }
+    >
+      {notice ? <Alert tone="info">{notice}</Alert> : null}
+      {formError ? <Alert tone="danger">{formError}</Alert> : null}
 
-        {notice ? <Alert tone="info">{notice}</Alert> : null}
-        {formError ? <Alert tone="danger">{formError}</Alert> : null}
+      <form className={styles.form} onSubmit={handleSubmit} noValidate>
+        <Input
+          label="Email"
+          type="email"
+          name="email"
+          autoComplete="email"
+          value={email}
+          error={emailError ?? undefined}
+          onChange={(event) => setEmail(event.target.value)}
+        />
+        <Input
+          label="Password"
+          type="password"
+          name="password"
+          autoComplete="current-password"
+          value={password}
+          error={passwordError ?? undefined}
+          onChange={(event) => setPassword(event.target.value)}
+        />
+        <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>
+          {submitting ? "Signing in…" : "Sign in"}
+        </Button>
+      </form>
 
-        <form className={styles.form} onSubmit={handleSubmit} noValidate>
-          <Input
-            label="Email"
-            type="email"
-            name="email"
-            autoComplete="email"
-            value={email}
-            error={emailError ?? undefined}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-          <Input
-            label="Password"
-            type="password"
-            name="password"
-            autoComplete="current-password"
-            value={password}
-            error={passwordError ?? undefined}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-          <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>
-            Sign in
-          </Button>
-        </form>
-
-        <div className={styles.footer}>
-          <a href="/forgot-password">Forgot password?</a>
-        </div>
-      </main>
-    </div>
+      <p className={styles.footerLink}>
+        <Link href="/forgot-password">Forgot password?</Link>
+      </p>
+    </PublicAuthShell>
   );
 }

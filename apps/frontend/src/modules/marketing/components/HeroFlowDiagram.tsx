@@ -1,4 +1,4 @@
-import { PersonMark } from "./PersonMark";
+import { PersonMark } from "@/shared/ui/PersonMark";
 import styles from "./HeroFlowDiagram.module.css";
 
 /**

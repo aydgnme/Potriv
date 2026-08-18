@@ -1,4 +1,4 @@
-import { PersonMark } from "./PersonMark";
+import { PersonMark } from "@/shared/ui/PersonMark";
 
 /**
  * The closing motif: a department, a project, and the team that results.

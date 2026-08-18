@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
@@ -8,6 +10,7 @@ import { Input } from "@/shared/ui/Input";
 
 import { requestPasswordReset } from "../api/authClient";
 
+import { PublicAuthShell } from "./PublicAuthShell";
 import styles from "./AuthPage.module.css";
 
 /**
@@ -45,57 +48,53 @@ export function ForgotPasswordPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <main className={styles.card}>
-        <div className={styles.identity}>
-          <span className={styles.wordmark}>Potriv</span>
-        </div>
+    <PublicAuthShell
+      title="Reset your password"
+      intro={
+        submitted
+          ? undefined
+          : "Enter the email address used for your Potriv account."
+      }
+      contextTitle="Getting back into your account."
+      contextBody="A one-time link restores access. It does not change anything else about your account or your workspace."
+      topology="recover"
+      footer={<Link href="/login">Back to sign in</Link>}
+    >
+      {submitted ? (
+        <>
+          {/*
+            Deliberately neutral. The backend answers the same way whether or
+            not the address exists, so saying anything more specific here would
+            hand back the enumeration signal it refuses to give.
+          */}
+          <Alert tone="info">
+            If an account exists for this email, a password reset link has been sent.
+          </Alert>
+          <p className={styles.intro}>
+            The link is valid for 30 minutes. Check your spam folder if it does not
+            arrive.
+          </p>
+        </>
+      ) : (
+        <>
+          {formError ? <Alert tone="danger">{formError}</Alert> : null}
 
-        {submitted ? (
-          <>
-            <Alert tone="info">
-              If an account exists for this email, a password reset link has been sent.
-            </Alert>
-            <p className={styles.intro}>
-              The link is valid for 30 minutes. Check your spam folder if it does not
-              arrive.
-            </p>
-            <div className={styles.footer}>
-              <a href="/login">Back to sign in</a>
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <h1 className={styles.heading}>Reset your password</h1>
-              <p className={styles.intro}>
-                Enter your email and we will send you a link to set a new password.
-              </p>
-            </div>
-
-            {formError ? <Alert tone="danger">{formError}</Alert> : null}
-
-            <form className={styles.form} onSubmit={handleSubmit} noValidate>
-              <Input
-                label="Email"
-                type="email"
-                name="email"
-                autoComplete="email"
-                value={email}
-                error={emailError ?? undefined}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-              <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>
-                Send reset link
-              </Button>
-            </form>
-
-            <div className={styles.footer}>
-              <a href="/login">Back to sign in</a>
-            </div>
-          </>
-        )}
-      </main>
-    </div>
+          <form className={styles.form} onSubmit={handleSubmit} noValidate>
+            <Input
+              label="Email"
+              type="email"
+              name="email"
+              autoComplete="email"
+              value={email}
+              error={emailError ?? undefined}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+            <Button type="submit" variant="primary" size="lg" fullWidth loading={submitting}>
+              {submitting ? "Sending reset link…" : "Send reset link"}
+            </Button>
+          </form>
+        </>
+      )}
+    </PublicAuthShell>
   );
 }

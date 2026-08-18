@@ -11,7 +11,17 @@ server:
     context-path: /api
 
 app:
-  frontend-url: http://localhost:5173
+  # Where the product frontend is served, and therefore the base of every link
+  # this backend emails out: `/invite?token=…` and `/reset-password?token=…`.
+  #
+  # This was http://localhost:5173, an origin no application in this repository
+  # serves — `apps/` contains only `backend` and the Next frontend, which runs
+  # on 3000. Reset links were therefore dead in development, and invite links
+  # had no destination at all until the Next `/invite` route was added.
+  #
+  # Overridable so a differently-hosted frontend does not need a code change;
+  # the prod profile supplies its own default.
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
   api-url: http://localhost:8080/api
   jwt:
     issuer: http://localhost:8080/api

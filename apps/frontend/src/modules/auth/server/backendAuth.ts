@@ -265,6 +265,90 @@ function readId(body: unknown, key: string): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+/**
+ * Why an invite failure is reported as one thing.
+ *
+ * The backend distinguishes a token it has never seen (404) from one that is
+ * inactive or expired (400). Both mean the same thing to the person holding the
+ * link — it does not work — and telling them which would confirm whether a given
+ * token ever existed. They collapse to `INVITE_INVALID`.
+ *
+ * A duplicate email is different: it is about the caller's own input, it is
+ * checked before the token is even looked at, and the person needs to know to
+ * sign in instead. It stays a validation error.
+ */
+export type InviteFailure = "INVITE_INVALID" | "VALIDATION" | "NETWORK" | "SERVER";
+
+export type BackendInviteRegistration = {
+  readonly userId: string;
+  readonly organizationId: string;
+};
+
+/**
+ * Registers an employee against an invite token.
+ *
+ * `POST /auth/register-employee/{token}` is `permitAll`, takes no credentials
+ * and returns no token pair — so this sets no cookie and creates no session.
+ * The token is path-encoded here and never returned to the caller.
+ */
+export async function registerWithInvite(
+  inviteToken: string,
+  input: { readonly name: string; readonly email: string; readonly password: string },
+  userAgent: string | null,
+): Promise<
+  | { readonly ok: true; readonly value: BackendInviteRegistration }
+  | { readonly ok: false; readonly failure: InviteFailure; readonly message: string }
+> {
+  let response: Response;
+  try {
+    response = await callBackend({
+      method: "POST",
+      // Encoded so a token containing URL-significant characters cannot alter
+      // the path it is addressed to.
+      path: `/auth/register-employee/${encodeURIComponent(inviteToken)}`,
+      body: input,
+      userAgent,
+    });
+  } catch {
+    return { ok: false, failure: "NETWORK", message: NETWORK_MESSAGE };
+  }
+
+  if (response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const userId = readId(body, "userId");
+    const organizationId = readId(body, "organizationId");
+    if (!userId || !organizationId) {
+      return { ok: false, failure: "SERVER", message: GENERIC_SERVER_MESSAGE };
+    }
+    return { ok: true, value: { userId, organizationId } };
+  }
+
+  // An unknown token. Never distinguished from an expired one.
+  if (response.status === 404) {
+    return { ok: false, failure: "INVITE_INVALID", message: INVITE_INVALID_MESSAGE };
+  }
+
+  if (response.status === 400) {
+    const body: unknown = await response.json().catch(() => null);
+    const detail = safeBackendMessage(body);
+    // The backend uses 400 both for a dead token and for a taken email. Only the
+    // email case may be reported specifically; anything token-shaped collapses.
+    if (detail && /invite/i.test(detail)) {
+      return { ok: false, failure: "INVITE_INVALID", message: INVITE_INVALID_MESSAGE };
+    }
+    return {
+      ok: false,
+      failure: "VALIDATION",
+      message: detail ?? "Check the details and try again.",
+    };
+  }
+
+  return { ok: false, failure: "SERVER", message: GENERIC_SERVER_MESSAGE };
+}
+
+/** One sentence for every dead invite, whatever killed it. */
+export const INVITE_INVALID_MESSAGE = "This invite is no longer valid.";
+
 export async function requestPasswordReset(email: string): Promise<BackendResult<null>> {
   let response: Response;
   try {
