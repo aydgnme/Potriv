@@ -55,6 +55,10 @@ function sources(overrides: Partial<StaffingDataSources> = {}) {
       },
     })),
     proposeAssignment: vi.fn(),
+    getProjectProposedMembers: vi.fn(async () => ({
+      ok: true as const,
+      value: { proposedMembers: [] },
+    })),
     ...overrides,
   } as unknown as StaffingDataSources & Record<string, ReturnType<typeof vi.fn>>;
 }
@@ -214,5 +218,130 @@ describe("ownsProject", () => {
     expect(ownsProject(["EMPLOYEE"], "pm-1", "pm-1")).toBe(false);
     expect(ownsProject(roles, "pm-1", null)).toBe(false);
     expect(ownsProject(roles, "pm-1", undefined)).toBe(false);
+  });
+});
+
+/**
+ * What the loader is allowed to ask for, and when.
+ *
+ * Two rules, both security-shaped: nothing sensitive is fetched before the
+ * backend has confirmed this caller may see the project at all, and the cost is
+ * fixed however large the project or the result set.
+ */
+describe("request budget and load order", () => {
+  it("costs exactly two requests after ownership, whatever the project contains", async () => {
+    const deps = sources({
+      getProjectContext: vi.fn(async () => ({
+        ok: true as const,
+        value: project({
+          teamRoleRequirements: [
+            {
+              requirementId: "r1",
+              teamRole: { teamRoleId: "backend", name: "Backend", active: true },
+              requiredMembers: 9,
+            },
+            {
+              requirementId: "r2",
+              teamRole: { teamRoleId: "qa", name: "QA", active: true },
+              requiredMembers: 4,
+            },
+          ],
+        }),
+      })),
+    });
+
+    await loadTeamFinder("p1", normalizeTeamFinderQuery({}), {
+      userId: OWNER_ID,
+      roles: ["EMPLOYEE", "PROJECT_MANAGER"] as readonly AccessRole[],
+    }, deps);
+
+    // One finder POST and one team read. No per-requirement and no per-candidate
+    // fan-out — thirteen required people cost nothing extra.
+    expect(deps.findCandidates).toHaveBeenCalledTimes(1);
+    expect(deps.getProjectProposedMembers).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads nothing sensitive for a caller who cannot see the project", async () => {
+    const deps = sources({
+      getProjectContext: vi.fn(async () => ({ ok: false as const, reason: "NOT_FOUND" as const })),
+    });
+
+    const state = await loadTeamFinder("p1", normalizeTeamFinderQuery({}), {
+      userId: OWNER_ID,
+      roles: ["EMPLOYEE", "PROJECT_MANAGER"] as readonly AccessRole[],
+    }, deps);
+
+    expect(state.kind).toBe("unavailable");
+    expect(deps.findCandidates).not.toHaveBeenCalled();
+    expect(deps.getProjectProposedMembers).not.toHaveBeenCalled();
+  });
+
+  it("reads nothing sensitive for a reader who does not own the project", async () => {
+    const deps = sources();
+
+    const state = await loadTeamFinder("p1", normalizeTeamFinderQuery({}), {
+      // Holds the role, manages a different project.
+      userId: "pm-2",
+      roles: ["EMPLOYEE", "PROJECT_MANAGER"] as readonly AccessRole[],
+    }, deps);
+
+    expect(state.kind).toBe("not-owner");
+    expect(deps.findCandidates).not.toHaveBeenCalled();
+    expect(deps.getProjectProposedMembers).not.toHaveBeenCalled();
+  });
+
+  it("keeps the finder usable when only the team read failed", async () => {
+    const deps = sources({
+      getProjectProposedMembers: vi.fn(async () => ({
+        ok: false as const,
+        reason: "ERROR" as const,
+      })),
+    });
+
+    const state = await loadTeamFinder("p1", normalizeTeamFinderQuery({}), {
+      userId: OWNER_ID,
+      roles: ["EMPLOYEE", "PROJECT_MANAGER"] as readonly AccessRole[],
+    }, deps);
+
+    // The candidates are still true; only the proposal counts are unknown.
+    expect(state.kind).toBe("ready");
+    if (state.kind !== "ready") return;
+    expect(state.result.ok).toBe(true);
+    expect(state.proposed.ok).toBe(false);
+  });
+
+  it("keeps the composition read when only the finder failed", async () => {
+    const deps = sources({
+      findCandidates: vi.fn(async () => ({ ok: false as const, reason: "ERROR" as const })),
+    });
+
+    const state = await loadTeamFinder("p1", normalizeTeamFinderQuery({}), {
+      userId: OWNER_ID,
+      roles: ["EMPLOYEE", "PROJECT_MANAGER"] as readonly AccessRole[],
+    }, deps);
+
+    expect(state.kind).toBe("ready");
+    if (state.kind !== "ready") return;
+    expect(state.result.ok).toBe(false);
+    expect(state.proposed.ok).toBe(true);
+  });
+
+  it("skips both when the project declares no technologies", async () => {
+    const deps = sources({
+      getProjectContext: vi.fn(async () => ({
+        ok: true as const,
+        value: project({ technologyStack: [] }),
+      })),
+    });
+
+    const state = await loadTeamFinder("p1", normalizeTeamFinderQuery({}), {
+      userId: OWNER_ID,
+      roles: ["EMPLOYEE", "PROJECT_MANAGER"] as readonly AccessRole[],
+    }, deps);
+
+    // Nothing was searched, so nothing was asked for.
+    expect(state.kind).toBe("no-technologies");
+    expect(deps.findCandidates).not.toHaveBeenCalled();
+    expect(deps.getProjectProposedMembers).not.toHaveBeenCalled();
   });
 });

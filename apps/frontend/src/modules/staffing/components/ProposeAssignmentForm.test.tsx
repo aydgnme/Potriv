@@ -100,7 +100,7 @@ describe("what the action is called", () => {
     renderForm();
 
     expect(
-      screen.getByRole("button", { name: "Propose for this project" }),
+      screen.getByRole("button", { name: "Send proposal" }),
     ).toBeInTheDocument();
     const text = document.body.textContent ?? "";
     for (const forbidden of ["Assign", "Add to team", "Hire"]) {
@@ -143,7 +143,7 @@ describe("role prefill", () => {
     await user.click(screen.getByRole("checkbox", { name: /Backend/ }));
 
     expect(screen.getByRole("checkbox", { name: /Backend/ })).not.toBeChecked();
-    expect(screen.getByRole("button", { name: "Propose for this project" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send proposal" })).toBeDisabled();
   });
 
   it("points at project settings when nothing is open", () => {
@@ -156,7 +156,7 @@ describe("role prefill", () => {
       "href",
       "/projects/p1/edit",
     );
-    expect(screen.queryByRole("button", { name: "Propose for this project" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Send proposal" })).toBeNull();
   });
 });
 
@@ -166,7 +166,7 @@ describe("hours guard", () => {
     renderForm(3);
 
     const hours = screen.getByLabelText(/Hours per day/);
-    const submit = screen.getByRole("button", { name: "Propose for this project" });
+    const submit = screen.getByRole("button", { name: "Send proposal" });
 
     for (const value of ["1", "3"]) {
       await user.clear(hours);
@@ -180,7 +180,7 @@ describe("hours guard", () => {
     renderForm(3);
 
     const hours = screen.getByLabelText(/Hours per day/);
-    const submit = screen.getByRole("button", { name: "Propose for this project" });
+    const submit = screen.getByRole("button", { name: "Send proposal" });
 
     for (const value of ["0", "4"]) {
       await user.clear(hours);
@@ -201,7 +201,35 @@ describe("hours guard", () => {
     renderForm(0, true);
 
     expect(screen.getByText(/no available hours right now/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Propose for this project" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Send proposal" })).toBeDisabled();
+  });
+
+  /**
+   * Close-to-finish must never manufacture current capacity.
+   *
+   * Someone finishing a project in three weeks has the same zero hours today as
+   * someone who is simply full. Letting the flag soften the block would turn a
+   * deadline — a date somebody else owns — into a commitment this project could
+   * spend.
+   */
+  it("blocks a zero-hours candidate identically whether or not they are finishing other work", () => {
+    const { unmount } = renderForm(0, false);
+    expect(screen.getByRole("button", { name: "Send proposal" })).toBeDisabled();
+    unmount();
+
+    renderForm(0, true);
+    expect(screen.getByRole("button", { name: "Send proposal" })).toBeDisabled();
+    // And the reason given is about hours now, never about the coming deadline.
+    expect(screen.getByText(/no available hours right now/)).toBeInTheDocument();
+  });
+
+  it("keeps the role and commitment fields disabled rather than silently absent", () => {
+    renderForm(0);
+
+    // Disabled, not removed: the manager should see what would be asked for if
+    // capacity existed, instead of a form that looks like it never applied.
+    expect(screen.getByRole("group", { name: "Roles" })).toBeDisabled();
+    expect(screen.getByRole("group", { name: "Commitment" })).toBeDisabled();
   });
 });
 
@@ -211,11 +239,18 @@ describe("outcomes", () => {
     action.mockResolvedValue({ fieldErrors: {}, sentTo: "Platform Engineering" });
     renderForm();
 
-    await user.click(screen.getByRole("button", { name: "Propose for this project" }));
+    await user.click(screen.getByRole("button", { name: "Send proposal" }));
 
     expect(
-      await screen.findByText("Proposal sent to Platform Engineering for review."),
+      await screen.findByText(/sent to Platform Engineering/),
     ).toBeInTheDocument();
+    // Success is a proposal, never an allocation — the copy has to say so, and
+    // must not claim anybody joined anything.
+    expect(screen.getByText(/Waiting for department review/)).toBeInTheDocument();
+    expect(screen.getByText(/Nobody is allocated yet/)).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toMatch(
+      /joined the team|added to the team|assigned to|reserved/i,
+    );
     expect(screen.getByRole("link", { name: "View project team" })).toHaveAttribute(
       "href",
       "/projects/p1/team",
@@ -231,11 +266,11 @@ describe("outcomes", () => {
     });
     renderForm();
 
-    await user.click(screen.getByRole("button", { name: "Propose for this project" }));
+    await user.click(screen.getByRole("button", { name: "Send proposal" }));
 
     expect(await screen.findByText(/available capacity/)).toBeInTheDocument();
     // Still a form, not a success state.
-    expect(screen.getByRole("button", { name: "Propose for this project" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send proposal" })).toBeInTheDocument();
     expect(screen.queryByText(/Proposal sent/)).toBeNull();
   });
 
@@ -247,7 +282,7 @@ describe("outcomes", () => {
     });
     renderForm();
 
-    await user.click(screen.getByRole("button", { name: "Propose for this project" }));
+    await user.click(screen.getByRole("button", { name: "Send proposal" }));
 
     const hours = await screen.findByLabelText(/Hours per day/);
     expect(hours).toHaveAttribute("aria-invalid", "true");
@@ -261,7 +296,7 @@ describe("what is sent", () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.click(screen.getByRole("button", { name: "Propose for this project" }));
+    await user.click(screen.getByRole("button", { name: "Send proposal" }));
 
     const formData = action.mock.calls[0]![1];
     expect(formData.get("projectId")).toBe("p1");

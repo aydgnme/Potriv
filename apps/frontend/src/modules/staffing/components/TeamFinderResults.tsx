@@ -75,42 +75,66 @@ export function TeamFinderResults({ projectId, result, openings }: TeamFinderRes
           </label>
         </div>
 
-        <ul className={styles.candidates}>
-          {ordered.map((candidate) => {
-            const isSelected = candidate.employee.userId === selected?.employee.userId;
+        {/* A native table: these are comparable records with real columns, and
+            100 of them have to stay scannable. The row is not the click target —
+            a bare `<tr>` with an onClick is unreachable by keyboard — so the
+            name cell carries a real button and the rest of the row is data. */}
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th scope="col">Candidate</th>
+              <th scope="col">Department</th>
+              <th scope="col">Availability</th>
+              <th scope="col">Matched evidence</th>
+              <th scope="col">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordered.map((candidate) => {
+              const isSelected = candidate.employee.userId === selected?.employee.userId;
 
-            return (
-              <li key={candidate.employee.userId}>
-                {/* A real button: selecting a candidate is an action, and a
-                    clickable div would be unreachable by keyboard. */}
-                <button
-                  type="button"
-                  onClick={() => select(candidate)}
-                  aria-pressed={isSelected}
-                  className={[styles.candidate, isSelected ? styles.candidateSelected : null]
-                    .filter(Boolean)
-                    .join(" ")}
+              return (
+                <tr
+                  key={candidate.employee.userId}
+                  className={isSelected ? styles.candidateRowSelected : undefined}
                 >
-                  <span className={styles.candidateName}>
-                    {candidate.employee.name}
-                    {/* Marked in text as well as in style, so the selection
-                        survives without colour. */}
-                    {isSelected ? <span className={styles.muted}> · Selected</span> : null}
-                  </span>
-                  <span className={styles.candidateMeta}>
+                  <th scope="row" className={styles.candidateCell}>
+                    <button
+                      type="button"
+                      onClick={() => select(candidate)}
+                      aria-pressed={isSelected}
+                      className={styles.candidateButton}
+                    >
+                      {candidate.employee.name}
+                      {/* Stated in text as well as in style, so the selection
+                          survives without colour. */}
+                      {isSelected ? (
+                        <span className={styles.muted}> · Selected</span>
+                      ) : null}
+                    </button>
+                  </th>
+                  <td data-label="Department" className={styles.muted}>
                     {candidate.department?.name ?? "No department"}
-                  </span>
-                  <span className={styles.candidateMeta}>
-                    {`${capacityLabel(candidate)} · ${candidate.availability.availableHours} h available`}
-                  </span>
-                  <span className={styles.candidateScore}>
+                  </td>
+                  <td data-label="Availability">
+                    {capacityLabel(candidate)}
+                    <span className={styles.candidateMeta}>
+                      {`${candidate.availability.availableHours} h available`}
+                      {candidate.availability.closeToFinish ? " · finishing other work" : ""}
+                    </span>
+                  </td>
+                  {/* Counts of what the backend returned, not a judgement of it. */}
+                  <td data-label="Matched evidence" className={styles.muted}>
+                    {evidenceLabel(candidate)}
+                  </td>
+                  <td data-label="Score" className={styles.scoreCell}>
                     {`${candidate.score.totalScore} / 100`}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <div className={styles.detailPane}>
@@ -144,6 +168,23 @@ function countLabel(result: TeamFinderResult): string {
   return result.candidateCount >= result.criteria.limit
     ? `${result.candidateCount} ${noun} returned · limit ${result.criteria.limit}`
     : `${result.candidateCount} ${noun}`;
+}
+
+/**
+ * How much evidence the backend returned for this person, counted.
+ *
+ * Counts only — the detail panel carries the skills and projects themselves.
+ * Nothing here weighs them: the score already did that, server-side, and a
+ * second summary that looked like a verdict would compete with it.
+ */
+function evidenceLabel(candidate: Candidate): string {
+  const skills = candidate.skillMatches.length;
+  const past = candidate.pastProjectMatches.length;
+  const parts = [
+    `${skills} skill${skills === 1 ? "" : "s"}`,
+    `${past} past project${past === 1 ? "" : "s"}`,
+  ];
+  return parts.join(" · ");
 }
 
 function capacityLabel(candidate: Candidate): string {

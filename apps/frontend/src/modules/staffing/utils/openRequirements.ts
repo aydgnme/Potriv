@@ -58,3 +58,55 @@ export function proposableRequirements(
 export function openingLabel(opening: RequirementOpening): string {
   return `${opening.filled} / ${opening.requirement.requiredMembers} filled`;
 }
+
+/**
+ * A requirement's full composition: what was asked for, who holds it, who is
+ * only proposed for it, and what is still open.
+ *
+ * The invariant this type exists to protect:
+ *
+ * ```
+ * open = max(0, needed - active)
+ * ```
+ *
+ * **Proposed is never subtracted.** A proposal is a request a department
+ * manager has not answered; nobody is on the project because of one. A role
+ * needing three people with one allocated and two proposed still has two
+ * positions open, and reporting one would tell a manager the gap is nearly
+ * closed on the strength of decisions nobody has made.
+ *
+ * `proposed` is `null` when the team read did not answer — never `0`, which
+ * would state that nobody has been put forward. Unknown is not none.
+ */
+export type RequirementComposition = {
+  readonly requirement: TeamRoleRequirement;
+  readonly needed: number;
+  readonly active: number;
+  readonly proposed: number | null;
+  readonly open: number;
+};
+
+export function requirementComposition(
+  context: Pick<StaffingProjectContext, "teamRoleRequirements" | "activeMembers">,
+  proposedMembers: readonly { readonly roles: readonly { readonly teamRoleId: string }[] }[] | null,
+): readonly RequirementComposition[] {
+  return requirementOpenings(context).map((opening) => {
+    const teamRoleId = opening.requirement.teamRole.teamRoleId;
+
+    return {
+      requirement: opening.requirement,
+      needed: opening.requirement.requiredMembers,
+      active: opening.filled,
+      proposed:
+        proposedMembers === null
+          ? null
+          : proposedMembers.filter((member) =>
+              member.roles.some((role) => role.teamRoleId === teamRoleId),
+            ).length,
+      // Reuses the opening already computed from active members alone. Written
+      // this way so there is exactly one place `open` is derived, and it has no
+      // access to the proposal count even by accident.
+      open: opening.open,
+    };
+  });
+}

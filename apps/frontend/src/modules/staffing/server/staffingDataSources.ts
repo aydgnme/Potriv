@@ -10,6 +10,7 @@ import type {
 } from "../model/reviewQueue";
 import type {
   AssignmentProposalResult,
+  ProjectProposedMembers,
   StaffingProjectContext,
   TeamFinderResult,
 } from "../model/teamFinderData";
@@ -112,6 +113,25 @@ export async function proposeAssignment(
   );
   if (outcome.ok) return { ok: true, value: outcome.value };
   return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/**
+ * `GET /projects/{projectId}/team` — the pending proposals, for composition.
+ *
+ * One fixed request, and only ever called after project visibility and
+ * ownership are established. It answers exactly one question — how many people
+ * are already proposed for each role — so the Team Finder can show a manager
+ * that a gap already has requests standing against it.
+ *
+ * Separate from `getProjectTeamMembers` below, which reads the same endpoint for
+ * the removal flow. Two narrow typed functions over one endpoint is cheaper to
+ * reason about than one wide type that neither caller fully uses, and neither
+ * screen calls both.
+ */
+export function getProjectProposedMembers(
+  projectId: string,
+): Promise<Loaded<ProjectProposedMembers>> {
+  return load<ProjectProposedMembers>(`/projects/${encodeURIComponent(projectId)}/team`);
 }
 
 /**
@@ -231,6 +251,7 @@ export type StaffingDataSources = {
   readonly getReviewQueue: typeof getReviewQueue;
   readonly getManagedProjectEntries: typeof getManagedProjectEntries;
   readonly getProjectTeamMembers: typeof getProjectTeamMembers;
+  readonly getProjectProposedMembers: typeof getProjectProposedMembers;
 };
 
 export const STAFFING_DATA_SOURCES: StaffingDataSources = {
@@ -240,4 +261,5 @@ export const STAFFING_DATA_SOURCES: StaffingDataSources = {
   getReviewQueue,
   getManagedProjectEntries,
   getProjectTeamMembers,
+  getProjectProposedMembers,
 };

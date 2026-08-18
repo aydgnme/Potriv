@@ -146,6 +146,27 @@ export type TeamRoleRequirement = {
   readonly requiredMembers: number;
 };
 
+/**
+ * `GET /projects/{projectId}/team`, narrowed to the one thing composition needs:
+ * which roles people are **proposed** for.
+ *
+ * Deliberately its own local type rather than an import from `modules/projects`.
+ * The two modules read the same endpoint, but each narrows it to its own
+ * question — Projects renders the whole team, staffing only needs to count
+ * pending proposals per role — and a shared type would make either module's
+ * rendering decisions the other's problem.
+ *
+ * Active members are **not** read from here. They come from `/details` alongside
+ * the requirements, so the two halves of `Open = Needed − Active` are computed
+ * from one consistent snapshot rather than from two reads that could disagree.
+ */
+export type ProjectProposedMembers = {
+  readonly proposedMembers: readonly {
+    readonly proposalId: string;
+    readonly roles: readonly { readonly teamRoleId: string }[];
+  }[];
+};
+
 /** `POST /projects/{projectId}/assignment-proposals` — the part the UI reports back. */
 export type AssignmentProposalResult = {
   readonly proposalId: string;
