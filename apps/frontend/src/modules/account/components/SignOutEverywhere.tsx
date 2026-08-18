@@ -5,6 +5,8 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/shared/ui/Button";
 
+import { classifyLogoutOutcome, destinationFor } from "../model/logoutOutcome";
+
 import styles from "./Account.module.css";
 
 /**
@@ -19,16 +21,20 @@ import styles from "./Account.module.css";
  * not succeed the message says so rather than implying a stolen session was
  * closed.
  *
- * **Both outcomes leave the protected route.** Once the cookies are gone this
- * browser is signed out, and an Account page still sitting there — rendered
+ * **A confirmed sign-out leaves the protected route.** Once the cookies are gone
+ * this browser is signed out, and an Account page still sitting there — rendered
  * before the mutation and now un-refreshable — would be a protected surface
- * presenting itself as live to a session that no longer exists. So the failure
- * path redirects too, and carries its caveat to `/login`, which is where the
- * person actually is.
+ * presenting itself as live to a session that no longer exists.
  *
- * There is no retry button. Re-issuing an unsafe mutation after an ambiguous
- * failure is exactly how one ends up revoking a session somebody has since
- * signed back into.
+ * But "confirmed" has to mean confirmed. A response is what shows the BFF ran
+ * and cleared the cookies; if the request never produced one, nothing is known,
+ * and the browser goes back to Account with a marker so the **server** can
+ * settle it. See `classifyLogoutOutcome` for why guessing there would be worse
+ * than it looks.
+ *
+ * There is no retry button in any of the three cases. Re-issuing an unsafe
+ * mutation after an ambiguous failure is exactly how one ends up revoking a
+ * session somebody has since signed back into.
  */
 export function SignOutEverywhere() {
   const router = useRouter();
@@ -39,24 +45,19 @@ export function SignOutEverywhere() {
     setPending(true);
     dialogRef.current?.close();
 
-    let revokedEverywhere = false;
+    let outcome;
     try {
       const response = await fetch("/api/auth/logout-all", { method: "POST" });
       const body: unknown = await response.json().catch(() => null);
-      revokedEverywhere =
-        response.ok &&
-        typeof body === "object" &&
-        body !== null &&
-        (body as { revokedEverywhere?: unknown }).revokedEverywhere === true;
+      outcome = classifyLogoutOutcome(response.ok, body);
     } catch {
-      revokedEverywhere = false;
+      // The request never completed, so the route may not have run and this
+      // browser may still be signed in. Nothing is claimed either way.
+      outcome = "UNCONFIRMED" as const;
     }
 
-    // Local cookies are cleared either way, so the browser leaves either way.
-    // Only the message differs: the failure path admits that the other sessions
-    // were not confirmed, using the same login-notice channel as every other
-    // safe auth outcome.
-    router.replace(revokedEverywhere ? "/login" : "/login?logout=local-only");
+    router.replace(destinationFor(outcome));
+    // Re-runs the server render, which is what actually re-checks the session.
     router.refresh();
   }
 

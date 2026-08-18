@@ -7,12 +7,15 @@ import { SignOutEverywhere } from "./SignOutEverywhere";
 /**
  * The real interaction, not a static render.
  *
- * The invariant this file exists for: **once local cookies are cleared, the
- * browser must not stay on a protected page.** An Account screen rendered before
- * the mutation and left in place afterwards would be a protected surface
- * presenting itself as live to a session that no longer exists.
+ * Two invariants pull against each other, and both matter.
  *
- * Both outcomes leave. Only the message differs.
+ * **Once local cookies are cleared, the browser must not stay on a protected
+ * page** — an Account screen left in place would present itself as live to a
+ * session that no longer exists.
+ *
+ * **But "cleared" has to be established, not assumed.** A response is the
+ * evidence that the BFF ran; without one, the route may never have executed and
+ * the cookies may still be there. So there are three destinations, not two.
  */
 
 const replace = vi.fn();
@@ -102,13 +105,12 @@ describe("remote success", () => {
   });
 });
 
-describe("remote failure", () => {
-  it("still leaves the protected route, carrying the caveat to login", async () => {
+describe("confirmed local-only sign-out", () => {
+  it("goes to login with the caveat when the BFF ran but the backend did not confirm", async () => {
     respond(false);
     await confirmSignOutEverywhere();
 
-    // The cookies are gone either way, so staying would leave a dead page
-    // looking authenticated.
+    // The response is the evidence that the BFF executed and cleared cookies.
     await waitFor(() =>
       expect(replace).toHaveBeenCalledWith("/login?logout=local-only"),
     );
@@ -121,34 +123,75 @@ describe("remote failure", () => {
     await waitFor(() => expect(replace).toHaveBeenCalled());
     const text = (document.body.textContent ?? "").toLowerCase();
     expect(text).not.toContain("all sessions");
-    expect(text).not.toContain("everywhere signed out");
   });
+});
 
-  it("does not retry the mutation", async () => {
-    respond(false);
-    await confirmSignOutEverywhere();
-
-    await waitFor(() => expect(replace).toHaveBeenCalled());
-    // Replaying could revoke a session somebody has since signed back into.
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("treats a network failure the same way — leave, with the caveat", async () => {
+/**
+ * The case that was previously collapsed into "local-only".
+ *
+ * A rejected `fetch` proves nothing: the route may never have run, so the
+ * cookies may still be there. And `/login` redirects an authenticated session
+ * straight to `/home` — so claiming local sign-out here would bounce somebody
+ * back into the product having told them they were signed out.
+ *
+ * The browser therefore returns to Account, where the server decides.
+ */
+describe("unconfirmed transport outcome", () => {
+  it("does not claim local sign-out when the request never completed", async () => {
     fetchMock.mockRejectedValue(new Error("offline"));
     await confirmSignOutEverywhere();
 
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith("/login?logout=local-only"),
+      expect(replace).toHaveBeenCalledWith("/account?logout=unconfirmed"),
     );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(replace).not.toHaveBeenCalledWith("/login?logout=local-only");
+    expect(replace).not.toHaveBeenCalledWith("/login");
   });
 
-  it("treats a non-ok response as unconfirmed rather than successful", async () => {
+  it("treats a non-ok response as unconfirmed", async () => {
     respond(true, false);
     await confirmSignOutEverywhere();
 
     await waitFor(() =>
-      expect(replace).toHaveBeenCalledWith("/login?logout=local-only"),
+      expect(replace).toHaveBeenCalledWith("/account?logout=unconfirmed"),
     );
+    expect(replace).not.toHaveBeenCalledWith("/login?logout=local-only");
+  });
+
+  it("treats an unreadable body as unconfirmed", async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => {
+        throw new Error("not json");
+      },
+    });
+    await confirmSignOutEverywhere();
+
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("/account?logout=unconfirmed"),
+    );
+  });
+
+  it("treats a body without authenticated:false as unconfirmed", async () => {
+    // `revokedEverywhere: false` alone is not the BFF saying it signed this
+    // browser out — it could be any other response shape.
+    fetchMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ revokedEverywhere: false }),
+    });
+    await confirmSignOutEverywhere();
+
+    await waitFor(() =>
+      expect(replace).toHaveBeenCalledWith("/account?logout=unconfirmed"),
+    );
+    expect(replace).not.toHaveBeenCalledWith("/login?logout=local-only");
+  });
+
+  it("still issues exactly one mutation and never retries", async () => {
+    fetchMock.mockRejectedValue(new Error("offline"));
+    await confirmSignOutEverywhere();
+
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

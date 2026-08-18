@@ -15,6 +15,14 @@ import styles from "./Account.module.css";
 export type AccountPageProps = {
   readonly user: ProductUser;
   readonly data: AccountData;
+  /**
+   * Set when a "sign out everywhere" attempt produced no usable answer.
+   *
+   * That this page rendered at all means the session is still valid — the
+   * protected layout would have redirected otherwise — so the warning states a
+   * fact rather than a suspicion.
+   */
+  readonly signOutUnconfirmed?: boolean;
 };
 
 /**
@@ -28,7 +36,7 @@ export type AccountPageProps = {
  * returns; the product has no preferences, theme, notification or locale
  * contract, so it has none of those controls either.
  */
-export function AccountPage({ user, data }: AccountPageProps) {
+export function AccountPage({ user, data, signOutUnconfirmed = false }: AccountPageProps) {
   const grouped = data.sessions.ok ? groupSessions(data.sessions.value) : null;
 
   return (
@@ -37,6 +45,16 @@ export function AccountPage({ user, data }: AccountPageProps) {
         title="Account"
         description="Your identity, your sessions, and how to sign out."
       />
+
+      {signOutUnconfirmed ? (
+        /* No retry control: replaying an unsafe mutation is exactly what must
+           not happen after an ambiguous one. The person can try again
+           deliberately from the control below. */
+        <Alert tone="warning" title="Sign out was not confirmed">
+          We could not confirm whether sign out completed. You are still signed in here,
+          and your other sessions may still be active.
+        </Alert>
+      ) : null}
 
       <div className={styles.sections}>
         <section className={styles.section} aria-labelledby="account-identity">

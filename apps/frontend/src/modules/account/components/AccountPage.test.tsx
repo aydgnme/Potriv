@@ -46,8 +46,14 @@ function session(overrides: Partial<AccountSession> = {}): AccountSession {
   };
 }
 
-function renderAccount(data: AccountData, user: ProductUser = USER) {
-  return render(<AccountPage user={user} data={data} />);
+function renderAccount(
+  data: AccountData,
+  user: ProductUser = USER,
+  signOutUnconfirmed = false,
+) {
+  return render(
+    <AccountPage user={user} data={data} signOutUnconfirmed={signOutUnconfirmed} />,
+  );
 }
 
 const ok = (sessions: readonly AccountSession[]): AccountData => ({
@@ -208,5 +214,50 @@ describe("what Account is not", () => {
     renderAccount(ok([session({ currentSession: true })]));
 
     expect(screen.queryByText(/allocation/i)).toBeNull();
+  });
+});
+
+/**
+ * The unconfirmed sign-out warning.
+ *
+ * Reaching this component at all is the evidence: the protected layout resolves
+ * the session server-side and would have redirected to login if the cookies were
+ * really gone. So the warning states a fact — you are still signed in here —
+ * rather than a suspicion.
+ */
+describe("after an unconfirmed sign out", () => {
+  it("says plainly that nothing was confirmed", () => {
+    renderAccount(ok([session({ currentSession: true })]), USER, true);
+
+    expect(
+      screen.getByText(/could not confirm whether sign out completed/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/still signed in here/i)).toBeInTheDocument();
+  });
+
+  it("never claims the local sign-out succeeded", () => {
+    renderAccount(ok([session({ currentSession: true })]), USER, true);
+
+    const text = (document.body.textContent ?? "").toLowerCase();
+    // The local-only wording belongs to the confirmed case, on the login screen.
+    expect(text).not.toContain("you were signed out of this browser");
+    expect(text).not.toContain("all sessions");
+  });
+
+  it("offers no automatic retry of the mutation", () => {
+    renderAccount(ok([session({ currentSession: true })]), USER, true);
+
+    // Replaying an unsafe mutation after an ambiguous one is exactly the danger.
+    // The only control is the deliberate trigger further down the page — the
+    // confirm button lives inside a closed <dialog>, so it is not reachable
+    // until somebody opens it on purpose.
+    expect(screen.queryByRole("button", { name: /try again|retry/i })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Sign out everywhere" })).toHaveLength(1);
+  });
+
+  it("shows nothing extra on an ordinary visit", () => {
+    renderAccount(ok([session({ currentSession: true })]));
+
+    expect(screen.queryByText(/could not confirm whether sign out completed/i)).toBeNull();
   });
 });

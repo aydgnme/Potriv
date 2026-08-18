@@ -104,23 +104,46 @@ other devices that clearing local cookies cannot deliver:
 { "authenticated": false, "revokedEverywhere": true }
 ```
 
-Local cookies are cleared either way — and **the browser leaves the protected
-route either way**. Once the cookies are gone this browser is signed out, so an
-Account page left rendered would be a protected surface presenting itself as live
-to a session that no longer exists.
+**Second correction after review.** The first fix sent *every* failure to
+`/login?logout=local-only`. That was wrong for a different reason: a rejected
+`fetch` is not evidence that the BFF ran, so the cookies may still be valid — and
+`/login` redirects an authenticated session straight to `/home`. Somebody would
+have been told they were signed out and then dropped back into the product,
+never seeing the notice. Reproduced live: `GET /login?logout=local-only` with
+valid cookies answers **307 → /home**.
+
+There are three outcomes, not two, classified by `classifyLogoutOutcome`:
 
 ```
-remote success  → cookies cleared → /login
-remote failure  → cookies cleared → /login?logout=local-only
+ok && authenticated === false && revokedEverywhere === true    GLOBAL_CONFIRMED
+ok && authenticated === false && revokedEverywhere === false   LOCAL_ONLY_CONFIRMED
+anything else                                                  UNCONFIRMED
 ```
 
-The failure path carries its caveat to the login screen, reusing the same
-`searchParams` notice channel as `?session=expired` and `?reset=success`:
+`authenticated: false` is required for either confirmed outcome — it is the BFF's
+own statement that it took the local sign-out path. A body carrying
+`revokedEverywhere: false` without it is some other response, not evidence.
+
+```
+GLOBAL_CONFIRMED      → /login
+LOCAL_ONLY_CONFIRMED  → /login?logout=local-only
+UNCONFIRMED           → /account?logout=unconfirmed
+```
+
+The local-only notice therefore requires **confirmed** local cookie clearing:
 
 > You were signed out of this browser, but we could not confirm that your other
 > sessions were ended.
 
-It never claims all sessions were revoked.
+The unknown case is not guessed at. It returns to Account, where the protected
+layout resolves the session on the server: if the cookies really were cleared it
+redirects to login by itself; if they were not, Account renders and says so.
+
+> Sign out was not confirmed — We could not confirm whether sign out completed.
+> You are still signed in here, and your other sessions may still be active.
+
+No retry control in any of the three cases. Neither destination claims all
+sessions were revoked.
 
 There is no retry button. Re-issuing an unsafe mutation after an ambiguous
 failure is how one revokes a session somebody has since signed back into.
@@ -240,13 +263,17 @@ indirectly through a component render:
 |---|---|
 | `logoutAllRoute.test.ts` (10) | cross-origin 403 before any revocation · POST-only, no GET handler · `revokedEverywhere` true/false reported honestly · cookies cleared in **both** outcomes and with no token at all · response contains only the two documented fields and no secret · exactly one backend call, no retry |
 | `sessionActions.test.ts` (13) | unauthenticated refused before any call · four malformed-id shapes never reach a path · valid id hits exactly `/auth/sessions/{uuid}` · success revalidates `/account` · 404 = already ended, still revalidates · 401 distinct from failure · safe message with no status/path/envelope · one attempt, never retried · nothing revalidated when nothing was attempted · no token in any outcome |
-| `SignOutEverywhere.test.tsx` (9) | confirmation names the consequence · Cancel mutates nothing · success exits to `/login` · remote failure, network error and non-ok response all exit to `/login?logout=local-only` · never claims all sessions were signed out · exactly one mutation per action |
+| `SignOutEverywhere.test.tsx` (11) | confirmation names the consequence · Cancel mutates nothing · confirmed global → `/login` · confirmed local-only → `/login?logout=local-only` · network rejection, non-ok, unreadable body and a body missing `authenticated:false` all → `/account?logout=unconfirmed` and **never** the local-only notice · exactly one mutation, no retry |
+| `logoutOutcome.test.ts` (13) | the three-way classification · seven distinct unconfirmed shapes · each destination · an unconfirmed outcome never routes through the local-only notice |
+| `AccountPage.test.tsx` (+4) | the unconfirmed warning states a fact · never claims local sign-out succeeded · offers no automatic retry · absent on an ordinary visit |
 | `systemStates.test.tsx` (5) | the error page makes no "nothing was changed" claim · leaks no message, digest, stack or backend origin · not-found never borrows anti-leak vocabulary |
 | `sessionMemoization.test.ts` (5) | identity is identical for every caller in a request · nothing survives into another request · expiry still ends the session · still a pure read |
 
 **Mutation-tested.** Restoring the "nothing changed" sentence fails
 `systemStates`; making the failure path stay on Account fails four
-`SignOutEverywhere` tests.
+`SignOutEverywhere` tests; collapsing `UNCONFIRMED` back into
+`/login?logout=local-only` fails six across two files; treating a rejected
+`fetch` as a confirmed local sign-out fails one.
 
 Note on `sessionMemoization.test.ts`: React's `cache()` is inert outside a
 request context, so vitest cannot demonstrate the deduplication — that is proven
@@ -287,13 +314,23 @@ logout-all SUCCESS
   auth cookies left   -> 0
   GET /account        -> 307
 
-logout-all REMOTE FAILURE (forced: the session's own token revoked first)
+logout-all CONFIRMED LOCAL-ONLY (forced: the session's own token revoked first,
+                                 so the BFF still runs and still answers)
+  authenticated       -> false
   revokedEverywhere   -> false
   auth cookies left   -> 0
-  GET /account        -> 307      <- still exits the protected route
-  /login?logout=local-only renders:
-    "You were signed out of this browser, but we could not confirm that your
-     other sessions were ended."
+  -> /login?logout=local-only
+
+TRANSPORT UNKNOWN (no usable response; the BFF may not have run)
+  old behaviour would have gone to /login?logout=local-only, which with valid
+  cookies answers 307 -> /home — telling somebody they were signed out and then
+  returning them to the product
+
+  new behaviour -> /account?logout=unconfirmed
+    with a valid session:  Account renders the "could not confirm" warning,
+                           says "still signed in here", and never claims a
+                           local sign-out
+    with no session:       307, the protected layout redirects to login
 ```
 
 The failure was forced safely: sign in, revoke that same session at the backend
