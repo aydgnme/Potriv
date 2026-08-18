@@ -5,10 +5,13 @@ name: Backend CI
 # never reports a status on PRs that miss the filter, which would permanently
 # block any PR once "Backend CI / backend-verify" is a required check.
 on:
+  # `v2` is the V2 integration branch. Every V2 slice is reviewed into it and
+  # never into `main`, so a workflow that only watched `main` would let an
+  # entire redesign programme merge without ever running.
   pull_request:
-    branches: [main]
+    branches: [main, v2]
   push:
-    branches: [main]
+    branches: [main, v2]
   workflow_dispatch:
 
 # Read-only token: this workflow only builds and inspects the repository.
