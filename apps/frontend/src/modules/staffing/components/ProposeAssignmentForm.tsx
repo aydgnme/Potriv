@@ -68,7 +68,11 @@ export function ProposeAssignmentForm({
         </h3>
         {/* Named from the backend's response: the review department is
             snapshotted server-side and is not ours to guess. */}
-        <Alert tone="success">{`Proposal sent to ${state.sentTo} for review.`}</Alert>
+        {/* A request, not a result. Nobody is on the project until the
+            department accepts, so the copy never says joined or allocated. */}
+        <Alert tone="success">
+          {`Waiting for department review — sent to ${state.sentTo}. Nobody is allocated yet.`}
+        </Alert>
         <p>
           <Link href={`/projects/${projectId}/team`}>View project team</Link>
         </p>
@@ -80,7 +84,7 @@ export function ProposeAssignmentForm({
     return (
       <section className={styles.panel} aria-labelledby="proposal-blocked">
         <h3 className={styles.panelHeading} id="proposal-blocked">
-          Propose for this project
+          Send staffing proposal
         </h3>
         <p className={styles.panelNote}>
           Every active role requirement on this project is already filled. Add or raise a
@@ -203,7 +207,7 @@ export function ProposeAssignmentForm({
           loading={isPending}
           disabled={!hasCapacity || selectedRoles.length === 0 || invalidHours(hours, availableHours)}
         >
-          Propose for this project
+          Send proposal
         </Button>
       </form>
     </section>

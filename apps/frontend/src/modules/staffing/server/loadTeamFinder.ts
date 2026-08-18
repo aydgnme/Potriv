@@ -2,7 +2,11 @@ import "server-only";
 
 import type { AccessRole } from "@/shared/types/accessRole";
 
-import type { StaffingProjectContext, TeamFinderResult } from "../model/teamFinderData";
+import type {
+  ProjectProposedMembers,
+  StaffingProjectContext,
+  TeamFinderResult,
+} from "../model/teamFinderData";
 import type { TeamFinderCriteriaInput } from "../model/teamFinderQuery";
 import { toRequestBody } from "../model/teamFinderQuery";
 import {
@@ -32,6 +36,14 @@ export type TeamFinderState =
       readonly kind: "ready";
       readonly project: StaffingProjectContext;
       readonly result: Loaded<TeamFinderResult>;
+      /**
+       * Pending proposals, for the composition table.
+       *
+       * Kept as a `Loaded` rather than flattened to a count: a failed read has
+       * to stay distinguishable from "nobody is proposed", and collapsing it
+       * here would throw that away before any component could tell them apart.
+       */
+      readonly proposed: Loaded<ProjectProposedMembers>;
     };
 
 /**
@@ -80,7 +92,16 @@ export async function loadTeamFinder(
   // Declaring no role requirements is not a blocker: skills still match from
   // technologies. It only means past-project similarity has no target roles to
   // compare against, so that component stays 0.
-  const result = await sources.findCandidates(projectId, toRequestBody(criteria));
+  //
+  // Two fixed requests, run together — never one per candidate and never one per
+  // requirement. Both are only reachable here, after the relationship-aware read
+  // established that this caller may see the project at all and the ownership
+  // check established that they may staff it. Fanning either out earlier would
+  // send a request on behalf of somebody the backend has not yet vouched for.
+  const [result, proposed] = await Promise.all([
+    sources.findCandidates(projectId, toRequestBody(criteria)),
+    sources.getProjectProposedMembers(projectId),
+  ]);
 
-  return { kind: "ready", project: project.value, result };
+  return { kind: "ready", project: project.value, result, proposed };
 }

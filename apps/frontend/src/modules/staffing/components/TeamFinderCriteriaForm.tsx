@@ -53,6 +53,13 @@ export function TeamFinderCriteriaForm({ criteria, effective }: TeamFinderCriter
           />
           Unavailable
         </label>
+        {/* Widening who comes back is not widening who can be asked for. Somebody
+            with no available hours can be inspected here and still cannot be
+            proposed, and the criteria are where that is worth saying — before a
+            manager reads a full evidence panel and finds the form closed. */}
+        <p className={styles.criteriaNote}>
+          Including unavailable people widens who is returned, not who can be proposed.
+        </p>
 
         <label className={styles.checkbox}>
           <input
@@ -114,8 +121,13 @@ function describe(criteria: EffectiveCriteria): string {
   if (criteria.includePartiallyAvailable) included.push("partially available");
   if (criteria.includeUnavailable) included.push("unavailable");
 
+  // The window is only ever named when the backend echoed one. Falling back to a
+  // number here would be asserting a backend default the browser does not know —
+  // and this sentence exists precisely to report what the backend actually used.
   const closeToFinish = criteria.includeCloseToFinish
-    ? `, including people finishing other work within ${criteria.closeToFinishWeeks ?? 2} weeks`
+    ? criteria.closeToFinishWeeks === null
+      ? ", including people finishing other work soon"
+      : `, including people finishing other work within ${criteria.closeToFinishWeeks} weeks`
     : "";
 
   return `${included.join(", ")} people${closeToFinish}, at most ${criteria.limit} candidates`;

@@ -11,8 +11,9 @@ import { projectStatusLabel, projectStatusTone } from "@/shared/utils/projectSta
 import type { StaffingProjectContext } from "../model/teamFinderData";
 import type { TeamFinderCriteriaInput } from "../model/teamFinderQuery";
 import type { TeamFinderState } from "../server/loadTeamFinder";
-import { openingLabel, proposableRequirements, requirementOpenings } from "../utils/openRequirements";
+import { proposableRequirements, requirementComposition } from "../utils/openRequirements";
 
+import { TeamComposition } from "./TeamComposition";
 import { TeamFinderCriteriaForm } from "./TeamFinderCriteriaForm";
 import { TeamFinderResults } from "./TeamFinderResults";
 import styles from "./TeamFinder.module.css";
@@ -83,10 +84,24 @@ export function TeamFinderScreen({ projectId, criteria, state }: TeamFinderScree
   }
 
   const openings = proposableRequirements(project);
+  // Null when the team read failed, so the table can say "unknown" rather than
+  // print a zero nobody measured.
+  const proposedMembers = state.proposed.ok ? state.proposed.value.proposedMembers : null;
+  const composition = requirementComposition(project, proposedMembers);
 
   return (
     <div className={styles.page}>
       <ProjectContextHeader project={project} />
+
+      <section className={styles.panel} aria-labelledby="finder-composition">
+        <h2 className={styles.panelHeading} id="finder-composition">
+          Team composition
+        </h2>
+        <TeamComposition
+          composition={composition}
+          proposedUnavailable={!state.proposed.ok}
+        />
+      </section>
 
       <TeamFinderCriteriaForm
         criteria={criteria}
@@ -117,8 +132,6 @@ export function TeamFinderScreen({ projectId, criteria, state }: TeamFinderScree
 
 /** What the project asks for, so a candidate can be judged against something. */
 function ProjectContextHeader({ project }: { readonly project: StaffingProjectContext }) {
-  const openings = requirementOpenings(project);
-
   return (
     <>
       <Breadcrumbs
@@ -162,29 +175,6 @@ function ProjectContextHeader({ project }: { readonly project: StaffingProjectCo
             </ul>
           )}
 
-          <h3 className={styles.groupHeading}>Role requirements</h3>
-          {openings.length === 0 ? (
-            <p className={styles.panelNote}>
-              None declared. Skills still match on technologies; past-project similarity has no
-              roles to compare against.
-            </p>
-          ) : (
-            <ul className={styles.rows}>
-              {openings.map((opening) => (
-                <li key={opening.requirement.requirementId} className={styles.row}>
-                  <span>
-                    {opening.requirement.teamRole.name}
-                    {opening.requirement.teamRole.active ? null : (
-                      <span className={styles.muted}> · Inactive</span>
-                    )}
-                  </span>
-                  <span className={styles.muted}>
-                    {`${openingLabel(opening)} · ${opening.open} still needed`}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
       </div>
     </>

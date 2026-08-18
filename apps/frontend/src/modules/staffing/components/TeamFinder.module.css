@@ -167,3 +167,140 @@
   .split[data-showing="list"] .detailPane { display: none; }
   .split[data-showing="detail"] .backToList { display: block; }
 }
+
+
+/* ── V2 workbench tables ────────────────────────────────────────────────── */
+
+/* A clarification that belongs with the control it qualifies, so it is read
+   before the box is ticked rather than after the results come back. */
+.criteriaNote {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--p-text-sm);
+  color: var(--p-text-muted);
+}
+
+.table { width: 100%; border-collapse: collapse; text-align: left; }
+
+.table th[scope="col"] {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.table td,
+.table th[scope="row"] {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: baseline;
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-normal);
+  text-align: left;
+}
+.table tbody tr:last-child td,
+.table tbody tr:last-child th[scope="row"] { border-bottom: none; }
+
+/* ── composition ─────────────────────────────────────────────────────────── */
+
+/* Counts line up under each other so a gap is found by scanning one column. */
+.composition th[scope="col"]:not(:first-child),
+.composition td {
+  text-align: right;
+  padding-right: 0;
+  padding-left: var(--p-space-3);
+  font-variant-numeric: tabular-nums;
+}
+.compositionRole { min-width: 0; overflow-wrap: anywhere; }
+
+/**
+ * The V2 relationship grammar, carried by the counts themselves.
+ *
+ * Solid underline = accepted and on the project. Dashed = proposed and waiting
+ * on somebody's decision. The same distinction the landing diagram teaches.
+ * Never the only signal: the column headers name both, and the sentence under
+ * the table states that proposals do not reduce Open.
+ */
+.activeCount { border-bottom: 2px solid var(--p-brand); }
+.proposedCount { border-bottom: 2px dashed var(--p-border-strong); }
+
+/* The only number worth acting on carries the only weight. */
+.openCount { font-weight: var(--p-weight-semibold); }
+.openNone { color: var(--p-text-muted); }
+
+/* ── candidate table ─────────────────────────────────────────────────────── */
+
+.candidateCell { min-width: 0; }
+
+/* The click target is the button, never the row: a bare `<tr>` with an onClick
+   cannot be reached by keyboard. */
+.candidateButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--p-text);
+  font: inherit;
+  font-weight: var(--p-weight-medium);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.candidateButton:hover { text-decoration: underline; }
+
+.candidateRowSelected { background: var(--p-surface-active); }
+
+.scoreCell { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (max-width: 767px) {
+  /* Stacked labelled records. `display: block` drops implicit table semantics,
+     so the header cells stay in the DOM for anyone listening to them. */
+  .table,
+  .table > thead,
+  .table > tbody,
+  .table > tbody > tr,
+  .table > tbody > tr > td,
+  .table > tbody > tr > th {
+    display: block;
+    width: 100%;
+  }
+
+  .table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .table > tbody > tr > td,
+  .table > tbody > tr > th {
+    padding: 2px 0;
+    border-bottom: none;
+  }
+  .table > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+
+  /* Proposed and Open must stay visible at every width — they are the two
+     numbers the whole table exists to report. The underline moves to a leading
+     rule so the grammar survives the stacked layout. */
+  .composition td { text-align: left; padding-left: 0; }
+  .activeCount,
+  .proposedCount {
+    border-bottom: none;
+    padding-left: var(--p-space-3) !important;
+  }
+  .activeCount { border-left: 2px solid var(--p-brand); }
+  .proposedCount { border-left: 2px dashed var(--p-border-strong); }
+}

@@ -9,6 +9,8 @@ import type {
 } from "../model/teamFinderData";
 import { normalizeTeamFinderQuery } from "../model/teamFinderQuery";
 import type { TeamFinderState } from "../server/loadTeamFinder";
+import type { Loaded } from "../server/staffingDataSources";
+import type { ProjectProposedMembers } from "../model/teamFinderData";
 
 import { TeamFinderScreen } from "./TeamFinderScreen";
 
@@ -97,8 +99,32 @@ function result(overrides: Partial<TeamFinderResult> = {}): TeamFinderResult {
   };
 }
 
-function ready(overrides: Partial<TeamFinderResult> = {}, context = project()): TeamFinderState {
-  return { kind: "ready", project: context, result: { ok: true, value: result(overrides) } };
+/** Pending proposals as the team read returns them. Empty unless a test says otherwise. */
+function proposedMembers(
+  roles: readonly (readonly string[])[] = [],
+): Loaded<ProjectProposedMembers> {
+  return {
+    ok: true,
+    value: {
+      proposedMembers: roles.map((teamRoleIds, index) => ({
+        proposalId: `prop-${index}`,
+        roles: teamRoleIds.map((teamRoleId) => ({ teamRoleId })),
+      })),
+    },
+  };
+}
+
+function ready(
+  overrides: Partial<TeamFinderResult> = {},
+  context = project(),
+  proposed: Loaded<ProjectProposedMembers> = proposedMembers(),
+): TeamFinderState {
+  return {
+    kind: "ready",
+    project: context,
+    result: { ok: true, value: result(overrides) },
+    proposed,
+  };
 }
 
 /** The candidate buttons in list order, ignoring the page's other controls. */
@@ -555,5 +581,125 @@ describe("candidate detail sections", () => {
 
     expect(screen.getAllByText(/Platform Engineering/).length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: /Platform Engineering/ })).toBeNull();
+  });
+});
+
+/**
+ * Team composition on the workbench.
+ *
+ * The manager has to see what the project still needs before deciding who to
+ * ask for — and has to see that a gap already has requests standing against it
+ * without those requests being mistaken for people.
+ */
+describe("team composition", () => {
+  const withRequirements = () =>
+    project({
+      teamRoleRequirements: [
+        {
+          requirementId: "r1",
+          teamRole: { teamRoleId: "backend", name: "Backend Engineer", active: true },
+          requiredMembers: 3,
+        },
+      ],
+      activeMembers: [
+        {
+          allocationId: "a1",
+          employee: { userId: "u1", name: "Mehmet Kaya", email: "m@potriv.test" },
+          roles: [{ teamRoleId: "backend" }],
+        },
+      ],
+    });
+
+  /** The cells of one composition row, in column order. */
+  function compositionRow(roleName: string): readonly string[] {
+    const row = screen.getByText(roleName, { selector: "th" }).closest("tr") as HTMLElement;
+    return [
+      row.querySelector("th")?.textContent?.trim() ?? "",
+      ...[...row.querySelectorAll("td")].map((cell) => cell.textContent?.trim() ?? ""),
+    ];
+  }
+
+  it("shows needed, active, proposed and open — and does not let proposals close a position", () => {
+    renderScreen(ready({}, withRequirements(), proposedMembers([["backend"]])));
+
+    // Needed 3, active 1, proposed 1 → open 2. Never 1.
+    expect(compositionRow("Backend Engineer")).toEqual([
+      "Backend Engineer",
+      "3",
+      "1",
+      "1",
+      "2",
+    ]);
+  });
+
+  it("says in words that proposals do not reduce open", () => {
+    renderScreen(ready({}, withRequirements(), proposedMembers([["backend"]])));
+
+    expect(
+      screen.getByText(/Proposed people are waiting on a department manager and are not allocated/),
+    ).toBeInTheDocument();
+  });
+
+  it("shows proposed as unknown, never zero, when the team read failed", () => {
+    renderScreen(ready({}, withRequirements(), { ok: false, reason: "ERROR" }));
+
+    expect(compositionRow("Backend Engineer")).toEqual([
+      "Backend Engineer",
+      "3",
+      "1",
+      "—",
+      "2",
+    ]);
+    expect(screen.getByText(/unknown rather than zero/)).toBeInTheDocument();
+  });
+
+  it("keeps the candidates usable when only the team read failed", () => {
+    renderScreen(ready({}, withRequirements(), { ok: false, reason: "ERROR" }));
+
+    // A failed composition read must not cost the manager the workbench.
+    expect(candidateNames().length).toBeGreaterThan(0);
+  });
+
+  it("invents no staffing percentage or health score", () => {
+    renderScreen(ready({}, withRequirements(), proposedMembers([["backend"]])));
+
+    const text = (document.body.textContent ?? "").toLowerCase();
+    for (const forbidden of ["%", "health", "confidence", "best fit", "recommended", "ideal"]) {
+      expect(text).not.toContain(forbidden);
+    }
+  });
+});
+
+/**
+ * The candidate table.
+ *
+ * A hundred candidates have to stay scannable, and selecting one must be
+ * reachable by keyboard — so the row is data and the name cell holds a button.
+ */
+describe("candidate table", () => {
+  it("is a real table with real column headers", () => {
+    renderScreen(ready());
+
+    for (const header of ["Candidate", "Department", "Availability", "Matched evidence", "Score"]) {
+      expect(screen.getByRole("columnheader", { name: header })).toBeInTheDocument();
+    }
+  });
+
+  it("makes the name a button rather than making the row clickable", () => {
+    renderScreen(ready());
+
+    const button = document.querySelector("button[aria-pressed]") as HTMLElement;
+    expect(button).not.toBeNull();
+    expect(button.tagName).toBe("BUTTON");
+    // A bare row handler would be unreachable by keyboard.
+    expect(document.querySelector("tr[onclick]")).toBeNull();
+  });
+
+  it("shows the backend score verbatim and computes nothing of its own", () => {
+    renderScreen(ready());
+
+    expect(screen.getAllByText(/\/ 100/).length).toBeGreaterThan(0);
+    const text = document.body.textContent ?? "";
+    expect(text).not.toMatch(/★|stars?\b|Excellent|Strong match|Weak match/i);
   });
 });
