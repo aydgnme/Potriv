@@ -6,10 +6,13 @@ name: CodeQL
 # nobody opens a PR — newly published queries find issues in code that has not
 # changed.
 on:
+  # `v2` is the V2 integration branch. Every V2 slice is reviewed into it and
+  # never into `main`, so a workflow that only watched `main` would let an
+  # entire redesign programme merge without ever running.
   pull_request:
-    branches: [main]
+    branches: [main, v2]
   push:
-    branches: [main]
+    branches: [main, v2]
   schedule:
     # Weekly, Monday 03:27 UTC (off the hour to avoid GitHub's scheduling peak).
     - cron: '27 3 * * 1'

@@ -6,8 +6,11 @@ name: API E2E
 # isolated environment generates its own local-only credentials and Mailpit
 # captures every message, so nothing is ever delivered.
 on:
+  # `v2` is the V2 integration branch. Every V2 slice is reviewed into it and
+  # never into `main`, so a workflow that only watched `main` would let an
+  # entire redesign programme merge without ever running.
   pull_request:
-    branches: [main]
+    branches: [main, v2]
   workflow_dispatch:
 
 permissions:
