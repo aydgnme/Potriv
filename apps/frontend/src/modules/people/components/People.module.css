@@ -225,3 +225,76 @@
   .figureRow { flex-direction: column; gap: 0; }
   .figureRow dd { text-align: left; }
 }
+
+/* ── V2 dense table ──────────────────────────────────────────────────────── */
+
+/**
+ * Desktop tables, mobile labelled records.
+ *
+ * `display: block` at narrow widths drops the implicit table semantics, so the
+ * header cells stay in the DOM for anyone listening to them and each data cell
+ * carries its own label. Nothing is dropped to fit — the columns become lines.
+ */
+.peopleTable { width: 100%; border-collapse: collapse; text-align: left; }
+
+.peopleTable th[scope="col"] {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.peopleTable td,
+.peopleTable th[scope="row"] {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: top;
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-normal);
+  text-align: left;
+  min-width: 0;
+  /* Free text — names, emails and organization-authored labels are routinely
+     longer than their column and may contain no spaces at all. */
+  overflow-wrap: anywhere;
+}
+
+.peopleTable tbody tr:last-child td,
+.peopleTable tbody tr:last-child th[scope="row"] { border-bottom: none; }
+
+@media (max-width: 767px) {
+  .peopleTable,
+  .peopleTable > thead,
+  .peopleTable > tbody,
+  .peopleTable > tbody > tr,
+  .peopleTable > tbody > tr > td,
+  .peopleTable > tbody > tr > th {
+    display: block;
+    width: 100%;
+  }
+
+  .peopleTable > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .peopleTable > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .peopleTable > tbody > tr > td,
+  .peopleTable > tbody > tr > th { padding: 2px 0; border-bottom: none; }
+
+  .peopleTable > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+}
+.personCell { min-width: 0; }
+.personCell .rowMain { display: flex; flex-direction: column; gap: 2px; }

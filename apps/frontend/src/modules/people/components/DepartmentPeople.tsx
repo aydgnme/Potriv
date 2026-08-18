@@ -69,14 +69,32 @@ export function DepartmentPeople({ data }: DepartmentPeopleProps) {
           ) : data.members.value.length === 0 ? (
             <p className={styles.panelNote}>Nobody is in this department yet.</p>
           ) : (
-            <ul className={styles.rows}>
-              {data.members.value.map((person) => (
-                <li key={person.userId} className={styles.row}>
-                  <PersonSummary person={person} />
-                  <RemoveMemberButton person={person} departmentName={data.department.name} />
-                </li>
-              ))}
-            </ul>
+            <table className={styles.peopleTable}>
+              <thead>
+                <tr>
+                  <th scope="col">Person</th>
+                  <th scope="col">Access roles</th>
+                  <th scope="col">Membership</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.members.value.map((person) => (
+                  <tr key={person.userId}>
+                    <th scope="row" className={styles.personCell}>
+                      <PersonSummary person={person} />
+                    </th>
+                    <td data-label="Access roles">
+                      {/* Read through `accessRoles` — the department contract's
+                          own field name, kept distinct from `/users`' `roles`. */}
+                      <RoleChips roles={person.accessRoles} />
+                    </td>
+                    <td data-label="Membership">
+                      <RemoveMemberButton person={person} departmentName={data.department.name} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </section>
 
@@ -95,14 +113,30 @@ export function DepartmentPeople({ data }: DepartmentPeopleProps) {
           ) : data.unassigned.value.length === 0 ? (
             <p className={styles.panelNote}>Everyone already belongs to a department.</p>
           ) : (
-            <ul className={styles.rows}>
-              {data.unassigned.value.map((person) => (
-                <li key={person.userId} className={styles.row}>
-                  <PersonSummary person={person} />
-                  <AddMemberButton person={person} />
-                </li>
-              ))}
-            </ul>
+            <table className={styles.peopleTable}>
+              <thead>
+                <tr>
+                  <th scope="col">Person</th>
+                  <th scope="col">Access roles</th>
+                  <th scope="col">Membership</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.unassigned.value.map((person) => (
+                  <tr key={person.userId}>
+                    <th scope="row" className={styles.personCell}>
+                      <PersonSummary person={person} />
+                    </th>
+                    <td data-label="Access roles">
+                      <RoleChips roles={person.accessRoles} />
+                    </td>
+                    <td data-label="Membership">
+                      <AddMemberButton person={person} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </section>
       </div>
@@ -115,8 +149,6 @@ function PersonSummary({ person }: { readonly person: DepartmentUser }) {
     <div className={styles.rowMain}>
       <span className={styles.personName}>{person.name}</span>
       <span className={styles.muted}>{person.email}</span>
-      {/* Read through `accessRoles` — the department contract's own field name. */}
-      <RoleChips roles={person.accessRoles} />
     </div>
   );
 }
@@ -134,8 +166,18 @@ function AddMemberButton({ person }: { readonly person: DepartmentUser }) {
         <input type="hidden" name="userId" value={person.userId} />
         {/* "Add", not "Move": nobody is taken out of another department by this,
             and the backend refuses rather than reassigning. */}
-        <Button type="submit" variant="secondary" size="sm" loading={isPending}>
-          {`Add ${person.name} to my department`}
+        {/* The row names the person on screen; a screen reader is not in the
+            row, so the accessible name says who this acts on. `aria-label`
+            rather than hidden text: the name is then one authoritative string
+            instead of concatenated nodes whose whitespace gets trimmed. */}
+        <Button
+          type="submit"
+          variant="secondary"
+          size="sm"
+          loading={isPending}
+          aria-label={`Add ${person.name} to my department`}
+        >
+          Add
         </Button>
       </form>
     </div>
@@ -165,8 +207,9 @@ function RemoveMemberButton({
         size="sm"
         onClick={() => dialogRef.current?.showModal()}
         loading={isPending}
+        aria-label={`Remove ${person.name} from the department`}
       >
-        {`Remove ${person.name} from the department`}
+        Remove
       </Button>
 
       <dialog ref={dialogRef} className={styles.dialog} aria-labelledby={titleId}>

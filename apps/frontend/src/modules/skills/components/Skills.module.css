@@ -211,3 +211,149 @@
   .selectField { width: 100%; }
   .control { width: 100%; }
 }
+
+/* ── V2 dense table ──────────────────────────────────────────────────────── */
+
+/**
+ * Desktop tables, mobile labelled records.
+ *
+ * `display: block` at narrow widths drops the implicit table semantics, so the
+ * header cells stay in the DOM for anyone listening to them and each data cell
+ * carries its own label. Nothing is dropped to fit — the columns become lines.
+ */
+.skillTable { width: 100%; border-collapse: collapse; text-align: left; }
+
+.skillTable th[scope="col"] {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.skillTable td,
+.skillTable th[scope="row"] {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: top;
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-normal);
+  text-align: left;
+  min-width: 0;
+  /* Free text — names, emails and organization-authored labels are routinely
+     longer than their column and may contain no spaces at all. */
+  overflow-wrap: anywhere;
+}
+
+.skillTable tbody tr:last-child td,
+.skillTable tbody tr:last-child th[scope="row"] { border-bottom: none; }
+
+@media (max-width: 767px) {
+  .skillTable,
+  .skillTable > thead,
+  .skillTable > tbody,
+  .skillTable > tbody > tr,
+  .skillTable > tbody > tr > td,
+  .skillTable > tbody > tr > th {
+    display: block;
+    width: 100%;
+  }
+
+  .skillTable > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .skillTable > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .skillTable > tbody > tr > td,
+  .skillTable > tbody > tr > th { padding: 2px 0; border-bottom: none; }
+
+  .skillTable > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+}
+
+/* ── V2 dense table ──────────────────────────────────────────────────────── */
+
+/**
+ * Desktop tables, mobile labelled records.
+ *
+ * `display: block` at narrow widths drops the implicit table semantics, so the
+ * header cells stay in the DOM for anyone listening to them and each data cell
+ * carries its own label. Nothing is dropped to fit — the columns become lines.
+ */
+.mySkillsTable { width: 100%; border-collapse: collapse; text-align: left; }
+
+.mySkillsTable th[scope="col"] {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.mySkillsTable td,
+.mySkillsTable th[scope="row"] {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: top;
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-normal);
+  text-align: left;
+  min-width: 0;
+  /* Free text — names, emails and organization-authored labels are routinely
+     longer than their column and may contain no spaces at all. */
+  overflow-wrap: anywhere;
+}
+
+.mySkillsTable tbody tr:last-child td,
+.mySkillsTable tbody tr:last-child th[scope="row"] { border-bottom: none; }
+
+@media (max-width: 767px) {
+  .mySkillsTable,
+  .mySkillsTable > thead,
+  .mySkillsTable > tbody,
+  .mySkillsTable > tbody > tr,
+  .mySkillsTable > tbody > tr > td,
+  .mySkillsTable > tbody > tr > th {
+    display: block;
+    width: 100%;
+  }
+
+  .mySkillsTable > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mySkillsTable > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .mySkillsTable > tbody > tr > td,
+  .mySkillsTable > tbody > tr > th { padding: 2px 0; border-bottom: none; }
+
+  .mySkillsTable > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+}
+.skillCell { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.assignmentActions { display: flex; gap: var(--p-space-2); flex-wrap: wrap; align-items: flex-start; }
+/* Selects sit in narrow columns; they must not force the table wider. */
+.mySkillsTable .control { width: 100%; min-width: 8rem; }
