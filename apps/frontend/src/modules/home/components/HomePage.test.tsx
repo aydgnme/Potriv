@@ -280,6 +280,87 @@ describe("workspace setup on Home", () => {
       .toBeInTheDocument();
     expect(screen.getByRole("link", { name: /add department/i })).toBeInTheDocument();
   });
+
+  /**
+   * The distinction this fix exists for.
+   *
+   * "Not tracked" describes a permanent hole in the product. Saying it because
+   * `/team-roles` happened to fail would blame the product for the network, and
+   * would tell the founder something untrue about what Potriv can do.
+   */
+  it("says a failed read is temporary, never that it is untracked", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN"],
+      data({ teamRoles: { ok: false, reason: "ERROR" } }),
+    );
+
+    const setup = screen
+      .getByRole("heading", { name: "Set up your workspace" })
+      .closest("section") as HTMLElement;
+
+    expect(within(setup).getByText(/status could not be checked right now/i))
+      .toBeInTheDocument();
+
+    // "Not tracked" belongs to the first-project step alone, and must not have
+    // been borrowed for the failed one.
+    const notTracked = within(setup).getAllByText(/not tracked for this step/i);
+    expect(notTracked).toHaveLength(1);
+  });
+
+  it("keeps the action usable while a signal is unavailable", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN"],
+      data({ departments: { ok: false, reason: "ERROR" } }),
+    );
+
+    const setup = screen
+      .getByRole("heading", { name: "Set up your workspace" })
+      .closest("section") as HTMLElement;
+
+    // A failed check is not a reason to withhold the thing they came to do.
+    expect(within(setup).getByRole("link", { name: /add department/i }))
+      .toHaveAttribute("href", "/organization/departments");
+  });
+
+  it("does not present an unavailable signal as an error", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN"],
+      data({ skills: { ok: false, reason: "ERROR" } } as never),
+    );
+
+    const setup = screen
+      .getByRole("heading", { name: "Set up your workspace" })
+      .closest("section") as HTMLElement;
+
+    // No alert semantics and no failure language: a read that did not answer is
+    // not the founder's problem to fix.
+    expect(within(setup).queryByRole("alert")).toBeNull();
+    expect(setup.textContent ?? "").not.toMatch(/error|failed|went wrong/i);
+  });
+
+  it("spells each setup state out in text, not only in a marker", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN"],
+      data({
+        departments: {
+          ok: true,
+          value: [{ departmentId: "d", name: "Platform", manager: null, memberCount: 0 }],
+        },
+        teamRoles: { ok: false, reason: "ERROR" },
+      }),
+    );
+
+    const setup = screen
+      .getByRole("heading", { name: "Set up your workspace" })
+      .closest("section") as HTMLElement;
+    const text = setup.textContent ?? "";
+
+    // done, unavailable and unknown each say what they are; todo says nothing
+    // extra because an ordinary outstanding task needs no explanation.
+    expect(text).toMatch(/— done/);
+    expect(text).toMatch(/status could not be checked right now/i);
+    expect(text).toMatch(/not tracked for this step/i);
+  });
 });
 
 describe("a department manager without an appointment", () => {

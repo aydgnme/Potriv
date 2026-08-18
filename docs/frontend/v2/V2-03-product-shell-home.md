@@ -70,13 +70,26 @@ for this step."* — said in words rather than left to a symbol.
 
 No backend endpoint was added to obtain it. That is a V2-04+ decision.
 
-### Two kinds of unknown
+### Four states, because two of them mean opposite things
 
-`unknown` from **no signal existing** (first project) is permanent, and does not
-block `settled` — otherwise `settled` could never be true. `unknown` from a
-**read failing or being refused** is transient: the answer exists and we did not
-get it, so it *does* block `settled`. Conflating them would let a momentary
-outage look like a permanent gap, or let a real gap disappear.
+| State | Meaning | Blocks `settled`? | Copy |
+| --- | --- | --- | --- |
+| `done` | a real read proved it complete | no | "— done" |
+| `todo` | a real read proved it incomplete | yes | (none needed) |
+| `unknown` | **no signal exists at all** | **no** | "Completion is not tracked for this step." |
+| `unavailable` | a signal exists, the read did not answer | **yes** | "Status could not be checked right now." |
+
+`unknown` is permanent — there is no organization-wide project read and there
+never has been — so holding it against the workspace would mean `settled` could
+never be true. `unavailable` is temporary: the question is answerable and we did
+not get the answer, so claiming the basics are in place would assert something
+nobody checked.
+
+They were briefly conflated, which made a failed `/departments` read say
+"Completion is not tracked for this step" — describing a permanent hole in the
+product to explain a momentary one in the network. They are now separate states
+with separate copy, and neither is styled as an error: a read that did not
+answer is not the founder's problem to fix, and the action stays available.
 
 There is no percentage, no score and no "n of five". The backend has no concept
 of workspace completeness.

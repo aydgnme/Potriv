@@ -102,6 +102,18 @@
   color: var(--p-text-subtle);
 }
 
+/**
+ * Answerable, but unanswered this time. Filled rather than dashed so it does
+ * not read as the permanent "not tracked" state, and neutral rather than red
+ * because a failed read is not the founder's problem to fix.
+ */
+.setupMarkerUnavailable {
+  border-style: solid;
+  border-color: var(--p-border-strong);
+  background: var(--p-surface-sunken);
+  color: var(--p-text-muted);
+}
+
 /* Done is quiet: a completed step should recede, not celebrate. */
 .setupMarkerDone {
   border-color: var(--p-brand);

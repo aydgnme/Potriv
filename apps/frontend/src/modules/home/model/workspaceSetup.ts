@@ -3,27 +3,33 @@ import type { Loaded } from "../server/homeDataSources";
 /**
  * The founder's setup guidance, derived only from data the product really has.
  *
- * Every step here is one of three things, and the distinction is the whole
- * point:
+ * Every step here is one of four things, and keeping the last two apart is the
+ * whole point:
  *
  * - **done** — a real read said so
  * - **todo** — a real read said it has not happened
- * - **unknown** — no truthful signal exists, so no claim is made either way
+ * - **unknown** — no truthful signal exists at all, so nothing is claimed
+ * - **unavailable** — a signal exists, but the read for it did not answer
  *
- * `unknown` is not a failure state and not a hidden `todo`. It exists because
- * one step genuinely cannot be answered: there is no organization-wide project
- * read. `GET /projects/managed` is scoped to projects the caller manages and
- * `GET /me/projects` to projects they are on, so an administrator who is not
- * also a project manager would see "no projects" for a workspace full of them.
- * A checkmark derived from that would be a lie, and its absence would be a
- * different lie. The step is shown as an action with no completion claim.
+ * `unknown` and `unavailable` look similar and mean opposite things. `unknown`
+ * is permanent: there is no organization-wide project read, because
+ * `GET /projects/managed` is scoped to projects the caller manages and
+ * `GET /me/projects` to projects they are on — so an administrator who manages
+ * nothing would see "no projects" for a workspace full of them. A checkmark
+ * derived from that would be a lie and its absence would be a different lie,
+ * so the step makes no completion claim and says so.
+ *
+ * `unavailable` is temporary: Potriv knows exactly how to answer the question
+ * and could not reach the answer this time. Telling somebody that a department
+ * check is "not tracked" because `/departments` timed out would be describing a
+ * permanent gap in the product to explain a momentary one in the network.
  *
  * There is deliberately no percentage, no score and no "3 of 5". The backend
  * has no concept of workspace completeness, so inventing a number would be
  * inventing a product fact.
  */
 
-export type SetupStepState = "done" | "todo" | "unknown";
+export type SetupStepState = "done" | "todo" | "unknown" | "unavailable";
 
 export type WorkspaceSetupStep = {
   readonly id: string;
@@ -38,19 +44,13 @@ export type WorkspaceSetupStep = {
 export type WorkspaceSetup = {
   readonly steps: readonly WorkspaceSetupStep[];
   /**
-   * True only when every step that *can* be answered has been, and every read
-   * that should have answered actually did.
+   * True only when every answerable step has been answered, and answered done.
    *
-   * Two different things produce `unknown`, and they are not equivalent:
+   * `unknown` cannot block it — that signal does not exist and never will, so
+   * holding it against the workspace would mean `settled` could never be true.
    *
-   * - **structural** — no signal exists at all, as for the first project. This
-   *   is permanent, so holding it against the workspace would mean `settled`
-   *   could never be true.
-   * - **transient** — a read failed or was refused. Here the answer exists and
-   *   we simply did not get it, so claiming the basics are in place would be
-   *   asserting something nobody checked.
-   *
-   * Only the second blocks `settled`.
+   * `unavailable` must block it. The answer exists and we did not get it, so
+   * saying the basics are in place would be asserting something nobody checked.
    */
   readonly settled: boolean;
 };
@@ -58,19 +58,14 @@ export type WorkspaceSetup = {
 /**
  * Turns a loaded list into a completion signal.
  *
- * A failed or forbidden read is `unknown`, never `todo`: "we could not ask" and
- * "the answer is no" are different, and only one of them should put a task in
- * front of somebody.
+ * A failed or forbidden read becomes `unavailable`, never `todo`: "we could not
+ * ask" and "the answer is no" are different, and only one of them should put a
+ * task in front of somebody. It is not `unknown` either — the question is
+ * answerable, just not right now.
  */
 function existence(loaded: Loaded<readonly unknown[]> | null): SetupStepState {
-  if (!loaded || !loaded.ok) return "unknown";
+  if (!loaded || !loaded.ok) return "unavailable";
   return loaded.value.length > 0 ? "done" : "todo";
-}
-
-/** A read that was attempted and did not answer — as opposed to one that was
- *  never possible. */
-function readFailed(loaded: Loaded<readonly unknown[]> | null): boolean {
-  return loaded !== null && !loaded.ok;
 }
 
 export function buildWorkspaceSetup(input: {
@@ -135,19 +130,12 @@ export function buildWorkspaceSetup(input: {
     },
   ];
 
-  const anyReadFailed = [
-    input.departments,
-    input.teamRoles,
-    input.skills,
-    input.organizationUsers,
-  ].some(readFailed);
-
+  // A step with no signal at all is excluded; one whose read failed is not,
+  // because it is answerable and simply unanswered — so it blocks `settled`.
   const answerable = steps.filter((step) => step.state !== "unknown");
   return {
     steps,
     settled:
-      !anyReadFailed &&
-      answerable.length > 0 &&
-      answerable.every((step) => step.state === "done"),
+      answerable.length > 0 && answerable.every((step) => step.state === "done"),
   };
 }

@@ -104,18 +104,25 @@ describe("what cannot be answered", () => {
     expect(step(setup, "first-project").actionHref).toBe("/projects/new");
   });
 
-  it("treats a failed read as unknown, never as an outstanding task", () => {
-    const setup = build({ departments: failed });
+  it.each([
+    ["departments", { departments: failed }],
+    ["team-roles", { teamRoles: failed }],
+    ["skills", { skills: failed }],
+    ["members", { organizationUsers: failed }],
+  ] as const)("marks %s unavailable when its read fails", (id, override) => {
+    const setup = build(override);
 
-    // "We could not ask" must not become "you have not done this".
-    expect(step(setup, "departments").state).toBe("unknown");
-    expect(step(setup, "departments").state).not.toBe("todo");
+    // Answerable, unanswered. Not `todo`, which would invent a task, and not
+    // `unknown`, which would describe a permanent gap in the product.
+    expect(step(setup, id).state).toBe("unavailable");
+    expect(step(setup, id).state).not.toBe("todo");
+    expect(step(setup, id).state).not.toBe("unknown");
   });
 
-  it("treats a forbidden read as unknown too", () => {
+  it("marks a forbidden read unavailable too", () => {
     const setup = build({ teamRoles: forbidden });
 
-    expect(step(setup, "team-roles").state).toBe("unknown");
+    expect(step(setup, "team-roles").state).toBe("unavailable");
   });
 
   it("does not count unanswerable steps towards being settled", () => {
@@ -132,7 +139,7 @@ describe("what cannot be answered", () => {
     expect(step(setup, "first-project").state).toBe("unknown");
   });
 
-  it("is not settled when a read failed, even if the rest are done", () => {
+  it("is not settled while an answerable signal is unavailable", () => {
     const setup = build({
       departments: ok([{ id: "d" }]),
       teamRoles: failed,
@@ -140,11 +147,24 @@ describe("what cannot be answered", () => {
       organizationUsers: ok([{ userId: "a" }, { userId: "b" }]),
     });
 
-    // A failed read leaves a genuine unknown; claiming the workspace is set up
-    // would be asserting something nobody checked. This is different from the
+    // The answer exists and we did not get it, so claiming the basics are in
+    // place would assert something nobody checked. Different from the
     // first-project step, whose signal never existed and so cannot block it.
-    expect(step(setup, "team-roles").state).toBe("unknown");
+    expect(step(setup, "team-roles").state).toBe("unavailable");
     expect(setup.settled).toBe(false);
+  });
+
+  it("stays settleable despite the permanently unknown step", () => {
+    const setup = build({
+      departments: ok([{ id: "d" }]),
+      teamRoles: ok([{ id: "t" }]),
+      skills: ok([{ id: "s" }]),
+      organizationUsers: ok([{ userId: "a" }, { userId: "b" }]),
+    });
+
+    // If structural unknown blocked settled, settled could never be true.
+    expect(step(setup, "first-project").state).toBe("unknown");
+    expect(setup.settled).toBe(true);
   });
 });
 

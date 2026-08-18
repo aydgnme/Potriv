@@ -12,11 +12,20 @@ import styles from "./Home.module.css";
  * anything the product cannot actually confirm. The backend has no concept of
  * workspace completeness, so a number here would be a fact nobody measured.
  *
- * A step whose signal is unavailable is shown as an action with no completion
- * marker at all — neither ticked nor pointedly untucked. Creating the first
- * project is the standing example: no organization-wide project read exists, so
- * an administrator who is not also a project manager would be told "no
- * projects" about a workspace full of them.
+ * Two states look similar and mean opposite things, so the copy separates them
+ * rather than leaving a marker to imply either:
+ *
+ * - **unknown** — "Completion is not tracked for this step." Permanent: no
+ *   organization-wide project read exists, so an administrator who manages
+ *   nothing would be told "no projects" about a workspace full of them.
+ * - **unavailable** — "Status could not be checked right now." Temporary: the
+ *   question is answerable and the read simply did not answer. Saying "not
+ *   tracked" here would describe a permanent hole in the product to explain a
+ *   momentary one in the network.
+ *
+ * Neither is styled as an error. A department check that timed out is not a
+ * problem the founder caused or can fix, and the action stays available because
+ * it is still the right thing to do.
  */
 export function WorkspaceSetupSummary({ setup }: { readonly setup: WorkspaceSetup }) {
   return (
@@ -32,11 +41,12 @@ export function WorkspaceSetupSummary({ setup }: { readonly setup: WorkspaceSetu
         {setup.steps.map((step, index) => {
           const done = step.state === "done";
           /**
-           * An unanswerable step must not look like an outstanding one. A plain
-           * ordinal reads as "not done yet", which is a claim; this step has no
-           * signal behind it either way, so it gets a mark that asserts nothing.
+           * Neither of these may look like an outstanding step. A plain ordinal
+           * reads as "not done yet", which is a claim, and neither state is
+           * entitled to make it.
            */
           const unknown = step.state === "unknown";
+          const unavailable = step.state === "unavailable";
           return (
             <li className={styles.setupStep} key={step.id}>
               <span
@@ -44,12 +54,13 @@ export function WorkspaceSetupSummary({ setup }: { readonly setup: WorkspaceSetu
                   styles.setupMarker,
                   done ? styles.setupMarkerDone : null,
                   unknown ? styles.setupMarkerUnknown : null,
+                  unavailable ? styles.setupMarkerUnavailable : null,
                 ]
                   .filter(Boolean)
                   .join(" ")}
                 aria-hidden="true"
               >
-                {done ? "✓" : unknown ? "·" : String(index + 1).padStart(2, "0")}
+                {done ? "✓" : unknown ? "·" : unavailable ? "?" : String(index + 1).padStart(2, "0")}
               </span>
 
               <div className={styles.setupBody}>
@@ -65,6 +76,9 @@ export function WorkspaceSetupSummary({ setup }: { readonly setup: WorkspaceSetu
                   {unknown ? (
                     <span className="p-visually-hidden"> — not tracked</span>
                   ) : null}
+                  {unavailable ? (
+                    <span className="p-visually-hidden"> — status unavailable</span>
+                  ) : null}
                 </p>
                 <p className={styles.setupRationale}>
                   {step.rationale}
@@ -74,6 +88,12 @@ export function WorkspaceSetupSummary({ setup }: { readonly setup: WorkspaceSetu
                        see, and pretending otherwise either way would be worse
                        than admitting it. */
                     <> Completion is not tracked for this step.</>
+                  ) : null}
+                  {unavailable ? (
+                    /* Deliberately different words: the product does track this
+                       one, and saying "not tracked" would blame a permanent gap
+                       for a temporary failure. */
+                    <> Status could not be checked right now.</>
                   ) : null}
                 </p>
               </div>
