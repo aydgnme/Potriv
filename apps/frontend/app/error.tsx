@@ -10,9 +10,14 @@ import { useEffect } from "react";
  * envelope on this page would be readable by whoever is holding the laptop, and
  * none of it helps them — the digest is logged for people who can act on it.
  *
+ * It also makes **no claim about what did or did not happen**. A server action
+ * can commit and the render that follows can still throw, so a boundary this far
+ * out has no evidence for "nothing was changed" — and saying it anyway would be
+ * reassurance the page cannot back up.
+ *
  * `reset()` re-renders the segment. That is safe because rendering is a read;
  * nothing here retries a mutation, which is the one thing a generic retry button
- * must never do.
+ * must never do. It is not offered as proof of anything either.
  */
 export default function ProductError({
   error,
@@ -30,7 +35,7 @@ export default function ProductError({
   return (
     <main className="p-system-state">
       <h1>Something went wrong</h1>
-      <p>This page could not be displayed. Nothing you were doing has been changed.</p>
+      <p>This page could not be displayed. Try again, or return Home.</p>
       <p className="p-system-state-actions">
         <button type="button" onClick={reset}>
           Try again

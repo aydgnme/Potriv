@@ -42,7 +42,15 @@ export function LoginPage() {
       ? "Your session has expired. Sign in to continue."
       : params.get("reset") === "success"
         ? "Password updated. Sign in with your new password."
-        : null;
+        : /*
+             "Sign out everywhere" cleared this browser but could not confirm the
+             remote revocation. Saying so here — rather than on a page the person
+             is no longer signed in to — is the only place the message is both
+             true and readable.
+          */
+          params.get("logout") === "local-only"
+          ? "You were signed out of this browser, but we could not confirm that your other sessions were ended."
+          : null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

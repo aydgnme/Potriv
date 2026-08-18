@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
-import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 
 import styles from "./Account.module.css";
@@ -17,7 +16,15 @@ import styles from "./Account.module.css";
  * The local half always happens — the BFF clears this browser's cookies
  * regardless, because somebody who asked to be signed out should not be left
  * looking authenticated. The remote half is the backend's answer, and if it did
- * not succeed the copy says so rather than implying a stolen session was closed.
+ * not succeed the message says so rather than implying a stolen session was
+ * closed.
+ *
+ * **Both outcomes leave the protected route.** Once the cookies are gone this
+ * browser is signed out, and an Account page still sitting there — rendered
+ * before the mutation and now un-refreshable — would be a protected surface
+ * presenting itself as live to a session that no longer exists. So the failure
+ * path redirects too, and carries its caveat to `/login`, which is where the
+ * person actually is.
  *
  * There is no retry button. Re-issuing an unsafe mutation after an ambiguous
  * failure is exactly how one ends up revoking a session somebody has since
@@ -27,7 +34,6 @@ export function SignOutEverywhere() {
   const router = useRouter();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [pending, setPending] = useState(false);
-  const [partial, setPartial] = useState(false);
 
   async function signOutEverywhere() {
     setPending(true);
@@ -46,27 +52,16 @@ export function SignOutEverywhere() {
       revokedEverywhere = false;
     }
 
-    if (!revokedEverywhere) {
-      // Local cookies are already cleared, so this browser is signed out. Say
-      // only that, and let the person decide what to do about the rest.
-      setPending(false);
-      setPartial(true);
-      return;
-    }
-
-    router.replace("/login");
+    // Local cookies are cleared either way, so the browser leaves either way.
+    // Only the message differs: the failure path admits that the other sessions
+    // were not confirmed, using the same login-notice channel as every other
+    // safe auth outcome.
+    router.replace(revokedEverywhere ? "/login" : "/login?logout=local-only");
     router.refresh();
   }
 
   return (
     <div className={styles.controls}>
-      {partial ? (
-        <Alert tone="warning" title="Signed out here only">
-          You have been signed out of this browser, but the other sessions could not be
-          confirmed as ended. Open Account again from another sign-in to check them.
-        </Alert>
-      ) : null}
-
       <p className={styles.sectionNote}>
         Signing out ends this session. Signing out everywhere ends every session on every
         device, including this one.

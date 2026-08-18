@@ -47,9 +47,20 @@ Exactly what the product session carries: display name, email, access roles. No
 department, job title, avatar, tenure, plan or "last login" — the contract has
 none of them.
 
-Identity is **not** re-fetched. The protected layout already resolved the session
-to render the shell, so the route passes the user it has. A failed session read
-therefore costs the sessions section and nothing else.
+**Correction after review.** An earlier draft said the route "passes the user the
+layout already resolved". It does not — the page calls `resolveProductSession()`
+independently, and so does the layout. Measured against a local backend, one
+`/account` render made **two** `GET /auth/me` calls plus one `GET /auth/sessions`.
+
+`resolveProductSession` is now wrapped in React's per-request `cache()`, and the
+same measurement afterwards shows **one** `/auth/me` plus one `/auth/sessions`.
+That memo is request-scoped, not the Data Cache: it is created and discarded with
+the request, so two users can never share an entry, nothing is persisted, and the
+underlying `cache: "no-store"` fetch semantics are untouched. It is safe because
+the function is a pure read that deliberately never refreshes.
+
+A failed session read still costs only the sessions section — identity does not
+depend on it.
 
 ### Sessions
 
@@ -93,8 +104,23 @@ other devices that clearing local cookies cannot deliver:
 { "authenticated": false, "revokedEverywhere": true }
 ```
 
-Local cookies are cleared either way. If the remote half failed, the UI says
-"Signed out here only" rather than implying a stolen session was closed.
+Local cookies are cleared either way — and **the browser leaves the protected
+route either way**. Once the cookies are gone this browser is signed out, so an
+Account page left rendered would be a protected surface presenting itself as live
+to a session that no longer exists.
+
+```
+remote success  → cookies cleared → /login
+remote failure  → cookies cleared → /login?logout=local-only
+```
+
+The failure path carries its caveat to the login screen, reusing the same
+`searchParams` notice channel as `?session=expired` and `?reset=success`:
+
+> You were signed out of this browser, but we could not confirm that your other
+> sessions were ended.
+
+It never claims all sessions were revoked.
 
 There is no retry button. Re-issuing an unsafe mutation after an ambiguous
 failure is how one revokes a session somebody has since signed back into.
@@ -159,6 +185,12 @@ narrow:
   digest is logged for people who can act on it. `reset()` re-renders a segment,
   which is a read; nothing here retries a mutation.
 
+  **Correction after review.** It previously said *"Nothing you were doing has
+  been changed."* A server action can commit and the render that follows can
+  still throw, so a boundary this far out has no evidence for that — it was
+  reassurance the page could not back up. The copy is now neutral, and a test
+  forbids the claim returning.
+
 The domain states each slice built stay where they are:
 
 ```
@@ -189,7 +221,7 @@ bolted on here.
 
 | Surface | Calls |
 |---|---|
-| `/account` | **1** — `GET /auth/sessions` (identity reuses the layout's session) |
+| `/account` | **2** — `GET /auth/me` (once, memoized across layout and page) + `GET /auth/sessions` |
 | Revoke a session | 1 `DELETE` + one authoritative `revalidatePath` |
 | Sign out everywhere | 1 fixed `POST` |
 | Self history (`/projects?view=mine`) | **1** — `GET /me/projects` |
@@ -199,7 +231,31 @@ No per-session, per-project or per-person reads anywhere.
 
 ---
 
-## 8. Security
+## 8. Automated security coverage
+
+Added after review, because the new transport and action were only exercised
+indirectly through a component render:
+
+| File | Pins |
+|---|---|
+| `logoutAllRoute.test.ts` (10) | cross-origin 403 before any revocation · POST-only, no GET handler · `revokedEverywhere` true/false reported honestly · cookies cleared in **both** outcomes and with no token at all · response contains only the two documented fields and no secret · exactly one backend call, no retry |
+| `sessionActions.test.ts` (13) | unauthenticated refused before any call · four malformed-id shapes never reach a path · valid id hits exactly `/auth/sessions/{uuid}` · success revalidates `/account` · 404 = already ended, still revalidates · 401 distinct from failure · safe message with no status/path/envelope · one attempt, never retried · nothing revalidated when nothing was attempted · no token in any outcome |
+| `SignOutEverywhere.test.tsx` (9) | confirmation names the consequence · Cancel mutates nothing · success exits to `/login` · remote failure, network error and non-ok response all exit to `/login?logout=local-only` · never claims all sessions were signed out · exactly one mutation per action |
+| `systemStates.test.tsx` (5) | the error page makes no "nothing was changed" claim · leaks no message, digest, stack or backend origin · not-found never borrows anti-leak vocabulary |
+| `sessionMemoization.test.ts` (5) | identity is identical for every caller in a request · nothing survives into another request · expiry still ends the session · still a pure read |
+
+**Mutation-tested.** Restoring the "nothing changed" sentence fails
+`systemStates`; making the failure path stay on Account fails four
+`SignOutEverywhere` tests.
+
+Note on `sessionMemoization.test.ts`: React's `cache()` is inert outside a
+request context, so vitest cannot demonstrate the deduplication — that is proven
+by the live measurement above. The file pins the safety properties instead, run
+with the memo inert, which is the worst case.
+
+---
+
+## 9. Security
 
 - Session mutations are `POST`/`DELETE` on fixed same-origin BFF paths. Verified
   live: a foreign `Origin` gets **403**, a `GET` gets **405**.
@@ -216,7 +272,7 @@ No per-session, per-project or per-person reads anywhere.
 
 ---
 
-## 9. Live verification
+## 10. Live verification
 
 Local backend only (`localhost:8080/api`). Production never targeted.
 
@@ -224,19 +280,39 @@ Local backend only (`localhost:8080/api`). Production never targeted.
 two sessions listed, exactly one marked current
 revoke the other      -> 204; that session then 401; current still 200
 same-origin guard     -> foreign Origin 403, GET 405
-logout-all (success)  -> 200 { revokedEverywhere: true }
-other device after    -> 401
-auth cookies left     -> 0
-GET /account after    -> 307 (redirected to login)
+
+logout-all SUCCESS
+  revokedEverywhere   -> true
+  other device after  -> 401
+  auth cookies left   -> 0
+  GET /account        -> 307
+
+logout-all REMOTE FAILURE (forced: the session's own token revoked first)
+  revokedEverywhere   -> false
+  auth cookies left   -> 0
+  GET /account        -> 307      <- still exits the protected route
+  /login?logout=local-only renders:
+    "You were signed out of this browser, but we could not confirm that your
+     other sessions were ended."
 ```
 
-An earlier `logout-all` probe returned `revokedEverywhere: false` — correctly, because
-that probe had already cleared the cookies, leaving no token to revoke with. The
-success path was then re-run cleanly from a fresh session.
+The failure was forced safely: sign in, revoke that same session at the backend
+so its access token is already dead, then call `logout-all`. No app code was
+edited to fake an outage.
+
+### Account request counts, measured
+
+```
+before cache()   2 × GET /auth/me   + 1 × GET /auth/sessions
+after  cache()   1 × GET /auth/me   + 1 × GET /auth/sessions
+```
+
+Taken by temporarily instrumenting the two transports, rendering `/account` once
+against a warm route, and reverting the instrument. Not inferred.
 
 ---
 
-## 10. Responsive and accessibility
+## 11. Responsive and accessibility
 
 Three surfaces × seven widths, **21/21 clean**, with a deliberately long user
 agent in the fixture:
@@ -273,7 +349,7 @@ native `<dialog>`; "Current session" is text, not styling alone.
 
 ---
 
-## 11. Secret safety
+## 12. Secret safety
 
 **Secret values were never printed to stdout.** Not redacted — never emitted.
 Tokens were parsed into `chmod 600` files by python and passed to curl by
@@ -284,7 +360,7 @@ had it parsed by python printing only named non-secret fields.
 
 ---
 
-## 12. Deliberately not changed
+## 13. Deliberately not changed
 
 - The backend — no contract defect found; frontend-only slice
 - Primary navigation (`NAVIGATION_DEFINITIONS` untouched) and the bottom-bar
@@ -296,7 +372,7 @@ had it parsed by python printing only named non-secret fields.
 
 ---
 
-## 13. Production isolation
+## 14. Production isolation
 
 `main` was not modified. PR base is `v2`. `origin/main` remained
 `3298c1cf079683033157500829a929caba08bd57` throughout.
@@ -307,7 +383,7 @@ repository settings were changed.
 
 ---
 
-## 14. Next slice
+## 15. Next slice
 
 ```
 V2-09 — Full integration, responsive, accessibility & polish
