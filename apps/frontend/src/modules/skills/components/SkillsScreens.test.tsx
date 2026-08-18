@@ -116,10 +116,24 @@ describe("the catalogue", () => {
     );
 
     // Scoped to the row: "Backend" is also a legitimate category-nav link.
-    const row = within(screen.getByRole("link", { name: "Java" }).closest("li")!);
+    const row = within(screen.getByRole("link", { name: "Java" }).closest("tr")!);
     expect(row.getByText("Backend")).toBeInTheDocument();
     expect(row.getByText("The language, not the island.")).toBeInTheDocument();
     expect(row.getByText("Platform")).toBeInTheDocument();
+  });
+
+  it("presents the catalogue as a table with the contract's own columns", () => {
+    render(
+      <SkillCatalogue query={NO_FILTERS} categories={categories} skills={[skill()]} />,
+    );
+
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent?.trim());
+
+    // Every column is a field the backend actually returns.
+    expect(headers).toEqual(["Skill", "Category", "State", "Departments"]);
+    expect(screen.getByRole("rowheader", { name: /Java/ })).toBeInTheDocument();
   });
 
   it("invents no popularity, rating or endorsement", () => {

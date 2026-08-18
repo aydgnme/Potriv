@@ -95,36 +95,61 @@ export function SkillCatalogue({
             <EmptyState title="No skills have been added yet." />
           )
         ) : (
-          <ul className={styles.skillList}>
-            {skills.map((skill) => (
-              <li key={skill.skillId} className={styles.skillRow}>
-                <span className={styles.skillMain}>
-                  <Link href={`/skills/${skill.skillId}`} className={styles.skillName}>
-                    {skill.name}
-                  </Link>
-                  <span className={styles.skillMeta}>
-                    <span className={styles.muted}>{skill.category.name}</span>
-                    {!skill.active ? (
-                      <span className={styles.inactiveTag}>Inactive</span>
+          /* Dense and comparable: the catalogue is scanned, and a card per
+             skill turns a shared vocabulary into a gallery. Only fields the
+             backend returns — no usage count, popularity or score. */
+          <table className={styles.skillTable}>
+            <thead>
+              <tr>
+                <th scope="col">Skill</th>
+                <th scope="col">Category</th>
+                <th scope="col">State</th>
+                <th scope="col">Departments</th>
+              </tr>
+            </thead>
+            <tbody>
+              {skills.map((skill) => (
+                <tr key={skill.skillId}>
+                  <th scope="row" className={styles.skillCell}>
+                    <Link href={`/skills/${skill.skillId}`} className={styles.skillName}>
+                      {skill.name}
+                    </Link>
+                    {skill.description ? (
+                      <span className={styles.skillDescription}>{skill.description}</span>
                     ) : null}
-                  </span>
-                  {skill.description ? (
-                    <span className={styles.skillDescription}>{skill.description}</span>
-                  ) : null}
-                </span>
-
-                {skill.departments.length > 0 ? (
-                  <ul className={styles.chipList} aria-label={`Departments using ${skill.name}`}>
-                    {skill.departments.map((department) => (
-                      <li key={department.departmentId} className={styles.chip}>
-                        {department.name}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ))}
-          </ul>
+                  </th>
+                  <td data-label="Category" className={styles.muted}>
+                    {skill.category.name}
+                  </td>
+                  <td data-label="State">
+                    {/* A word, never a colour: inactive is a catalogue state and
+                        the skill still exists on everyone who assigned it. */}
+                    {skill.active ? (
+                      <span className={styles.muted}>Active</span>
+                    ) : (
+                      <span className={styles.inactiveTag}>Inactive</span>
+                    )}
+                  </td>
+                  <td data-label="Departments">
+                    {skill.departments.length === 0 ? (
+                      <span className={styles.muted}>None</span>
+                    ) : (
+                      <ul
+                        className={styles.chipList}
+                        aria-label={`Departments using ${skill.name}`}
+                      >
+                        {skill.departments.map((department) => (
+                          <li key={department.departmentId} className={styles.chip}>
+                            {department.name}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </div>

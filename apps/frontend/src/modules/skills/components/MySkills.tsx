@@ -45,13 +45,25 @@ export function MySkills({ assignments }: MySkillsProps) {
   }
 
   return (
-    <ul className={styles.skillList}>
-      {assignments.map((assignment) => (
-        <li key={assignment.employeeSkillId}>
-          <AssignmentRow assignment={assignment} />
-        </li>
-      ))}
-    </ul>
+    /* Compact and comparable. Level and experience are self-reported context —
+       never a rating — so they are plain selects in columns, with no stars, bars
+       or score anywhere near them. */
+    <table className={styles.mySkillsTable}>
+      <thead>
+        <tr>
+          <th scope="col">Skill</th>
+          <th scope="col">Category</th>
+          <th scope="col">Level</th>
+          <th scope="col">Experience</th>
+          <th scope="col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {assignments.map((assignment) => (
+          <AssignmentRow key={assignment.employeeSkillId} assignment={assignment} />
+        ))}
+      </tbody>
+    </table>
   );
 }
 
@@ -74,95 +86,98 @@ function AssignmentRow({ assignment }: { readonly assignment: EmployeeSkill }) {
 
   const levelId = `level-${assignment.employeeSkillId}`;
   const experienceId = `experience-${assignment.employeeSkillId}`;
+  /*
+    A <form> cannot wrap the children of a <tr>, so the form lives in the last
+    cell and the controls join it by id. That is the standard association, and it
+    keeps one row = one submission without breaking table semantics.
+  */
+  const formId = `save-${assignment.employeeSkillId}`;
 
   return (
-    <div className={styles.assignment}>
-      <div className={styles.assignmentMain}>
+    <tr>
+      <th scope="row" className={styles.skillCell}>
         <Link href={`/skills/${assignment.skill.skillId}`} className={styles.skillName}>
           {assignment.skill.name}
         </Link>
-        <span className={styles.skillMeta}>
-          <span className={styles.muted}>{assignment.skill.category.name}</span>
-          {!assignment.skill.active ? (
-            <span className={styles.inactiveTag}>Inactive catalogue skill</span>
-          ) : null}
-        </span>
-
+        {!assignment.skill.active ? (
+          /* The catalogue entry was retired; this assignment is still real and
+             is not removed by that. */
+          <span className={styles.inactiveTag}>Inactive catalogue skill</span>
+        ) : null}
         {state.error ? <p className={styles.fieldError}>{state.error}</p> : null}
         {removeState.error ? <p className={styles.fieldError}>{removeState.error}</p> : null}
         {state.done ? <p className={styles.panelNote}>{state.done}</p> : null}
-      </div>
+      </th>
 
-      <form action={formAction} className={styles.assignmentControls}>
-        <input type="hidden" name="employeeSkillId" value={assignment.employeeSkillId} />
+      <td data-label="Category" className={styles.muted}>
+        {assignment.skill.category.name}
+      </td>
 
-        <div className={styles.selectField}>
-          {/* The visible word is short, but the accessible name carries the skill
-              — otherwise a screen reader hears "Level" a dozen times in a row
-              with nothing to tell the rows apart. */}
-          <label className={styles.fieldLabel} htmlFor={levelId}>
-            Level
-          </label>
-          <select
-            id={levelId}
-            name="level"
-            className={styles.control}
-            aria-label={`${assignment.skill.name} level`}
-            defaultValue={assignment.level.code}
-          >
-            {SKILL_LEVELS.map((option) => (
-              <option key={option.code} value={option.code}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className={styles.selectField}>
-          <label className={styles.fieldLabel} htmlFor={experienceId}>
-            Experience
-          </label>
-          <select
-            id={experienceId}
-            name="experience"
-            className={styles.control}
-            aria-label={`${assignment.skill.name} experience`}
-            defaultValue={assignment.experience.code}
-          >
-            {SKILL_EXPERIENCES.map((option) => (
-              <option key={option.code} value={option.code}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <Button
-          type="submit"
-          variant="secondary"
-          loading={isPending}
-          aria-label={`Save ${assignment.skill.name}`}
+      <td data-label="Level">
+        {/* The visible word is short, but the accessible name carries the skill
+            — otherwise a screen reader hears "Level" a dozen times in a row with
+            nothing to tell the rows apart. */}
+        <label className="p-visually-hidden" htmlFor={levelId}>
+          {`${assignment.skill.name} level`}
+        </label>
+        <select
+          id={levelId}
+          name="level"
+          form={formId}
+          className={styles.control}
+          defaultValue={assignment.level.code}
         >
-          Save
-        </Button>
-      </form>
+          {SKILL_LEVELS.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </td>
 
-      <RemoveAssignmentButton
-        assignment={assignment}
-        formAction={removeAction}
-        isPending={isRemoving}
-      />
-    </div>
+      <td data-label="Experience">
+        <label className="p-visually-hidden" htmlFor={experienceId}>
+          {`${assignment.skill.name} experience`}
+        </label>
+        <select
+          id={experienceId}
+          name="experience"
+          form={formId}
+          className={styles.control}
+          defaultValue={assignment.experience.code}
+        >
+          {SKILL_EXPERIENCES.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </td>
+
+      <td data-label="Actions" className={styles.assignmentActions}>
+        <form action={formAction} id={formId}>
+          <input type="hidden" name="employeeSkillId" value={assignment.employeeSkillId} />
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            loading={isPending}
+            aria-label={`Save ${assignment.skill.name}`}
+          >
+            Save
+          </Button>
+        </form>
+
+        <RemoveAssignmentButton
+          assignment={assignment}
+          formAction={removeAction}
+          isPending={isRemoving}
+        />
+      </td>
+    </tr>
   );
 }
 
-/**
- * Removing one row from one profile.
- *
- * The wording avoids "Delete", because the catalogue skill is not going anywhere
- * — only this person's claim to it. And an inactive skill is not currently used
- * for matching, so its confirmation does not pretend otherwise.
- */
 function RemoveAssignmentButton({
   assignment,
   formAction,

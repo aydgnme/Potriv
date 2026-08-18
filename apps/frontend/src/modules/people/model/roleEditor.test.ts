@@ -304,3 +304,128 @@ describe("validateRoleChange", () => {
     ).toEqual({ ok: true });
   });
 });
+
+/**
+ * The organizational model, defended against the flattenings that look tidier.
+ *
+ * ```
+ * access role != department membership
+ *             != manager appointment
+ *             != project ownership
+ * ```
+ *
+ * Each of these is one lock away from a plausible simplification that would let
+ * somebody grant themselves authority or strand an organization without an admin.
+ */
+describe("access role is not appointment, membership or ownership", () => {
+  const founder = { userId: "u1", roles: ["EMPLOYEE", "ORGANIZATION_ADMIN"] } as const;
+
+  it("says nothing about appointment when granting DEPARTMENT_MANAGER", () => {
+    const state = roleEditorState({
+      target: { userId: "u2", roles: ["EMPLOYEE"] },
+      currentUserId: "u1",
+      organizationUsers: [founder, { userId: "u2", roles: ["EMPLOYEE"] }],
+    });
+
+    const dm = state.editable ? state.options.find((o) => o.role === "DEPARTMENT_MANAGER") : undefined;
+
+    // The role is grantable here; being appointed to a department is a separate
+    // operation in Organization, and this screen must not imply otherwise.
+    expect(dm?.locked).toBe(false);
+    expect(dm?.selected).toBe(false);
+  });
+
+  it("never offers SYSTEM_ADMIN in the ordinary product editor", () => {
+    const state = roleEditorState({
+      target: { userId: "u2", roles: ["EMPLOYEE"] },
+      currentUserId: "u1",
+      organizationUsers: [founder, { userId: "u2", roles: ["EMPLOYEE"] }],
+    });
+
+    const roles = state.editable ? state.options.map((o) => o.role) : [];
+    expect(roles).not.toContain("SYSTEM_ADMIN");
+  });
+});
+
+describe("the founder bootstrap is exactly as narrow as the backend's", () => {
+  const solo = { userId: "u1", roles: ["EMPLOYEE", "ORGANIZATION_ADMIN"] } as const;
+
+  it("lets a solo founder add only the two setup roles to themselves", () => {
+    const state = roleEditorState({
+      target: solo,
+      currentUserId: "u1",
+      organizationUsers: [solo],
+    });
+
+    expect(state.editable).toBe(true);
+    const byRole = state.editable
+      ? Object.fromEntries(state.options.map((o) => [o.role, o]))
+      : {};
+
+    // Addable: the two the backend's SELF_ASSIGNABLE_SETUP_ROLES allows.
+    expect(byRole.DEPARTMENT_MANAGER?.locked).toBe(false);
+    expect(byRole.PROJECT_MANAGER?.locked).toBe(false);
+    // Not removable: additive only, so what they already hold is locked on.
+    expect(byRole.ORGANIZATION_ADMIN?.locked).toBe(true);
+    expect(byRole.EMPLOYEE?.locked).toBe(true);
+  });
+
+  it("closes the exception the moment a second person exists", () => {
+    const state = roleEditorState({
+      target: solo,
+      currentUserId: "u1",
+      organizationUsers: [solo, { userId: "u2", roles: ["EMPLOYEE"] }],
+    });
+
+    // Back to the ordinary rule: nobody rewrites their own authorization.
+    expect(state.editable).toBe(false);
+    expect(state.editable ? "" : state.readOnlyReason).toMatch(/cannot change your own access roles/i);
+  });
+});
+
+describe("an organization can never be left without an admin", () => {
+  it("locks the last admin's ORGANIZATION_ADMIN role", () => {
+    const admin = { userId: "u1", roles: ["EMPLOYEE", "ORGANIZATION_ADMIN"] } as const;
+    const other = { userId: "u2", roles: ["EMPLOYEE"] } as const;
+
+    const state = roleEditorState({
+      target: admin,
+      currentUserId: "u2",
+      organizationUsers: [admin, other],
+    });
+
+    const orgAdmin = state.editable
+      ? state.options.find((o) => o.role === "ORGANIZATION_ADMIN")
+      : undefined;
+
+    expect(orgAdmin?.locked).toBe(true);
+    expect(orgAdmin?.lockReason).toMatch(/at least one Organization Admin/i);
+  });
+
+  it("unlocks it once a second admin exists", () => {
+    const a = { userId: "u1", roles: ["EMPLOYEE", "ORGANIZATION_ADMIN"] } as const;
+    const b = { userId: "u2", roles: ["EMPLOYEE", "ORGANIZATION_ADMIN"] } as const;
+
+    const state = roleEditorState({ target: a, currentUserId: "u2", organizationUsers: [a, b] });
+    const orgAdmin = state.editable
+      ? state.options.find((o) => o.role === "ORGANIZATION_ADMIN")
+      : undefined;
+
+    expect(orgAdmin?.locked).toBe(false);
+  });
+});
+
+describe("EMPLOYEE is baseline access, always", () => {
+  it("stays selected and locked for everybody", () => {
+    const admin = { userId: "u1", roles: ["EMPLOYEE", "ORGANIZATION_ADMIN"] } as const;
+    const target = { userId: "u2", roles: ["EMPLOYEE", "PROJECT_MANAGER"] } as const;
+
+    const state = roleEditorState({ target, currentUserId: "u1", organizationUsers: [admin, target] });
+    const employee = state.editable ? state.options.find((o) => o.role === "EMPLOYEE") : undefined;
+
+    // The backend re-adds it regardless; showing it as removable would be the UI
+    // lying about what will be saved.
+    expect(employee?.selected).toBe(true);
+    expect(employee?.locked).toBe(true);
+  });
+});
