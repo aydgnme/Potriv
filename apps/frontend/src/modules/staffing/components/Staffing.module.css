@@ -2,15 +2,22 @@
 .section { display: flex; flex-direction: column; gap: var(--p-space-4); }
 .sectionHeading { font-size: var(--p-text-xl); }
 
+/**
+ * A working section, separated by a rule rather than boxed.
+ *
+ * The detail pane stacks request, capacity and decision; three bordered cards in
+ * a column read as three unrelated widgets rather than one request. Containment
+ * is spent where it means something — the dialog, and the capacity warning.
+ */
 .panel {
   display: flex;
   flex-direction: column;
   gap: var(--p-space-3);
-  padding: var(--p-space-4);
-  background: var(--p-surface);
-  border: 1px solid var(--p-border);
-  border-radius: var(--p-radius);
+  padding-block: var(--p-space-4);
+  border-top: 1px solid var(--p-border);
+  min-width: 0;
 }
+.detail > .panel:first-of-type { border-top: none; padding-top: 0; }
 
 .panelHeading { font-size: var(--p-text-lg); }
 .panelNote { font-size: var(--p-text-sm); color: var(--p-text-muted); }
@@ -47,7 +54,19 @@
 
 /* ── Queue + detail ──────────────────────────────────────────────────────── */
 
-.split { display: grid; grid-template-columns: minmax(18rem, 24rem) 1fr; gap: var(--p-space-4); align-items: start; }
+/* The queue carries five columns and the detail carries prose, so the queue
+   takes the wider half. Below 1280 the queue table folds into stacked records
+   inside a narrower pane; below 900 the panes take turns entirely. */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--p-space-6);
+  align-items: start;
+}
+
+@media (max-width: 1279px) {
+  .split { grid-template-columns: minmax(0, 20rem) minmax(0, 1fr); gap: var(--p-space-5); }
+}
 .listPane { min-width: 0; }
 .detailPane { min-width: 0; }
 
@@ -158,4 +177,127 @@
 .longText {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+
+/* ── Queue and managed-project tables ────────────────────────────────────── */
+
+.queueTable,
+.projectTable { width: 100%; border-collapse: collapse; text-align: left; }
+
+.queueTable th[scope="col"],
+.projectTable th[scope="col"] {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.queueTable td,
+.queueTable th[scope="row"],
+.projectTable td,
+.projectTable th[scope="row"] {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: baseline;
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-normal);
+  text-align: left;
+}
+.queueTable tbody tr:last-child td,
+.queueTable tbody tr:last-child th[scope="row"],
+.projectTable tbody tr:last-child td,
+.projectTable tbody tr:last-child th[scope="row"] { border-bottom: none; }
+
+.queueCell,
+.projectCell { min-width: 0; }
+
+/* The click target is the button, never the row. */
+.queueButton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--p-text);
+  font: inherit;
+  font-weight: var(--p-weight-medium);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.queueButton:hover { text-decoration: underline; }
+
+/* Selection is also written into the label, so this is confirmation only. */
+.queueRowSelected { background: var(--p-surface-active); }
+
+.queueName { font-weight: var(--p-weight-medium); overflow-wrap: anywhere; }
+
+.projectActions { display: flex; gap: var(--p-space-3); flex-wrap: wrap; }
+
+@media (max-width: 1279px) {
+  /* Stacked labelled records. `display: block` drops the implicit table
+     semantics, so the header cells stay in the DOM for anyone listening. */
+  .queueTable,
+  .queueTable > thead,
+  .queueTable > tbody,
+  .queueTable > tbody > tr,
+  .queueTable > tbody > tr > td,
+  .queueTable > tbody > tr > th {
+    display: block;
+    width: 100%;
+  }
+
+  .queueTable > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .queueTable > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .queueTable > tbody > tr > td,
+  .queueTable > tbody > tr > th {
+    padding: 2px 0;
+    border-bottom: none;
+  }
+  .queueTable > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+}
+
+@media (max-width: 767px) {
+  .projectTable,
+  .projectTable > thead,
+  .projectTable > tbody,
+  .projectTable > tbody > tr,
+  .projectTable > tbody > tr > td,
+  .projectTable > tbody > tr > th {
+    display: block;
+    width: 100%;
+  }
+  .projectTable > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .projectTable > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .projectTable > tbody > tr > td,
+  .projectTable > tbody > tr > th { padding: 2px 0; border-bottom: none; }
 }

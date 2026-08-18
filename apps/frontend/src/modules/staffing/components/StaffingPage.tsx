@@ -57,8 +57,14 @@ function ReviewSection({
 }) {
   return (
     <section className={styles.section} aria-labelledby="staffing-reviews">
+      {/*
+        Neutral on purpose. "Reviews waiting on you" is false while the Approved
+        or Rejected filter is selected — those are decided, and nothing is
+        waiting. The tab states which slice is on screen, so the heading names
+        the domain and lets the filter carry the rest.
+      */}
       <h2 className={styles.sectionHeading} id="staffing-reviews">
-        Reviews waiting on you
+        Staffing reviews
       </h2>
 
       {!reviews.ok && reviews.reason === "FORBIDDEN" ? (
@@ -121,27 +127,42 @@ function ManagedProjectsSection({
           action={<Link href="/projects/new">New project</Link>}
         />
       ) : (
-        <ul className={styles.rows}>
-          {projects.value.map((project) => (
-            <li key={project.projectId} className={styles.row}>
-              <div className={styles.rowMain}>
-                <Link className={styles.rowTitle} href={`/projects/${project.projectId}`}>
-                  {project.name}
-                </Link>
-              </div>
-              <div className={styles.rowAside}>
-                <StatusBadge
-                  label={projectStatusLabel(project.status)}
-                  tone={projectStatusTone(project.status)}
-                />
-                {/* Links, not a run: Team Finder ranks a whole organization and
-                    is not something to trigger from a list on the way past. */}
-                <Link href={`/projects/${project.projectId}/team-finder`}>Find team</Link>
-                <Link href={`/projects/${project.projectId}/team`}>View team</Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+        /* Only what `/projects/managed` already returns. No proposal count,
+           team count or staffing gap: each would cost one request per row to
+           decorate a list somebody is passing through. */
+        <table className={styles.projectTable}>
+          <thead>
+            <tr>
+              <th scope="col">Project</th>
+              <th scope="col">Status</th>
+              <th scope="col">Staffing</th>
+            </tr>
+          </thead>
+          <tbody>
+            {projects.value.map((project) => (
+              <tr key={project.projectId}>
+                <th scope="row" className={styles.projectCell}>
+                  <Link className={styles.rowTitle} href={`/projects/${project.projectId}`}>
+                    {project.name}
+                  </Link>
+                </th>
+                <td data-label="Status">
+                  <StatusBadge
+                    label={projectStatusLabel(project.status)}
+                    tone={projectStatusTone(project.status)}
+                  />
+                </td>
+                <td data-label="Staffing" className={styles.projectActions}>
+                  {/* Links, not a run: Team Finder ranks a whole organization
+                      and is not something to trigger from a list on the way
+                      past. */}
+                  <Link href={`/projects/${project.projectId}/team-finder`}>Find team</Link>
+                  <Link href={`/projects/${project.projectId}/team`}>View team</Link>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </section>
   );

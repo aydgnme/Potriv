@@ -401,3 +401,194 @@ describe("free text at the contract's limit", () => {
     expect(shown).toHaveClass(styles.longText);
   });
 });
+
+/**
+ * The two reasons, which come from different people and must never merge.
+ *
+ * `reason` is the project manager saying why they asked to end an allocation.
+ * `rejectionReason` is the department manager saying why they declined that
+ * request. A rejected removal carries both at once, and collapsing them would
+ * put one person's words in the other's mouth on a record of an accountable
+ * decision.
+ */
+describe("removal reason is not the reviewer's rejection reason", () => {
+  const rejected = removal({
+    status: "REJECTED",
+    reason: "Project scope ended.",
+    rejectionReason: "Employee is still required during transition.",
+    reviewedBy: { userId: "dm-1", name: "Selin", email: "selin@potriv.test" },
+    reviewedAt: "2026-08-05T09:00:00Z",
+  });
+
+  it("shows both statements, each under its own heading", () => {
+    renderQueue([rejected]);
+
+    const removalHeading = screen.getByRole("heading", { name: "Removal reason" });
+    const reviewHeading = screen.getByRole("heading", { name: "Review rejection reason" });
+
+    expect(removalHeading).toBeInTheDocument();
+    expect(reviewHeading).toBeInTheDocument();
+    expect(screen.getByText("Project scope ended.")).toBeInTheDocument();
+    expect(screen.getByText("Employee is still required during transition.")).toBeInTheDocument();
+  });
+
+  it("keeps each sentence under the heading that names its author", () => {
+    renderQueue([rejected]);
+
+    // The request section holds the proposer's words; the decision section holds
+    // the reviewer's. If either leaked into the other this fails.
+    const request = screen.getByRole("heading", { name: "Request" }).closest("section") as HTMLElement;
+    const decision = screen.getByRole("heading", { name: "Decision" }).closest("section") as HTMLElement;
+
+    expect(within(request).getByText("Project scope ended.")).toBeInTheDocument();
+    expect(within(request).queryByText(/still required during transition/)).toBeNull();
+
+    expect(within(decision).getByText("Employee is still required during transition.")).toBeInTheDocument();
+    expect(within(decision).queryByText("Project scope ended.")).toBeNull();
+  });
+
+  it("does not present a removal reason as assignment comments", () => {
+    renderQueue([rejected]);
+
+    // "Comments" is the assignment word. A removal has a reason, and calling it
+    // comments would misdescribe a required field as optional context.
+    expect(screen.queryByRole("heading", { name: "Comments" })).toBeNull();
+  });
+
+  it("says no reason was given rather than borrowing the other one", () => {
+    renderQueue([
+      removal({
+        status: "REJECTED",
+        reason: "Project scope ended.",
+        rejectionReason: null,
+      }),
+    ]);
+
+    expect(screen.getByText("No reason given")).toBeInTheDocument();
+    // The proposer's reason must not be promoted into the reviewer's slot.
+    const decision = screen.getByRole("heading", { name: "Decision" }).closest("section") as HTMLElement;
+    expect(within(decision).queryByText("Project scope ended.")).toBeNull();
+  });
+});
+
+/**
+ * Capacity belongs to the backend.
+ *
+ * `currentlyAcceptableByCapacity` is its conclusion, reached with the same rule
+ * acceptance uses. Recomputing it here would be a second, quieter capacity model
+ * that could disagree with the one that actually decides.
+ */
+describe("capacity is the backend's conclusion", () => {
+  it("does not infer acceptability from the numbers", () => {
+    // Deliberately contradictory: the arithmetic says it fits (2 + 4 <= 8) while
+    // the backend says it does not. The backend wins.
+    renderQueue([
+      assignment({
+        capacity: capacity({
+          allocatedHoursPerDay: 2,
+          requestedHoursPerDay: 4,
+          projectedAllocatedHoursPerDay: 6,
+          projectedAvailableHoursPerDay: 2,
+          currentlyAcceptableByCapacity: false,
+        }),
+      }),
+    ]);
+
+    expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
+    expect(screen.getByText(/This no longer fits/)).toBeInTheDocument();
+  });
+
+  it("keeps Reject available so the request can still be resolved", () => {
+    renderQueue([
+      assignment({ capacity: capacity({ currentlyAcceptableByCapacity: false }) }),
+    ]);
+
+    // Never auto-rejected and never hidden: the backend leaves it pending on
+    // purpose, and the decision stays the manager's.
+    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+  });
+
+  it("calls capacity a snapshot that is checked again, never a reservation", () => {
+    renderQueue([assignment()]);
+
+    expect(screen.getByText(/checked again when you accept/)).toBeInTheDocument();
+    const text = document.body.textContent ?? "";
+    for (const word of ["reserved", "reservation", "held for", "guaranteed"]) {
+      expect(text.toLowerCase()).not.toContain(word);
+    }
+  });
+
+  it("shows no capacity block at all when the backend sent none", () => {
+    // Null is not zero. A removal frees hours, so there is nothing to check —
+    // and "0 / 8" would be a figure nobody computed.
+    renderQueue([removal()]);
+
+    expect(screen.queryByRole("heading", { name: "Capacity" })).toBeNull();
+    expect(document.body.textContent ?? "").not.toMatch(/0\s*\/\s*8/);
+  });
+});
+
+/**
+ * Selecting a different request, exercised where React actually runs.
+ *
+ * These assertions are the reason the browser snapshot is not the authority on
+ * interaction: a server-rendered page proves markup and CSS, not behaviour.
+ */
+describe("selection switches the detail without touching the backend", () => {
+  it("moves from a rejected assignment to a rejected removal and swaps the reasons", async () => {
+    const user = userEvent.setup();
+    const rejectedAssignment = assignment({
+      status: "REJECTED",
+      comments: "Requested for the migration workstream.",
+      rejectionReason: "Capacity was committed elsewhere.",
+      capacity: null,
+    });
+    const rejectedRemoval = removal({
+      status: "REJECTED",
+      reason: "Project scope ended.",
+      rejectionReason: "Employee is still required during transition.",
+      capacity: null,
+    });
+
+    renderQueue([rejectedAssignment, rejectedRemoval], "REJECTED");
+
+    // Default selection is the first backend row — the assignment.
+    expect(screen.getByRole("heading", { name: "Comments" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Removal reason" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: /REMOVAL Rana/ }));
+
+    // The removal's own pair, and none of the assignment's text left behind.
+    expect(screen.getByRole("heading", { name: "Removal reason" })).toBeInTheDocument();
+    expect(screen.getByText("Project scope ended.")).toBeInTheDocument();
+    expect(screen.getByText("Employee is still required during transition.")).toBeInTheDocument();
+    expect(screen.queryByText("Requested for the migration workstream.")).toBeNull();
+    expect(screen.queryByText("Capacity was committed elsewhere.")).toBeNull();
+
+    for (const action of [acceptAssignment, rejectAssignment, acceptDeallocation, rejectDeallocation]) {
+      expect(action).not.toHaveBeenCalled();
+    }
+  });
+
+  it("moves selection state with the pressed control", async () => {
+    const user = userEvent.setup();
+    renderQueue([assignment(), removal()]);
+
+    const [first, second] = screen.getAllByRole("button", { name: /request/i });
+    expect(first).toHaveAttribute("aria-pressed", "true");
+    expect(second).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(second);
+
+    expect(second).toHaveAttribute("aria-pressed", "true");
+    expect(first).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("renders only the selected request's detail, never one per row", () => {
+    renderQueue([assignment(), removal()]);
+
+    // Mounting a hidden detail for every row would cost the queue its speed and
+    // put a second copy of every heading in the accessibility tree.
+    expect(screen.getAllByRole("heading", { name: "Request" })).toHaveLength(1);
+  });
+});
