@@ -20,7 +20,27 @@ export default async function Page() {
   if (!session.authenticated) redirect("/login?session=expired");
 
   if (!session.user.roles.includes("PROJECT_MANAGER")) {
-    return <ProjectPermissionDenied>Only a project manager can create projects.</ProjectPermissionDenied>;
+    /**
+     * Administering an organization does not include managing its projects.
+     *
+     * `POST /projects` is PROJECT_MANAGER-only, and registering an organization
+     * grants `EMPLOYEE` and `ORGANIZATION_ADMIN` — so a founder following the
+     * Home checklist arrives here entitled to nothing. The way out is real but
+     * narrow, and only an organization admin has it: while they are the only
+     * member, they may add the role to their own account from People. Saying so
+     * is the difference between a refusal and a dead end.
+     *
+     * Nobody else is told about that route, because for them it does not exist.
+     */
+    return (
+      <ProjectPermissionDenied>
+        {session.user.roles.includes("ORGANIZATION_ADMIN")
+          ? "Creating a project needs the Project Manager role, which administering the "
+            + "organization does not include. While you are the only member of this workspace "
+            + "you can add it to your own account from People."
+          : "Only a project manager can create projects."}
+      </ProjectPermissionDenied>
+    );
   }
 
   const catalogue = await loadCreateForm();

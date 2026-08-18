@@ -50,11 +50,11 @@ export function ProjectSettingsPage({ projectId, data }: ProjectSettingsPageProp
           { label: "Projects", href: "/projects" },
           { label: project.name, href: `/projects/${projectId}` },
         ]}
-        current="Settings"
+        current="Edit"
       />
       <PageHeader
         title={project.name}
-        description="Project settings"
+        description="Edit this project's definition, schedule and team-role requirements."
       />
 
       <ProjectForm

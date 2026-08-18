@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Breadcrumbs } from "@/shared/ui/Breadcrumbs";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { PageHeader } from "@/shared/ui/PageHeader";
 
@@ -37,6 +38,9 @@ export function CreateProjectPage({ catalogue, today }: CreateProjectPageProps) 
 
   return (
     <div className={styles.page}>
+      {/* Where this sits, not a second tab bar: `/projects/new` is a deep route
+          and the way back out has to be visible before the form is filled in. */}
+      <Breadcrumbs trail={[{ label: "Projects", href: "/projects" }]} current="New project" />
       <PageHeader
         title="New project"
         description="Define the work, when it runs, and the roles it needs."

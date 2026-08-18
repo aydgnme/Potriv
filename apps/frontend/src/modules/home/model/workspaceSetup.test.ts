@@ -20,6 +20,9 @@ function build(overrides: Partial<Parameters<typeof buildWorkspaceSetup>[0]> = {
     teamRoles: ok([]),
     skills: ok([]),
     organizationUsers: ok([{ userId: "founder" }]),
+    // The default is the founder's real starting position: an organization admin
+    // holds no PROJECT_MANAGER, so this is false unless a test says otherwise.
+    canCreateProject: false,
     ...overrides,
   });
 }
@@ -100,8 +103,10 @@ describe("what cannot be answered", () => {
     const setup = build();
 
     expect(step(setup, "first-project").state).toBe("unknown");
-    // But it still offers the action, because creating one is the right move.
-    expect(step(setup, "first-project").actionHref).toBe("/projects/new");
+    // It still offers an action, because creating a project is the right move.
+    // Where that action *goes* depends on whether this account may create one —
+    // see "the first-project step" below.
+    expect(step(setup, "first-project").actionHref).not.toBe("");
   });
 
   it.each([
@@ -175,5 +180,51 @@ describe("what the model refuses to invent", () => {
 
     expect(serialised).not.toMatch(/percent|progress|score|complete[dD]?Count/);
     expect(Object.keys(setup).sort()).toEqual(["settled", "steps"]);
+  });
+});
+
+/**
+ * The founder cannot create a project, and the checklist has to say so.
+ *
+ * `POST /projects` is PROJECT_MANAGER-only while registering an organization
+ * grants `EMPLOYEE` and `ORGANIZATION_ADMIN`. A step that sent a founder to a
+ * form the backend would refuse is a step that cannot be completed by following
+ * it — which is the one thing this checklist must never contain.
+ */
+describe("the first-project step", () => {
+  it("sends an account without the role to the prerequisite, not to the form", () => {
+    const first = step(build({ canCreateProject: false }), "first-project");
+
+    expect(first.actionHref).toBe("/people");
+    expect(first.actionLabel).toBe("Get the Project Manager role");
+  });
+
+  it("names the role and the window in which it can be self-assigned", () => {
+    const first = step(build({ canCreateProject: false }), "first-project");
+
+    expect(first.rationale).toContain("Project Manager role");
+    // The self-grant closes as soon as a second person joins, so the copy must
+    // not present it as always available.
+    expect(first.rationale).toContain("only member");
+  });
+
+  it("sends a project manager straight to the form", () => {
+    const first = step(build({ canCreateProject: true }), "first-project");
+
+    expect(first.actionHref).toBe("/projects/new");
+    expect(first.actionLabel).toBe("Create project");
+  });
+
+  it("stays unknown either way, because no organization-wide project read exists", () => {
+    expect(step(build({ canCreateProject: false }), "first-project").state).toBe("unknown");
+    expect(step(build({ canCreateProject: true }), "first-project").state).toBe("unknown");
+  });
+
+  it("does not let create authority affect whether the workspace is settled", () => {
+    const done = { departments: ok([1]), teamRoles: ok([1]), skills: ok([1]),
+      organizationUsers: ok([{ userId: "founder" }, { userId: "other" }]) };
+
+    expect(build({ ...done, canCreateProject: false }).settled).toBe(true);
+    expect(build({ ...done, canCreateProject: true }).settled).toBe(true);
   });
 });

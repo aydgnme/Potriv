@@ -77,6 +77,9 @@ export function HomePage({ displayName, roles, data, previewLimit }: HomePagePro
               teamRoles: data.teamRoles,
               skills: data.organizationSkills,
               organizationUsers: data.organizationUsers,
+              // Administering an organization does not include managing its
+              // projects; the backend treats them as separate authorities.
+              canCreateProject: isProjectManager,
             })}
           />
         ) : null}

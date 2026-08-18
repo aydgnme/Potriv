@@ -73,6 +73,14 @@ export function buildWorkspaceSetup(input: {
   readonly teamRoles: Loaded<readonly unknown[]> | null;
   readonly skills: Loaded<readonly unknown[]> | null;
   readonly organizationUsers: Loaded<readonly unknown[]> | null;
+  /**
+   * Whether this account holds `PROJECT_MANAGER`.
+   *
+   * Not a completion signal — it changes where the first-project step *sends*
+   * somebody. See the step itself for why an organization admin routinely does
+   * not hold it.
+   */
+  readonly canCreateProject: boolean;
 }): WorkspaceSetup {
   const steps: WorkspaceSetupStep[] = [
     {
@@ -122,11 +130,32 @@ export function buildWorkspaceSetup(input: {
     {
       id: "first-project",
       title: "Create your first project",
-      rationale: "Define the work before looking for the people to do it.",
+      /**
+       * Creating a project needs `PROJECT_MANAGER`, and a founder does not have
+       * it.
+       *
+       * `POST /projects` sits behind `@ProjectManagerOnly`, while registering an
+       * organization grants `EMPLOYEE` and `ORGANIZATION_ADMIN` and nothing else.
+       * Administering the workspace and managing projects are separate
+       * authorities, and the backend keeps them separate.
+       *
+       * The path out is real but narrow: while the founder is the *only* member,
+       * they may add `PROJECT_MANAGER` to their own account from People. That
+       * window closes the moment somebody else joins — so the step says so
+       * rather than sending them to a form that would refuse them.
+       *
+       * Sending an account without the role to `/projects/new` would be a step
+       * that cannot be completed by following it, which is exactly what this
+       * checklist must never contain.
+       */
+      rationale: input.canCreateProject
+        ? "Define the work before looking for the people to do it."
+        : "Creating a project needs the Project Manager role, which this account does not "
+          + "have. While you are the only member you can add it to yourself from People.",
       // No organization-wide project read exists — see the note above.
       state: "unknown",
-      actionLabel: "Create project",
-      actionHref: "/projects/new",
+      actionLabel: input.canCreateProject ? "Create project" : "Get the Project Manager role",
+      actionHref: input.canCreateProject ? "/projects/new" : "/people",
     },
   ];
 

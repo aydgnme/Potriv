@@ -41,7 +41,16 @@ export function ProjectsPage({ roles, query, view }: ProjectsPageProps) {
         title="Projects"
         description={descriptionFor(query.view)}
         actions={
-          canCreateProject ? <Link href="/projects/new">New project</Link> : undefined
+          canCreateProject ? (
+            // The one dominant action on this page. It is rendered only for an
+            // account the backend would actually accept a project from —
+            // `POST /projects` is PROJECT_MANAGER-only, and offering it to
+            // everybody so the server can refuse would make the interface a
+            // guess with a 403 for an answer.
+            <Link className={styles.primaryAction} href="/projects/new">
+              New project
+            </Link>
+          ) : undefined
         }
       />
 

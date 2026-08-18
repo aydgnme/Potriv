@@ -23,11 +23,44 @@ import {
  * is only a reader.
  */
 
-export function loadProjectOverview(
+/** The relationship-aware project read on its own. */
+export function loadProjectDetails(
   projectId: string,
   sources: ProjectsDataSources = PROJECTS_DATA_SOURCES,
 ): Promise<Loaded<ProjectDetails>> {
   return sources.getProjectDetails(projectId);
+}
+
+export type ProjectOverviewData = {
+  readonly details: Loaded<ProjectDetails>;
+  readonly team: Loaded<ProjectTeam>;
+};
+
+/**
+ * What the Overview needs: the project, and the proposals standing against it.
+ *
+ * Two fixed requests, run together — not one per requirement and not one per
+ * row. `/details` carries requirements and active allocations but no proposals
+ * at all, so without `/team` the canonical project page could show a role
+ * needing three people, one allocated, and stay silent about the two candidates
+ * already waiting on a department manager. That silence is the expensive kind:
+ * it reads as "nothing is happening" when something is.
+ *
+ * They are kept separate rather than merged. `/team` failing must cost the page
+ * its proposal figures and nothing else — the requirements and the active team
+ * are still true, and blanking them because a second request failed would be
+ * throwing away answers we have.
+ */
+export async function loadProjectOverview(
+  projectId: string,
+  sources: ProjectsDataSources = PROJECTS_DATA_SOURCES,
+): Promise<ProjectOverviewData> {
+  const [details, team] = await Promise.all([
+    sources.getProjectDetails(projectId),
+    sources.getProjectTeam(projectId),
+  ]);
+
+  return { details, team };
 }
 
 export function loadProjectTeamView(

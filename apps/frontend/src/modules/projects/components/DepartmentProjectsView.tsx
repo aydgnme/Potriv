@@ -90,13 +90,18 @@ export function DepartmentProjectsView({ data, query }: DepartmentProjectsViewPr
         ) : null}
       </div>
 
-      {projects.map((project) => (
-        <PortfolioProject
-          key={project.projectId}
-          project={project}
-          departmentName={department.name}
-        />
-      ))}
+      {/* One rule-separated list, not a stack of cards: these are comparable
+          records in the same portfolio, and boxing each one would make the
+          department read as a set of unrelated dashboards. */}
+      <div className={styles.portfolioSections}>
+        {projects.map((project) => (
+          <PortfolioProject
+            key={project.projectId}
+            project={project}
+            departmentName={department.name}
+          />
+        ))}
+      </div>
     </div>
   );
 }

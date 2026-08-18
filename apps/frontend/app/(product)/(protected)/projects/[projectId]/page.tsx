@@ -29,8 +29,12 @@ export default async function Page({
       projectId={projectId}
       data={data}
       canManage={
-        data.ok &&
-        ownsProject(session.user.roles, session.user.userId, data.value.projectManager.userId)
+        data.details.ok &&
+        ownsProject(
+          session.user.roles,
+          session.user.userId,
+          data.details.value.projectManager.userId,
+        )
       }
     />
   );

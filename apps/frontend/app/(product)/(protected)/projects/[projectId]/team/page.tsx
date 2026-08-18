@@ -5,7 +5,7 @@ import { resolveProductSession } from "@/modules/auth/server/productSession";
 import { ProjectTeamView } from "@/modules/projects/components/ProjectTeamView";
 import { ProposeRemovalAction } from "@/modules/staffing";
 import {
-  loadProjectOverview,
+  loadProjectDetails,
   loadProjectTeamView,
   ownsProject,
 } from "@/modules/projects/server/loadProjectViews";
@@ -30,7 +30,7 @@ export default async function Page({
   const { projectId } = await params;
   const [data, details] = await Promise.all([
     loadProjectTeamView(projectId),
-    loadProjectOverview(projectId),
+    loadProjectDetails(projectId),
   ]);
 
   const canManage =
