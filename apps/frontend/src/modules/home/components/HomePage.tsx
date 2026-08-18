@@ -1,6 +1,7 @@
 import { PageHeader } from "@/shared/ui/PageHeader";
 import type { AccessRole } from "@/shared/types/accessRole";
 
+import { buildWorkspaceSetup } from "../model/workspaceSetup";
 import type { HomeData } from "../server/loadHome";
 
 import { DepartmentProjectsSummary } from "./DepartmentProjectsSummary";
@@ -9,6 +10,7 @@ import { MyCurrentWork } from "./MyCurrentWork";
 import { MySkillsSummary } from "./MySkillsSummary";
 import { OrganizationSetupSummary } from "./OrganizationSetupSummary";
 import { PendingReviewsSummary } from "./PendingReviewsSummary";
+import { WorkspaceSetupSummary } from "./WorkspaceSetupSummary";
 import styles from "./Home.module.css";
 
 export type HomePageProps = {
@@ -29,6 +31,11 @@ export type HomePageProps = {
  * Order runs from what needs a decision to what is merely yours: a department
  * manager's review queue is the only place another person is blocked, so it
  * comes before anything of one's own.
+ *
+ * Workspace setup sits after the operational sections for the same reason. A
+ * founder with three staffing requests waiting has work that outranks
+ * onboarding, and guidance that pushed those down the page would be optimising
+ * for the first day at the expense of every day after it.
  */
 export function HomePage({ displayName, roles, data, previewLimit }: HomePageProps) {
   const isProjectManager = roles.includes("PROJECT_MANAGER");
@@ -60,6 +67,17 @@ export function HomePage({ displayName, roles, data, previewLimit }: HomePagePro
             departments={data.departments}
             users={data.organizationUsers}
             limit={previewLimit}
+          />
+        ) : null}
+
+        {isOrganizationAdmin ? (
+          <WorkspaceSetupSummary
+            setup={buildWorkspaceSetup({
+              departments: data.departments,
+              teamRoles: data.teamRoles,
+              skills: data.organizationSkills,
+              organizationUsers: data.organizationUsers,
+            })}
           />
         ) : null}
 

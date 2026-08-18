@@ -100,3 +100,26 @@ export type OrganizationUser = {
   readonly userId: string;
   readonly roles: readonly AccessRole[];
 };
+
+/**
+ * `GET /team-roles` — organization admin or project manager.
+ *
+ * Read for one question only: does the organization have any team roles yet?
+ * Nothing on Home renders a team role, so only existence is modelled.
+ */
+export type OrganizationTeamRole = {
+  readonly teamRoleId: string;
+  readonly name: string;
+};
+
+/**
+ * `GET /skills` — the organization's skill catalogue.
+ *
+ * Deliberately not `/me/skills`, which is the signed-in person's own declared
+ * skills. A founder with three skills on their profile has not built a
+ * catalogue, and inferring one from the other would be a lying checkmark.
+ */
+export type OrganizationSkill = {
+  readonly skillId: string;
+  readonly name: string;
+};
