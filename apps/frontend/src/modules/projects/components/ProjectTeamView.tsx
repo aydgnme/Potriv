@@ -85,11 +85,16 @@ export function ProjectTeamView({
 
       <ProjectContextNav projectId={projectId} active="team" canManage={canManage} />
 
-      <section className={styles.panel} aria-labelledby="team-proposed">
+      {/* Proposed is drawn dashed and active solid — the same grammar the
+          landing diagram uses, so the distinction a reader met there still
+          holds here. Each group names itself as well, because a border is
+          confirmation and never the only signal. */}
+      <div className={styles.sections}>
+      <section className={`${styles.panel} ${styles.proposedGroup}`} aria-labelledby="team-proposed">
         <h2 className={styles.panelHeading} id="team-proposed">
           Proposed
         </h2>
-        <p className={styles.panelNote}>
+        <p className={styles.panelLead}>
           Waiting on a department manager&apos;s decision. Nobody here is allocated yet.
         </p>
         {team.proposedMembers.length === 0 ? (
@@ -129,10 +134,13 @@ export function ProjectTeamView({
         )}
       </section>
 
-      <section className={styles.panel} aria-labelledby="team-active">
+      <section className={`${styles.panel} ${styles.activeGroup}`} aria-labelledby="team-active">
         <h2 className={styles.panelHeading} id="team-active">
           Active
         </h2>
+        <p className={styles.panelLead}>
+          Accepted allocations. These people are on the project now.
+        </p>
         {team.activeMembers.length === 0 ? (
           <p className={styles.panelNote}>No one is currently allocated to this project.</p>
         ) : (
@@ -181,10 +189,13 @@ export function ProjectTeamView({
         )}
       </section>
 
-      <section className={styles.panel} aria-labelledby="team-past">
+      <section className={`${styles.panel} ${styles.pastGroup}`} aria-labelledby="team-past">
         <h2 className={styles.panelHeading} id="team-past">
           Past
         </h2>
+        <p className={styles.panelLead}>
+          Allocations that have ended. Kept as evidence of who did the work.
+        </p>
         {team.pastMembers.length === 0 ? (
           <p className={styles.panelNote}>No past allocations.</p>
         ) : (
@@ -235,6 +246,7 @@ export function ProjectTeamView({
           </table>
         )}
       </section>
+      </div>
     </div>
   );
 }

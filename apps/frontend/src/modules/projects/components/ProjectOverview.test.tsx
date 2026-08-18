@@ -3,8 +3,9 @@ import { describe, expect, it } from "vitest";
 
 import type { AccessRole } from "@/shared/types/accessRole";
 
-import type { ProjectDetails } from "../model/projectDetail";
+import type { ProjectDetails, ProposedMember } from "../model/projectDetail";
 import { ownsProject } from "../server/loadProjectViews";
+import type { Loaded } from "../server/projectsDataSources";
 
 import { ProjectOverview } from "./ProjectOverview";
 
@@ -46,10 +47,59 @@ function member(allocationId: string, name: string, roleIds: readonly string[]) 
   };
 }
 
-function renderOverview(data: ProjectDetails, canManage = false) {
+function proposal(
+  proposalId: string,
+  name: string,
+  roleIds: readonly string[],
+): ProposedMember {
+  return {
+    proposalId,
+    employee: { userId: `u-${proposalId}`, name, email: `${proposalId}@potriv.test` },
+    reviewDepartment: { departmentId: "d1", name: "Platform" },
+    workHoursPerDay: 4,
+    roles: roleIds.map((teamRoleId) => ({ teamRoleId, name: teamRoleId, active: true })),
+    comments: null,
+    proposedBy: OWNER,
+    proposedAt: "2026-02-01T09:00:00Z",
+  };
+}
+
+/** A team read that answered, carrying only the proposals a test cares about. */
+function team(proposedMembers: readonly ProposedMember[] = []) {
+  return {
+    ok: true as const,
+    value: {
+      projectId: "p1",
+      projectName: "Apollo",
+      projectStatus: "IN_PROGRESS" as const,
+      projectPeriod: "FIXED" as const,
+      startDate: "2026-01-05",
+      deadlineDate: "2026-09-30",
+      proposedMembers,
+      activeMembers: [],
+      pastMembers: [],
+    },
+  };
+}
+
+function renderOverview(
+  data: ProjectDetails,
+  canManage = false,
+  teamData: Loaded<ReturnType<typeof team>["value"]> = team(),
+) {
   return render(
-    <ProjectOverview projectId="p1" data={{ ok: true, value: data }} canManage={canManage} />,
+    <ProjectOverview
+      projectId="p1"
+      data={{ details: { ok: true, value: data }, team: teamData }}
+      canManage={canManage}
+    />,
   );
+}
+
+/** The cells of one coverage row, in column order. */
+function coverageRow(roleName: string): readonly string[] {
+  const cell = screen.getByText(roleName).closest("tr") as HTMLElement;
+  return Array.from(cell.querySelectorAll("td")).map((td) => td.textContent?.trim() ?? "");
 }
 
 describe("requirement fill counts", () => {
@@ -67,8 +117,8 @@ describe("requirement fill counts", () => {
       }),
     );
 
-    expect(screen.getByText("1 / 3 filled")).toBeInTheDocument();
-    expect(screen.getByText("2 positions open")).toBeInTheDocument();
+    // Team role | Needed | Active | Proposed | Open
+    expect(coverageRow("Backend")).toEqual(["Backend", "3", "1", "0", "2"]);
   });
 
   it("never shows a negative gap for an over-filled role", () => {
@@ -89,8 +139,7 @@ describe("requirement fill counts", () => {
       }),
     );
 
-    expect(screen.getByText("3 / 1 filled")).toBeInTheDocument();
-    expect(screen.getByText("Fully staffed")).toBeInTheDocument();
+    expect(coverageRow("Backend")).toEqual(["Backend", "1", "3", "0", "0"]);
     expect(screen.queryByText(/-\d/)).toBeNull();
   });
 
@@ -113,8 +162,8 @@ describe("requirement fill counts", () => {
       }),
     );
 
-    expect(screen.getAllByText("1 / 1 filled")).toHaveLength(2);
-    expect(screen.getAllByText("Fully staffed")).toHaveLength(2);
+    expect(coverageRow("Backend")).toEqual(["Backend", "1", "1", "0", "0"]);
+    expect(coverageRow("Lead")).toEqual(["Lead", "1", "1", "0", "0"]);
   });
 
   it("marks a requirement whose role was deactivated", () => {
@@ -130,7 +179,7 @@ describe("requirement fill counts", () => {
       }),
     );
 
-    expect(screen.getByText(/Inactive/)).toBeInTheDocument();
+    expect(screen.getByText(/retired role/)).toBeInTheDocument();
   });
 });
 
@@ -138,14 +187,17 @@ describe("ownership", () => {
   it("offers Edit to the manager who owns this project", () => {
     renderOverview(details(), true);
 
-    expect(screen.getByRole("link", { name: "Edit" })).toHaveAttribute("href", "/projects/p1/edit");
+    expect(screen.getByRole("link", { name: "Edit project" })).toHaveAttribute(
+      "href",
+      "/projects/p1/edit",
+    );
   });
 
   it("offers no Edit to a project manager who does not own it", () => {
     // Holding PROJECT_MANAGER says someone can manage projects, not this one.
     renderOverview(details(), false);
 
-    expect(screen.queryByRole("link", { name: "Edit" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Edit project" })).toBeNull();
     expect(screen.getByRole("heading", { level: 1, name: "Apollo" })).toBeInTheDocument();
   });
 
@@ -216,7 +268,11 @@ describe("content", () => {
 describe("when the project cannot be read", () => {
   it("says the same thing for missing and for not visible", () => {
     render(
-      <ProjectOverview projectId="p1" data={{ ok: false, reason: "NOT_FOUND" }} canManage={false} />,
+      <ProjectOverview
+        projectId="p1"
+        data={{ details: { ok: false, reason: "NOT_FOUND" }, team: team() }}
+        canManage={false}
+      />,
     );
 
     expect(
@@ -231,7 +287,11 @@ describe("when the project cannot be read", () => {
     // department, and 404 to an unrelated employee. Distinct wording would make
     // the difference readable as "this project is real".
     render(
-      <ProjectOverview projectId="p1" data={{ ok: false, reason: "FORBIDDEN" }} canManage={false} />,
+      <ProjectOverview
+        projectId="p1"
+        data={{ details: { ok: false, reason: "FORBIDDEN" }, team: team() }}
+        canManage={false}
+      />,
     );
 
     expect(
@@ -241,9 +301,89 @@ describe("when the project cannot be read", () => {
 
   it("reports a real outage as an outage", () => {
     render(
-      <ProjectOverview projectId="p1" data={{ ok: false, reason: "ERROR" }} canManage={false} />,
+      <ProjectOverview
+        projectId="p1"
+        data={{ details: { ok: false, reason: "ERROR" }, team: team() }}
+        canManage={false}
+      />,
     );
 
     expect(screen.getByText(/Could not load this project/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * Proposals on the canonical project page.
+ *
+ * The product's central distinction: a proposal is not an allocation. Nobody is
+ * on the project until a department manager accepts, so a proposed person can
+ * never close a position or join the active team.
+ */
+describe("proposed staffing", () => {
+  const requirement = {
+    requirementId: "r1",
+    teamRole: { teamRoleId: "backend", name: "Backend", active: true },
+    requiredMembers: 3,
+  };
+
+  it("counts proposals in their own column and does not let them close a position", () => {
+    renderOverview(
+      details({ teamRoleRequirements: [requirement], activeMembers: [member("a1", "Mehmet Kaya", ["backend"])] }),
+      false,
+      team([proposal("p-1", "Elif Demir", ["backend"]), proposal("p-2", "Can Yıldız", ["backend"])]),
+    );
+
+    // Needed 3, active 1, proposed 2 — and still 2 open, not 0. Two people are
+    // waiting on a decision nobody has made.
+    expect(coverageRow("Backend")).toEqual(["Backend", "3", "1", "2", "2"]);
+  });
+
+  it("says so in words, so the column is not read as progress", () => {
+    renderOverview(details({ teamRoleRequirements: [requirement] }));
+
+    expect(
+      screen.getByText(/Proposed people are not allocated yet, so they do not reduce it/),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps proposed people out of the active list entirely", () => {
+    renderOverview(details(), false, team([proposal("p-1", "Elif Demir", ["backend"])]));
+
+    const people = screen.getByRole("heading", { name: "People" }).closest("section") as HTMLElement;
+    const active = within(people).getByRole("heading", { name: "Active" }).parentElement as HTMLElement;
+
+    expect(within(active).queryByText("Elif Demir")).toBeNull();
+    expect(within(people).getByText("Elif Demir")).toBeInTheDocument();
+    expect(within(people).getByText(/awaiting department decision/)).toBeInTheDocument();
+  });
+
+  it("shows an unread proposal count as unknown, never as none", () => {
+    renderOverview(details({ teamRoleRequirements: [requirement] }), false, {
+      ok: false,
+      reason: "ERROR",
+    });
+
+    // "—", not "0": nobody checked, and 0 would state that nobody was proposed.
+    expect(coverageRow("Backend")).toEqual(["Backend", "3", "0", "—", "3"]);
+    expect(screen.getByText(/Pending proposals could not be read/)).toBeInTheDocument();
+  });
+
+  it("distinguishes no pending proposals from unreadable ones", () => {
+    renderOverview(details());
+
+    expect(screen.getByText("No pending proposals.")).toBeInTheDocument();
+    expect(screen.queryByText(/could not be read/)).toBeNull();
+  });
+
+  it("keeps the requirements and the active team when only the team read failed", () => {
+    renderOverview(
+      details({ teamRoleRequirements: [requirement], activeMembers: [member("a1", "Mehmet Kaya", ["backend"])] }),
+      false,
+      { ok: false, reason: "ERROR" },
+    );
+
+    // A second request failing must not blank the answers the first one gave.
+    expect(coverageRow("Backend")).toEqual(["Backend", "3", "1", "—", "2"]);
+    expect(screen.getByText("Mehmet Kaya")).toBeInTheDocument();
   });
 });

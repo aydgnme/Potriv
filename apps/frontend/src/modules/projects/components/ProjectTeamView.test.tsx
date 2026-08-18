@@ -252,3 +252,52 @@ describe("what the team page does not do", () => {
     expect(screen.getByRole("link", { name: "Edit" })).toBeInTheDocument();
   });
 });
+
+/**
+ * The V2 relationship grammar, checked where it actually has to survive.
+ *
+ * Proposed is drawn dashed and active solid, but a border is not a fact anyone
+ * can read aloud. Each group therefore states what it is in words, and these
+ * tests defend the words — a pattern nobody can perceive is not a distinction.
+ */
+describe("proposed, active and past are told apart in text", () => {
+  it("says a proposal is not an allocation yet", () => {
+    renderTeam(team({ proposedMembers: [proposed()] }));
+
+    const section = screen
+      .getByRole("heading", { name: "Proposed" })
+      .closest("section") as HTMLElement;
+
+    expect(within(section).getByText(/Nobody here is allocated yet/)).toBeInTheDocument();
+  });
+
+  it("says the active group is people on the project now", () => {
+    renderTeam(team({ activeMembers: [active()] }));
+
+    const section = screen
+      .getByRole("heading", { name: "Active" })
+      .closest("section") as HTMLElement;
+
+    expect(within(section).getByText(/on the project now/)).toBeInTheDocument();
+  });
+
+  it("says past allocations are kept as evidence rather than tidied away", () => {
+    renderTeam(team({ pastMembers: [past()] }));
+
+    const section = screen
+      .getByRole("heading", { name: "Past" })
+      .closest("section") as HTMLElement;
+
+    expect(within(section).getByText(/Kept as evidence/)).toBeInTheDocument();
+  });
+
+  it("keeps all three groups present even when two of them are empty", () => {
+    renderTeam(team({ activeMembers: [active()] }));
+
+    // An absent section reads as "this cannot happen here", which is a claim
+    // none of these groups is entitled to make.
+    for (const name of ["Proposed", "Active", "Past"]) {
+      expect(screen.getByRole("heading", { name })).toBeInTheDocument();
+    }
+  });
+});

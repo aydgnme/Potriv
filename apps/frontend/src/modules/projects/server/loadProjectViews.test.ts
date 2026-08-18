@@ -41,7 +41,7 @@ function sources(overrides: Partial<ProjectsDataSources> = {}) {
 }
 
 describe("overview", () => {
-  it("uses the relationship-aware details read, never the owner-only one", async () => {
+  it("uses the relationship-aware reads, never the owner-only one", async () => {
     // A current employee is entitled to read the project but not to
     // `GET /projects/{id}`, which would answer 404 for them.
     const deps = sources();
@@ -49,6 +49,7 @@ describe("overview", () => {
     await loadProjectOverview("p1", deps);
 
     expect(deps.getProjectDetails).toHaveBeenCalledWith("p1");
+    expect(deps.getProjectTeam).toHaveBeenCalledWith("p1");
     expect(deps.getManagedProject).not.toHaveBeenCalled();
   });
 
@@ -57,10 +58,35 @@ describe("overview", () => {
       getProjectDetails: vi.fn(async () => ({ ok: false, reason: "NOT_FOUND" }) as const),
     });
 
-    await expect(loadProjectOverview("p1", deps)).resolves.toEqual({
-      ok: false,
-      reason: "NOT_FOUND",
+    const loaded = await loadProjectOverview("p1", deps);
+
+    expect(loaded.details).toEqual({ ok: false, reason: "NOT_FOUND" });
+  });
+
+  /**
+   * Two fixed requests, not one per requirement. The page needs proposals to
+   * say anything truthful about staffing, and `/details` carries none.
+   */
+  it("costs exactly two requests however many requirements a project has", async () => {
+    const deps = sources();
+
+    await loadProjectOverview("p1", deps);
+
+    expect(deps.getProjectDetails).toHaveBeenCalledTimes(1);
+    expect(deps.getProjectTeam).toHaveBeenCalledTimes(1);
+    expect(deps.getProjectStaffingDetails).not.toHaveBeenCalled();
+  });
+
+  it("keeps the details answer when only the team read failed", async () => {
+    const deps = sources({
+      getProjectTeam: vi.fn(async () => ({ ok: false, reason: "ERROR" }) as const),
     });
+
+    const loaded = await loadProjectOverview("p1", deps);
+
+    // One failed request must not discard the answer the other one gave.
+    expect(loaded.details.ok).toBe(true);
+    expect(loaded.team).toEqual({ ok: false, reason: "ERROR" });
   });
 });
 

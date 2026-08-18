@@ -58,3 +58,56 @@ export function totalOpenPositions(
     0,
   );
 }
+
+/**
+ * A requirement's staffing, with proposals counted separately.
+ *
+ * `proposed` is deliberately its own number and deliberately does **not** reduce
+ * `open`. A proposal is not an allocation: nobody is on the project until a
+ * department manager accepts it, so a role needing three people with two
+ * proposed still has three positions to fill. Subtracting proposals would tell a
+ * manager the work is nearly done on the strength of decisions other people have
+ * not made yet.
+ *
+ * `proposed` is `null` when the team read did not answer — never `0`, which
+ * would state that no one has been put forward.
+ */
+export type RequirementCoverage = {
+  readonly required: number;
+  readonly active: number;
+  readonly proposed: number | null;
+  readonly open: number;
+};
+
+export function requirementCoverage(
+  teamRoleId: string,
+  requiredMembers: number,
+  activeMembers: readonly Pick<DetailsMember, "roles">[],
+  proposedMembers: readonly Pick<DetailsMember, "roles">[] | null,
+): RequirementCoverage {
+  const active = countHoldingRole(teamRoleId, activeMembers);
+
+  return {
+    required: requiredMembers,
+    active,
+    proposed: proposedMembers === null ? null : countHoldingRole(teamRoleId, proposedMembers),
+    // Clamped, for the same reason as `requirementFill`: an over-filled role is
+    // not a negative gap and must not offset a real shortage elsewhere.
+    open: Math.max(0, requiredMembers - active),
+  };
+}
+
+/**
+ * Distinct people whose recorded roles include this one.
+ *
+ * Counted per person rather than per role entry, so one allocation carrying the
+ * same role twice still counts once — while one person genuinely can satisfy two
+ * *different* requirements, which the backend permits and this does not prevent.
+ */
+function countHoldingRole(
+  teamRoleId: string,
+  members: readonly Pick<DetailsMember, "roles">[],
+): number {
+  return members.filter((member) => member.roles.some((role) => role.teamRoleId === teamRoleId))
+    .length;
+}

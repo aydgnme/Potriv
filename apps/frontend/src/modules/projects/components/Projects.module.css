@@ -45,17 +45,33 @@
   font-weight: var(--p-weight-medium);
 }
 
+/**
+ * A working section, separated by a rule rather than boxed.
+ *
+ * Projects stacks a lot of these — about, schedule, technologies, requirements,
+ * people, then three team groups — and six bordered cards in a column read as
+ * six unrelated widgets rather than one project. Containment is spent where it
+ * means something: a form, a dialog, the delete panel. Not on every heading.
+ *
+ * Kept under the name `.panel` because it is the same section in every view;
+ * the change is what a section looks like, not what one is.
+ */
 .panel {
   display: flex;
   flex-direction: column;
   gap: var(--p-space-3);
-  padding: var(--p-space-4);
-  background: var(--p-surface);
-  border: 1px solid var(--p-border);
-  border-radius: var(--p-radius);
+  padding-block: var(--p-space-5);
+  border-top: 1px solid var(--p-border);
+  min-width: 0;
 }
 
+/* The container draws the rules between its sections, so the first needs none. */
+.sections { display: flex; flex-direction: column; min-width: 0; }
+.sections > .panel:first-child { border-top: none; padding-top: 0; }
+
 .panelHeading { font-size: var(--p-text-lg); }
+/* What a section is about, before its rows. Sits under the heading, not in it. */
+.panelLead { font-size: var(--p-text-sm); color: var(--p-text-muted); max-width: 70ch; }
 .panelNote { font-size: var(--p-text-sm); color: var(--p-text-muted); }
 .groupHeading { font-size: var(--p-text-base); font-weight: var(--p-weight-semibold); }
 
@@ -159,8 +175,15 @@
 
 /* ── Project detail ─────────────────────────────────────────────────────── */
 
-.detailColumns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--p-space-5); }
-.detailColumn { display: flex; flex-direction: column; gap: var(--p-space-5); min-width: 0; }
+/* Measured, not full-bleed: the detail page is read, and a description running
+   the width of a 1440px display is not. The list and team pages stay wide. */
+.detailColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 0 var(--p-space-7);
+}
+.detailColumn { display: flex; flex-direction: column; min-width: 0; }
+.detailColumn > .panel:first-child { border-top: none; padding-top: 0; }
 
 .definitions { display: flex; flex-direction: column; gap: var(--p-space-3); margin: 0; }
 .definitions > div { display: flex; gap: var(--p-space-3); justify-content: space-between; }
@@ -280,7 +303,6 @@
 }
 
 @media (max-width: 767px) {
-  .detailColumns { grid-template-columns: 1fr; }
   .formGrid { grid-template-columns: 1fr; }
   .row { flex-direction: column; align-items: flex-start; }
   .definitions > div { flex-direction: column; gap: 2px; }
@@ -295,4 +317,87 @@
 .longText {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+/* ── V2 project grammar ─────────────────────────────────────────────────── */
+
+/**
+ * The one dominant action a context gets.
+ *
+ * A link, because it navigates — but weighted like the primary control it is,
+ * since "New project" is what this page exists to let a manager do. Every other
+ * action on these screens stays a plain link, so there is exactly one of these
+ * per view.
+ */
+.primaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--p-control);
+  padding: 0 var(--p-space-4);
+  background: var(--p-primary);
+  border: 1px solid var(--p-primary);
+  border-radius: var(--p-radius);
+  color: var(--p-primary-text);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  line-height: 1;
+  white-space: nowrap;
+}
+.primaryAction:hover {
+  background: var(--p-primary-hover);
+  border-color: var(--p-primary-hover);
+  text-decoration: none;
+}
+
+/**
+ * Proposed and active, drawn the way V2 draws every proposal.
+ *
+ * Dashed is pending, solid is accepted — the same grammar the landing diagram
+ * uses, so the distinction a reader learned there still holds inside the
+ * product. The pattern carries it, never the colour: each group also states in
+ * its heading and its lead sentence what it is, so the rule is confirmation
+ * rather than the only signal.
+ */
+.proposedGroup {
+  border-left: 2px dashed var(--p-border-strong);
+  padding-left: var(--p-space-4);
+}
+.activeGroup {
+  border-left: 2px solid var(--p-brand);
+  padding-left: var(--p-space-4);
+}
+/* Past allocations get neither: they are settled, not pending, and no longer
+   part of the proposal-to-allocation sequence the two patterns describe. */
+.pastGroup {
+  border-left: 2px solid var(--p-border);
+  padding-left: var(--p-space-4);
+}
+
+/* Coverage numbers line up under each other, so a shortfall is found by
+   scanning one column rather than reading every row. */
+.coverage th:not(:first-child),
+.coverage td:not(:first-child) {
+  text-align: right;
+  padding-right: 0;
+  padding-left: var(--p-space-3);
+  font-variant-numeric: tabular-nums;
+}
+/* The only number worth acting on, so it is the only one carrying weight. */
+.coverageOpen { font-weight: var(--p-weight-semibold); }
+.coverageNone { color: var(--p-text-muted); font-weight: var(--p-weight-normal); }
+
+/* A department's projects on the index: sections in one list, not stacked
+   cards. The heading carries the name and status on one line. */
+.portfolioSections { display: flex; flex-direction: column; min-width: 0; }
+.portfolioSections > .panel:first-child { border-top: none; padding-top: 0; }
+
+@media (max-width: 1023px) {
+  .detailColumns { grid-template-columns: 1fr; }
+  /* Stacked, the second column's first section is no longer at the top of the
+     page, so it needs its rule back. */
+  .detailColumn + .detailColumn > .panel:first-child {
+    border-top: 1px solid var(--p-border);
+    padding-top: var(--p-space-5);
+  }
 }

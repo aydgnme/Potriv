@@ -80,17 +80,19 @@ export function MyProjectsView({ data, query }: MyProjectsViewProps) {
         ) : null}
       </div>
 
-      <EpisodeGroup
-        heading="Current allocations"
-        episodes={currentProjects}
-        filtered={filtered}
-      />
-      <EpisodeGroup
-        heading="Past allocations"
-        episodes={pastProjects}
-        filtered={filtered}
-        ended
-      />
+      <div className={styles.sections}>
+        <EpisodeGroup
+          heading="Current allocations"
+          episodes={currentProjects}
+          filtered={filtered}
+        />
+        <EpisodeGroup
+          heading="Past allocations"
+          episodes={pastProjects}
+          filtered={filtered}
+          ended
+        />
+      </div>
     </div>
   );
 }

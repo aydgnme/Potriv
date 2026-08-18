@@ -216,7 +216,10 @@ describe("workspace setup on Home", () => {
       "Manage team roles",
       "Manage skills",
       "Invite people",
-      "Create project",
+      // Not "Create project": this founder is an organization admin and holds
+      // no PROJECT_MANAGER, so `/projects/new` would refuse them. The step
+      // points at the prerequisite instead.
+      "Get the Project Manager role",
     ]) {
       expect(within(setup).getByRole("link", { name: new RegExp(label, "i") }))
         .toBeInTheDocument();
@@ -224,6 +227,31 @@ describe("workspace setup on Home", () => {
 
     // No score, no percentage, no "n of five".
     expect(setup?.textContent ?? "").not.toMatch(/%|\b\d+\s*\/\s*\d+\b|complete[d]?\s*\d/i);
+  });
+
+  /**
+   * The same checklist for a founder who has already taken the prerequisite
+   * step. The action becomes the real one, because now it would work.
+   */
+  it("offers the create form once the founder actually holds PROJECT_MANAGER", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN", "PROJECT_MANAGER"],
+      data({
+        departments: { ok: true, value: [] },
+        teamRoles: { ok: true, value: [] },
+        organizationSkills: { ok: true, value: [] },
+        organizationUsers: { ok: true, value: [{ userId: "founder", roles: [] }] },
+      }),
+    );
+
+    const setup = screen
+      .getByRole("heading", { name: "Set up your workspace" })
+      .closest("section") as HTMLElement;
+
+    const action = within(setup).getByRole("link", { name: /Create project/i });
+    expect(action).toHaveAttribute("href", "/projects/new");
+    expect(within(setup).queryByRole("link", { name: /Get the Project Manager role/i }))
+      .toBeNull();
   });
 
   it("keeps the unmanaged-department warning even once a department exists", () => {
