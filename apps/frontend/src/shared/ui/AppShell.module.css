@@ -1,5 +1,18 @@
-.shell { display: flex; min-height: 100vh; }
+.shell { display: flex; min-height: 100vh; background: var(--p-bg); }
+
+/**
+ * The working canvas.
+ *
+ * A max width is deliberately *not* set here. Home wants a measured column and
+ * a future Team Finder wants the whole viewport, so the constraint belongs to
+ * the page rather than the frame — putting it here would mean rewriting the
+ * shell the first time a workbench needs room.
+ */
 .main { flex: 1; min-width: 0; padding: var(--p-space-6); }
+
+@media (min-width: 1280px) {
+  .main { padding: var(--p-space-6) var(--p-space-7); }
+}
 /* Programmatically focusable for the skip link, but never focus-ringed for a
    mouse user who happened to click the page. */
 .main:focus { outline: none; }

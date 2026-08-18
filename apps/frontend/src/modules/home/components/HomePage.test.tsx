@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import type { AccessRole } from "@/shared/types/accessRole";
@@ -27,6 +27,8 @@ function data(overrides: Partial<HomeData> = {}): HomeData {
     },
     departments: { ok: true, value: [] },
     organizationUsers: { ok: true, value: [] },
+    teamRoles: { ok: true, value: [] },
+    organizationSkills: { ok: true, value: [] },
     ...overrides,
   };
 }
@@ -56,6 +58,7 @@ describe("HomePage composition", () => {
     expect(screen.queryByText("Pending staffing reviews")).toBeNull();
     expect(screen.queryByText("Projects you manage")).toBeNull();
     expect(screen.queryByText("Organization setup")).toBeNull();
+    expect(screen.queryByText("Set up your workspace")).toBeNull();
   });
 
   it("adds managed projects for a project manager", () => {
@@ -86,6 +89,7 @@ describe("HomePage composition", () => {
 
     expect(sectionNames()).toEqual([
       "Organization setup",
+      "Set up your workspace",
       "My current work",
       "My skills",
     ]);
@@ -102,6 +106,9 @@ describe("HomePage composition", () => {
       "Projects you manage",
       "Department projects",
       "Organization setup",
+      // Guidance sits below operational work: a founder with reviews waiting
+      // has something more urgent than onboarding.
+      "Set up your workspace",
       "My current work",
       "My skills",
     ]);
@@ -178,5 +185,133 @@ describe("HomePage composition", () => {
 
     // "1" alone would mean nothing read aloud.
     expect(screen.getByText("1 request needs your decision")).toBeInTheDocument();
+  });
+});
+
+describe("workspace setup on Home", () => {
+  /**
+   * A founder's first sign-in. Every trackable step is genuinely outstanding,
+   * and the one that cannot be tracked says so rather than joining them.
+   */
+  it("gives a fresh workspace real next actions and no invented progress", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN"],
+      data({
+        departments: { ok: true, value: [] },
+        teamRoles: { ok: true, value: [] },
+        organizationSkills: { ok: true, value: [] },
+        organizationUsers: { ok: true, value: [{ userId: "founder", roles: [] }] },
+      }),
+    );
+
+    const setup = screen
+      .getByRole("heading", { name: "Set up your workspace" })
+      .closest("section") as HTMLElement;
+    expect(setup).not.toBeNull();
+
+    // Scoped to the section: "Manage skills" is also the My-skills action, and
+    // a page-wide query would match whichever came first rather than the step.
+    for (const label of [
+      "Add department",
+      "Manage team roles",
+      "Manage skills",
+      "Invite people",
+      "Create project",
+    ]) {
+      expect(within(setup).getByRole("link", { name: new RegExp(label, "i") }))
+        .toBeInTheDocument();
+    }
+
+    // No score, no percentage, no "n of five".
+    expect(setup?.textContent ?? "").not.toMatch(/%|\b\d+\s*\/\s*\d+\b|complete[d]?\s*\d/i);
+  });
+
+  it("keeps the unmanaged-department warning even once a department exists", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN"],
+      data({
+        departments: {
+          ok: true,
+          value: [
+            { departmentId: "d1", name: "Platform", manager: null, memberCount: 0 },
+          ],
+        },
+        teamRoles: { ok: true, value: [{ teamRoleId: "t", name: "Backend" }] },
+        organizationSkills: { ok: true, value: [{ skillId: "s", name: "Java" }] },
+        organizationUsers: {
+          ok: true,
+          value: [
+            { userId: "a", roles: [] },
+            { userId: "b", roles: [] },
+          ],
+        },
+      }),
+    );
+
+    // Setup says the department step is done; the operational problem that the
+    // department has nobody managing it must not disappear with it.
+    expect(screen.getByText(/no manager/i)).toBeInTheDocument();
+  });
+
+  it("marks the first project neither done nor outstanding", () => {
+    renderHome(["EMPLOYEE", "ORGANIZATION_ADMIN"]);
+
+    // The signal does not exist, and the page says so in words rather than
+    // leaving a symbol to imply one thing or the other.
+    expect(screen.getByText(/completion is not tracked for this step/i))
+      .toBeInTheDocument();
+  });
+
+  it("shows no setup guidance to anyone who cannot act on it", () => {
+    renderHome(["EMPLOYEE", "PROJECT_MANAGER", "DEPARTMENT_MANAGER"]);
+
+    expect(screen.queryByRole("heading", { name: "Set up your workspace" })).toBeNull();
+  });
+
+  it("survives a setup source that failed to load", () => {
+    renderHome(
+      ["EMPLOYEE", "ORGANIZATION_ADMIN"],
+      data({ teamRoles: { ok: false, reason: "ERROR" } }),
+    );
+
+    // The section still renders and the other steps still work: one failed read
+    // is not a reason to withhold the whole checklist.
+    expect(screen.getByRole("heading", { name: "Set up your workspace" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /add department/i })).toBeInTheDocument();
+  });
+});
+
+describe("a department manager without an appointment", () => {
+  /**
+   * Holding DEPARTMENT_MANAGER is not the same as being appointed to manage a
+   * department. The backend answers 403, and that is a statement about
+   * standing — not an outage.
+   */
+  it("separates lacking authority from a failed request", () => {
+    renderHome(
+      ["EMPLOYEE", "DEPARTMENT_MANAGER"],
+      data({
+        pendingProposals: { ok: false, reason: "FORBIDDEN" },
+        departmentProjects: { ok: false, reason: "FORBIDDEN" },
+      }),
+    );
+
+    const page = document.body.textContent ?? "";
+    expect(page).not.toMatch(/something went wrong|failed to load|try again/i);
+  });
+
+  it("reports a real outage as an outage", () => {
+    renderHome(
+      ["EMPLOYEE", "DEPARTMENT_MANAGER"],
+      data({ pendingProposals: { ok: false, reason: "ERROR" } }),
+    );
+
+    // ERROR and FORBIDDEN must not collapse into one message: one is about
+    // standing, the other about the service.
+    const queue = screen
+      .getByRole("heading", { name: "Pending staffing reviews" })
+      .closest("section");
+    expect(queue?.textContent ?? "").toMatch(/could not|unavailable|went wrong/i);
   });
 });

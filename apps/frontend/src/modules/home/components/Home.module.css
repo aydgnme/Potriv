@@ -1,15 +1,23 @@
 .page { display: flex; flex-direction: column; gap: var(--p-space-6); }
-.sections { display: flex; flex-direction: column; gap: var(--p-space-5); }
+
+/**
+ * One continuous page, not a field of cards.
+ *
+ * Each section is separated by a rule rather than boxed, because six bordered
+ * panels stacked vertically read as six unrelated widgets — and Home is one
+ * ordered answer to "what needs me?". Containment is spent where it means
+ * something (a decision surface), not on every heading.
+ */
+.sections { display: flex; flex-direction: column; }
 
 .section {
   display: flex;
   flex-direction: column;
   gap: var(--p-space-3);
-  padding: var(--p-space-4);
-  background: var(--p-surface);
-  border: 1px solid var(--p-border);
-  border-radius: var(--p-radius);
+  padding-block: var(--p-space-5);
+  border-top: 1px solid var(--p-border);
 }
+.sections > .section:first-child { border-top: none; padding-top: 0; }
 
 .sectionHeader {
   display: flex;
@@ -45,4 +53,74 @@
 
 @media (max-width: 767px) {
   .row { flex-direction: column; align-items: flex-start; }
+}
+
+
+/* ---------- workspace setup ---------- */
+
+/**
+ * The founder's next steps. An editorial numbered list, deliberately not
+ * coloured cards: this is guidance, and it has to get quieter as it is
+ * completed rather than shouting for the life of the workspace.
+ */
+.setupSteps { display: flex; flex-direction: column; list-style: none; margin: 0; padding: 0; }
+
+.setupStep {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--p-space-2) var(--p-space-4);
+  align-items: baseline;
+  padding: var(--p-space-3) 0;
+  border-top: 1px solid var(--p-border);
+}
+.setupSteps > .setupStep:first-child { border-top: none; }
+
+@media (min-width: 720px) {
+  .setupStep {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+}
+
+.setupMarker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--p-border-strong);
+  color: var(--p-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-xs);
+}
+
+/* Neither done nor outstanding — the product has no signal for this step, and
+   the marker says so by asserting nothing. */
+.setupMarkerUnknown {
+  border-style: dashed;
+  color: var(--p-text-subtle);
+}
+
+/* Done is quiet: a completed step should recede, not celebrate. */
+.setupMarkerDone {
+  border-color: var(--p-brand);
+  background: var(--p-brand-soft);
+  color: var(--p-brand-strong);
+}
+
+.setupBody { min-width: 0; }
+.setupTitle { font-weight: var(--p-weight-medium); overflow-wrap: anywhere; }
+.setupTitleDone { color: var(--p-text-muted); font-weight: var(--p-weight-normal); }
+.setupRationale {
+  margin-top: 2px;
+  font-size: var(--p-text-sm);
+  color: var(--p-text-muted);
+  overflow-wrap: anywhere;
+}
+.setupAction { font-size: var(--p-text-sm); white-space: nowrap; }
+
+/* Grid column 2 on mobile so it lines up under the text, not the marker. */
+@media (max-width: 719px) {
+  .setupAction { grid-column: 2; justify-self: start; }
 }

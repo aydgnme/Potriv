@@ -47,6 +47,8 @@ function sources(overrides: Partial<HomeDataSources> = {}) {
     ),
     getDepartments: vi.fn(async () => ok([])),
     getOrganizationUsers: vi.fn(async () => ok([])),
+    getTeamRoles: vi.fn(async () => ok([])),
+    getOrganizationSkills: vi.fn(async () => ok([])),
     ...overrides,
   } as unknown as HomeDataSources & Record<string, ReturnType<typeof vi.fn>>;
 }
@@ -68,6 +70,10 @@ describe("loadHomeData — role gating", () => {
     expect(deps.getDepartmentProjects).not.toHaveBeenCalled();
     expect(deps.getDepartments).not.toHaveBeenCalled();
     expect(deps.getOrganizationUsers).not.toHaveBeenCalled();
+    // Setup signals are an organization-admin concern and cost nothing for
+    // anybody else.
+    expect(deps.getTeamRoles).not.toHaveBeenCalled();
+    expect(deps.getOrganizationSkills).not.toHaveBeenCalled();
 
     // And nothing role-specific is even offered to the page.
     expect(data.managedProjects).toBeNull();
@@ -86,6 +92,10 @@ describe("loadHomeData — role gating", () => {
     expect(deps.getPendingDepartmentProposals).not.toHaveBeenCalled();
     expect(deps.getDepartments).not.toHaveBeenCalled();
     expect(deps.getOrganizationUsers).not.toHaveBeenCalled();
+    // Setup signals are an organization-admin concern and cost nothing for
+    // anybody else.
+    expect(deps.getTeamRoles).not.toHaveBeenCalled();
+    expect(deps.getOrganizationSkills).not.toHaveBeenCalled();
   });
 
   it("loads both department sources for a department manager", async () => {
@@ -106,6 +116,8 @@ describe("loadHomeData — role gating", () => {
 
     expect(deps.getDepartments).toHaveBeenCalledTimes(1);
     expect(deps.getOrganizationUsers).toHaveBeenCalledTimes(1);
+    expect(deps.getTeamRoles).toHaveBeenCalledTimes(1);
+    expect(deps.getOrganizationSkills).toHaveBeenCalledTimes(1);
     // The org-admin role alone has no organization-wide project endpoint.
     expect(deps.getManagedProjects).not.toHaveBeenCalled();
   });

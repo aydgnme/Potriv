@@ -8,6 +8,8 @@ import type {
   MyProjects,
   MySkill,
   OrganizationDepartment,
+  OrganizationSkill,
+  OrganizationTeamRole,
   OrganizationUser,
   PendingProposal,
   ProjectStaffingDetails,
@@ -80,6 +82,26 @@ export function getDepartments(): Promise<Loaded<readonly OrganizationDepartment
   return load<readonly OrganizationDepartment[]>("/departments");
 }
 
+/**
+ * `GET /team-roles` — organization admin or project manager.
+ *
+ * Home reads it only to answer "does this workspace have team roles yet?", so
+ * inactive ones are left out: a deactivated role is not a configured workspace.
+ */
+export function getTeamRoles(): Promise<Loaded<readonly OrganizationTeamRole[]>> {
+  return load<readonly OrganizationTeamRole[]>("/team-roles");
+}
+
+/**
+ * `GET /skills` — the organization's catalogue, not the caller's own skills.
+ *
+ * The distinction matters: `/me/skills` is personal and says nothing about
+ * whether Team Finder has a vocabulary to match against.
+ */
+export function getOrganizationSkills(): Promise<Loaded<readonly OrganizationSkill[]>> {
+  return load<readonly OrganizationSkill[]>("/skills");
+}
+
 /** `GET /users` — ORGANIZATION_ADMIN only. */
 export function getOrganizationUsers(): Promise<Loaded<readonly OrganizationUser[]>> {
   return load<readonly OrganizationUser[]>("/users");
@@ -95,6 +117,8 @@ export type HomeDataSources = {
   readonly getDepartmentProjects: typeof getDepartmentProjects;
   readonly getDepartments: typeof getDepartments;
   readonly getOrganizationUsers: typeof getOrganizationUsers;
+  readonly getTeamRoles: typeof getTeamRoles;
+  readonly getOrganizationSkills: typeof getOrganizationSkills;
 };
 
 export const HOME_DATA_SOURCES: HomeDataSources = {
@@ -106,4 +130,6 @@ export const HOME_DATA_SOURCES: HomeDataSources = {
   getDepartmentProjects,
   getDepartments,
   getOrganizationUsers,
+  getTeamRoles,
+  getOrganizationSkills,
 };

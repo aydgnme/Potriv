@@ -9,6 +9,8 @@ import type {
   MyProjects,
   MySkill,
   OrganizationDepartment,
+  OrganizationSkill,
+  OrganizationTeamRole,
   OrganizationUser,
   PendingProposal,
 } from "../model/homeData";
@@ -52,6 +54,10 @@ export type HomeData = {
   readonly departmentProjects: Loaded<DepartmentProjects> | null;
   readonly departments: Loaded<readonly OrganizationDepartment[]> | null;
   readonly organizationUsers: Loaded<readonly OrganizationUser[]> | null;
+  /** Setup signals: read only for an organization admin, and only to answer
+   *  "does this workspace have any yet?". */
+  readonly teamRoles: Loaded<readonly OrganizationTeamRole[]> | null;
+  readonly organizationSkills: Loaded<readonly OrganizationSkill[]> | null;
 };
 
 export async function loadHomeData(
@@ -71,6 +77,8 @@ export async function loadHomeData(
     departmentProjects,
     departments,
     organizationUsers,
+    teamRoles,
+    organizationSkills,
   ] = await Promise.all([
     sources.getMyProjects(),
     sources.getMySkills(),
@@ -79,6 +87,10 @@ export async function loadHomeData(
     isDepartmentManager ? sources.getDepartmentProjects() : Promise.resolve(null),
     isOrganizationAdmin ? sources.getDepartments() : Promise.resolve(null),
     isOrganizationAdmin ? sources.getOrganizationUsers() : Promise.resolve(null),
+    // Two extra bounded list reads, for the organization admin only, so the
+    // setup guidance can be derived from real state instead of guessed at.
+    isOrganizationAdmin ? sources.getTeamRoles() : Promise.resolve(null),
+    isOrganizationAdmin ? sources.getOrganizationSkills() : Promise.resolve(null),
   ]);
 
   return {
@@ -89,6 +101,8 @@ export async function loadHomeData(
     departmentProjects,
     departments,
     organizationUsers,
+    teamRoles,
+    organizationSkills,
   };
 }
 
