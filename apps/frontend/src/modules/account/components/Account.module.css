@@ -1,0 +1,126 @@
+.page { display: flex; flex-direction: column; gap: var(--p-space-5); }
+
+/* Rule-separated sections, the V2 authenticated grammar. Account stacks four of
+   them; boxing each would read as four unrelated settings widgets. */
+.sections { display: flex; flex-direction: column; min-width: 0; }
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-3);
+  padding-block: var(--p-space-5);
+  border-top: 1px solid var(--p-border);
+  min-width: 0;
+}
+.sections > .section:first-child { border-top: none; padding-top: 0; }
+
+.sectionHeading { font-size: var(--p-text-lg); }
+.sectionNote { font-size: var(--p-text-sm); color: var(--p-text-muted); max-width: 70ch; }
+.groupHeading { font-size: var(--p-text-base); font-weight: var(--p-weight-semibold); }
+.muted { color: var(--p-text-muted); }
+.fieldError { font-size: var(--p-text-sm); color: var(--p-danger); display: block; }
+
+.figures { display: flex; flex-direction: column; gap: var(--p-space-3); margin: 0; }
+.figureRow { display: flex; gap: var(--p-space-4); justify-content: space-between; flex-wrap: wrap; }
+.figureRow dt { color: var(--p-text-muted); font-size: var(--p-text-sm); }
+.figureRow dd { margin: 0; min-width: 0; }
+
+.chipList { display: flex; flex-wrap: wrap; gap: var(--p-space-2); list-style: none; margin: 0; padding: 0; }
+
+/* Emails, IPv6 addresses and user agents are all unbroken strings that are
+   routinely longer than their column. */
+.wrapAnywhere { overflow-wrap: anywhere; }
+
+.sessionGroup { display: flex; flex-direction: column; gap: var(--p-space-2); }
+.sessionCell { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+/* Stated in text as well as weighted, so it survives without colour. */
+.currentMark { font-weight: var(--p-weight-semibold); }
+.endedMark { font-size: var(--p-text-sm); color: var(--p-text-muted); }
+
+/* A user agent is long and must never set the page width. Given its own column
+   it wraps; the whole value stays in the DOM for anyone reading it aloud. */
+.agentCell {
+  overflow-wrap: anywhere;
+  max-width: 26rem;
+  font-size: var(--p-text-sm);
+}
+
+.controls { display: flex; flex-direction: column; gap: var(--p-space-3); }
+.controlRow { display: flex; gap: var(--p-space-3); flex-wrap: wrap; }
+
+.dialog {
+  max-width: 32rem;
+  width: calc(100vw - var(--p-space-6));
+  padding: var(--p-space-5);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius-lg);
+  color: var(--p-text);
+}
+.dialog::backdrop { background: rgb(0 0 0 / 45%); }
+.dialog > * + * { margin-top: var(--p-space-3); }
+.dialogActions { display: flex; gap: var(--p-space-3); flex-wrap: wrap; }
+
+/* ── table ───────────────────────────────────────────────────────────────── */
+
+.table { width: 100%; border-collapse: collapse; text-align: left; }
+
+.table th[scope="col"] {
+  padding: 0 var(--p-space-3) var(--p-space-2) 0;
+  border-bottom: 1px solid var(--p-border);
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-medium);
+  white-space: nowrap;
+}
+
+.table td,
+.table th[scope="row"] {
+  padding: var(--p-space-3) var(--p-space-3) var(--p-space-3) 0;
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: top;
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-normal);
+  text-align: left;
+  min-width: 0;
+}
+.table tbody tr:last-child td,
+.table tbody tr:last-child th[scope="row"] { border-bottom: none; }
+
+@media (max-width: 767px) {
+  .table,
+  .table > thead,
+  .table > tbody,
+  .table > tbody > tr,
+  .table > tbody > tr > td,
+  .table > tbody > tr > th {
+    display: block;
+    width: 100%;
+  }
+
+  .table > thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .table > tbody > tr {
+    padding: var(--p-space-3) 0;
+    border-bottom: 1px solid var(--p-border);
+  }
+  .table > tbody > tr > td,
+  .table > tbody > tr > th { padding: 2px 0; border-bottom: none; }
+
+  .table > tbody > tr > td[data-label]::before {
+    content: attr(data-label) ": ";
+    color: var(--p-text-muted);
+  }
+
+  /* No cap at narrow widths: the column is the full row. */
+  .agentCell { max-width: none; }
+  .figureRow { flex-direction: column; gap: 2px; }
+}

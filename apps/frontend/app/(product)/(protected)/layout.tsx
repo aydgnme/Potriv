@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SignOutButton } from "@/modules/auth";
@@ -35,7 +36,20 @@ export default async function ProtectedLayout({
     <AppShell
       user={{ name: user.displayName, roles: user.roles }}
       navigationItemIds={getNavigationItems(user.roles).map((item) => item.id)}
-      accountActions={<SignOutButton />}
+      /*
+        Composed here, in the app layer, because this is the one place allowed to
+        reach into two modules at once. The shell still imports no feature, and
+        the slot already reaches both the desktop sidebar and the mobile drawer —
+        so Account gets an entry on both without touching the bottom navigation,
+        whose five-control budget is for primary domains rather than a utility
+        destination.
+      */
+      accountActions={
+        <>
+          <Link href="/account">Account</Link>
+          <SignOutButton />
+        </>
+      }
     >
       {children}
     </AppShell>

@@ -686,6 +686,51 @@ describe("my allocation history", () => {
     expect(screen.getByText("4")).toBeInTheDocument();
   });
 
+  /**
+   * The same project, twice, **inside one group**.
+   *
+   * The test above splits the two episodes across Current and Past, so a dedupe
+   * applied per group would leave one in each and still pass it. Somebody who
+   * left and rejoined a project twice in the same year has two past episodes,
+   * and collapsing them by `projectId` would delete half a career from the
+   * record while every other assertion stayed green.
+   */
+  it("keeps repeated episodes of one project inside the same group", () => {
+    renderPage(
+      ["EMPLOYEE"],
+      mineView(
+        mine({
+          pastProjects: [
+            episode({
+              allocationId: "episode-2",
+              workHoursPerDay: 6,
+              allocatedAt: "2026-07-01T09:00:00Z",
+              deallocatedAt: "2026-09-30T17:00:00Z",
+            }),
+            episode({
+              allocationId: "episode-1",
+              workHoursPerDay: 4,
+              allocatedAt: "2026-01-06T09:00:00Z",
+              deallocatedAt: "2026-03-04T17:00:00Z",
+            }),
+          ],
+        }),
+      ),
+    );
+
+    // Two rows for one project name, in one section.
+    const past = screen.getByRole("heading", { name: "Past allocations" }).closest("section");
+    expect(past).not.toBeNull();
+    const links = within(past as HTMLElement).getAllByRole("link", { name: "Apollo" });
+    expect(links).toHaveLength(2);
+
+    // And each keeps its own hours and window, rather than being merged.
+    expect(within(past as HTMLElement).getByText("6 Jan 2026 → 4 Mar 2026")).toBeInTheDocument();
+    expect(within(past as HTMLElement).getByText("1 Jul 2026 → 30 Sept 2026")).toBeInTheDocument();
+    expect(within(past as HTMLElement).getByText("6")).toBeInTheDocument();
+    expect(within(past as HTMLElement).getByText("4")).toBeInTheDocument();
+  });
+
   it("keeps the allocation window apart from the project's timeline", () => {
     renderPage(
       ["EMPLOYEE"],

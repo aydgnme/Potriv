@@ -242,6 +242,52 @@ describe("the bottom bar", () => {
     ).toBeInTheDocument();
   });
 
+  /**
+   * The account slot carries whatever the app composes into it.
+   *
+   * V2-08 puts an Account link beside Sign out there, so this pins the shell's
+   * half of that contract: multiple controls reach the mobile drawer, and
+   * neither of them costs a bottom-bar slot. The shell still imports no feature
+   * — it renders what it is handed.
+   */
+  it("carries every account control into More, not just one", async () => {
+    const user = userEvent.setup();
+    render(
+      <AppShell
+        organizationName="Potriv"
+        user={{ name: "Mert Aydoğan", roles: ["EMPLOYEE", "PROJECT_MANAGER", "DEPARTMENT_MANAGER", "ORGANIZATION_ADMIN"] }}
+        navigationItemIds={getNavigationItems([
+          "EMPLOYEE",
+          "PROJECT_MANAGER",
+          "DEPARTMENT_MANAGER",
+          "ORGANIZATION_ADMIN",
+        ]).map((item) => item.id)}
+        accountActions={
+          <>
+            <a href="/account">Account</a>
+            <button type="button">Sign out</button>
+          </>
+        }
+      >
+        <p>content</p>
+      </AppShell>,
+    );
+
+    await user.click(inBar().getByRole("button", { name: /^More/, hidden: true }));
+    const sheet = screen.getByRole("dialog", { name: "More", hidden: true });
+
+    expect(within(sheet).getByRole("link", { name: "Account", hidden: true })).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Sign out", hidden: true })).toBeInTheDocument();
+
+    // And the five-control budget is untouched: the bar still holds domain
+    // links plus More, with Account living inside the sheet rather than
+    // spending a slot. (`inBar()` scopes to the whole mobile nav, and the sheet
+    // is a child of it, so the bar's own controls are counted directly.)
+    const barControls = [...mobileNav().querySelectorAll(":scope > a, :scope > button")];
+    expect(barControls.length).toBeLessThanOrEqual(5);
+    expect(barControls.some((el) => el.getAttribute("href") === "/account")).toBe(false);
+  });
+
   it("names More by the section it is hiding, without claiming to be it", async () => {
     const user = userEvent.setup();
     renderShell(
