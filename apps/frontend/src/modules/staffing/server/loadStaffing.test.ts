@@ -142,3 +142,96 @@ describe("links and empty states", () => {
     expect(emptyQueueMessage("REJECTED")).toBe("No rejected proposals.");
   });
 });
+
+/**
+ * The request budget, per capability.
+ *
+ * Every source is gated on the role that entitles it, so nothing is fetched
+ * speculatively and no 403 is used as a capability check. The counts are the
+ * contract: a page render must not grow a request because a queue got longer.
+ */
+describe("fixed request budget", () => {
+  it("spends nothing privileged for someone with neither capability", async () => {
+    const deps = sources();
+
+    await loadStaffing("PENDING", ["EMPLOYEE"], deps);
+
+    expect(deps.getReviewQueue).not.toHaveBeenCalled();
+    expect(deps.getManagedProjectEntries).not.toHaveBeenCalled();
+  });
+
+  it("spends exactly one call for a department manager", async () => {
+    const deps = sources();
+
+    await loadStaffing("PENDING", ["EMPLOYEE", "DEPARTMENT_MANAGER"], deps);
+
+    expect(deps.getReviewQueue).toHaveBeenCalledTimes(1);
+    expect(deps.getManagedProjectEntries).not.toHaveBeenCalled();
+  });
+
+  it("spends exactly one call for a project manager", async () => {
+    const deps = sources();
+
+    await loadStaffing("PENDING", ["EMPLOYEE", "PROJECT_MANAGER"], deps);
+
+    expect(deps.getManagedProjectEntries).toHaveBeenCalledTimes(1);
+    expect(deps.getReviewQueue).not.toHaveBeenCalled();
+  });
+
+  it("spends exactly two for somebody who is both, and no more per status", async () => {
+    const deps = sources();
+
+    await loadStaffing("APPROVED", ["DEPARTMENT_MANAGER", "PROJECT_MANAGER"], deps);
+
+    expect(deps.getReviewQueue).toHaveBeenCalledTimes(1);
+    expect(deps.getManagedProjectEntries).toHaveBeenCalledTimes(1);
+    // One queue call for the selected status — never three to label the tabs.
+    expect(deps.getReviewQueue).toHaveBeenCalledWith("APPROVED");
+  });
+});
+
+/**
+ * One capability failing must not take the other down.
+ *
+ * Somebody who is both a department manager and a project manager is doing two
+ * different jobs on this page. A failed queue read is not a reason to withhold
+ * their own projects, and vice versa.
+ */
+describe("partial failure across capabilities", () => {
+  const both = ["DEPARTMENT_MANAGER", "PROJECT_MANAGER"] as const;
+
+  it("keeps the project section usable when the review queue fails", async () => {
+    const deps = sources({
+      getReviewQueue: vi.fn(async () => ({ ok: false, reason: "ERROR" }) as const),
+    });
+
+    const data = await loadStaffing("PENDING", both, deps);
+
+    expect(data.reviews?.ok).toBe(false);
+    expect(data.managedProjects?.ok).toBe(true);
+  });
+
+  it("keeps the review queue usable when managed projects fail", async () => {
+    const deps = sources({
+      getManagedProjectEntries: vi.fn(async () => ({ ok: false, reason: "ERROR" }) as const),
+    });
+
+    const data = await loadStaffing("PENDING", both, deps);
+
+    expect(data.reviews?.ok).toBe(true);
+    expect(data.managedProjects?.ok).toBe(false);
+  });
+
+  it("keeps a role-without-appointment refusal distinguishable from an outage", async () => {
+    // The backend answers 403 to a DEPARTMENT_MANAGER who manages no department.
+    // Flattening that into ERROR would describe a setup state as a failure.
+    const deps = sources({
+      getReviewQueue: vi.fn(async () => ({ ok: false, reason: "FORBIDDEN" }) as const),
+    });
+
+    const data = await loadStaffing("PENDING", both, deps);
+
+    expect(data.reviews).toEqual({ ok: false, reason: "FORBIDDEN" });
+    expect(data.managedProjects?.ok).toBe(true);
+  });
+});
