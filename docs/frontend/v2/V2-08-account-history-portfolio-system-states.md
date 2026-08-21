@@ -142,11 +142,9 @@ redirects to login by itself; if they were not, Account renders and says so.
 > Sign out was not confirmed — We could not confirm whether sign out completed.
 > You are still signed in here, and your other sessions may still be active.
 
-No retry control in any of the three cases. Neither destination claims all
-sessions were revoked.
-
-There is no retry button. Re-issuing an unsafe mutation after an ambiguous
-failure is how one revokes a session somebody has since signed back into.
+No retry control in any of the three cases. Re-issuing an unsafe mutation after
+an ambiguous failure is how one revokes a session somebody has since signed back
+into — and no destination claims all sessions were revoked.
 
 ### Password
 
