@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { cookies } from "next/headers";
 
 import { toProductRoles } from "@/shared/types/accessRole";
@@ -60,7 +62,26 @@ export function toProductUser(
  * — this function deliberately does not refresh, so that nothing can trigger a
  * rotation as a side effect of merely asking who is signed in.
  */
-export async function resolveProductSession(): Promise<ProductSession> {
+/**
+ * Memoized for the lifetime of **one server request**, and nothing longer.
+ *
+ * A protected layout resolves the session to render the shell, and the page
+ * inside it resolves the same session again — two `/auth/me` calls to answer one
+ * question about one request. Measured before this was added: a single
+ * `/account` render made two.
+ *
+ * `cache()` is React's per-request memo, not the Data Cache. It is created and
+ * discarded with the request, so two users can never share an entry, nothing is
+ * written to disk, and no token is retained anywhere. The underlying fetch keeps
+ * its `cache: "no-store"` semantics untouched — this deduplicates *within* one
+ * render, it does not make authentication cacheable.
+ *
+ * Safe because this function is a pure read: it deliberately does not refresh
+ * (see below), so there is no mutation to accidentally repeat or skip. Cookies
+ * cannot change midway through a render, which makes one answer per request the
+ * correct answer rather than merely a cheaper one.
+ */
+export const resolveProductSession = cache(async function resolveProductSession(): Promise<ProductSession> {
   const jar = await cookies();
   const accessToken = jar.get(COOKIE_NAMES.access)?.value;
   if (!accessToken) return UNAUTHENTICATED;
@@ -70,7 +91,7 @@ export async function resolveProductSession(): Promise<ProductSession> {
 
   const user = toProductUser(result.value, jar.get(COOKIE_NAMES.profileName)?.value ?? null);
   return user ? { authenticated: true, user } : UNAUTHENTICATED;
-}
+});
 
 /** Whether a refresh cookie exists — used to decide if recovery is worth trying. */
 export async function hasRefreshCookie(): Promise<boolean> {

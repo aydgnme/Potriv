@@ -84,3 +84,38 @@ a:hover {
     transition-duration: 0.01ms !important;
   }
 }
+
+/**
+ * The global system-state pages: unknown route, and an unhandled render error.
+ *
+ * These render outside the product shell — a shell needs a session, and both
+ * cases can happen without one. Calm and plain, with one next action: a
+ * full-page illustration would dress up a moment when somebody just wants out.
+ */
+.p-system-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-4);
+  align-items: flex-start;
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--p-space-7) var(--p-space-5);
+  color: var(--p-text);
+}
+.p-system-state h1 { font-size: var(--p-text-2xl); }
+.p-system-state p { color: var(--p-text-muted); }
+.p-system-state-actions {
+  display: flex;
+  gap: var(--p-space-4);
+  align-items: center;
+  flex-wrap: wrap;
+}
+.p-system-state-actions button {
+  font: inherit;
+  color: var(--p-accent);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+}

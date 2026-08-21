@@ -182,6 +182,29 @@ export async function logout(accessToken: string): Promise<void> {
 }
 
 /**
+ * Revokes every session this user has, including the current one.
+ *
+ * Unlike `logout`, the outcome is **reported** rather than swallowed. "Sign out
+ * everywhere" makes a promise about other devices that this browser cannot keep
+ * on its own, so a caller has to be able to tell the difference between "all
+ * sessions are gone" and "you are signed out here, and we could not reach the
+ * rest". Claiming the first when only the second happened would leave somebody
+ * believing a stolen session was closed.
+ */
+export async function logoutAll(accessToken: string): Promise<boolean> {
+  try {
+    const response = await callBackend({
+      method: "POST",
+      path: "/auth/logout-all",
+      accessToken,
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Exactly what `RegisterAdminResponse` provides.
  *
  * Note what is absent: no access token, no refresh token. The backend does not
