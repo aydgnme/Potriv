@@ -318,3 +318,81 @@ describe("accessibility", () => {
     expect(within(commitment).getByLabelText(/Hours per day/)).toBeInTheDocument();
   });
 });
+
+/**
+ * The field that is not a field.
+ *
+ * `teamRoleIds` is a group of checkboxes, so its message has no single control
+ * to hang `aria-describedby` on — the association trick that carries the other
+ * errors does not apply here at all. That makes it the clearest case for the
+ * summary: a group-level problem still gets said out loud, in the same one
+ * region as everything else.
+ *
+ * The character counter under Comments is deliberately excluded. It changes on
+ * every keystroke, and a live region that reacts to typing is a bad neighbour.
+ */
+describe("a rejected proposal is announced", () => {
+  async function send(user: ReturnType<typeof userEvent.setup>) {
+    const button = screen.getByRole("button", { name: "Send proposal" });
+    button.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  it("announces a checkbox-group error that no single control could describe", async () => {
+    action.mockResolvedValue({ fieldErrors: { teamRoleIds: "Choose at least one role." } });
+    const user = userEvent.setup();
+    renderForm();
+
+    await send(user);
+
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Team roles: Choose at least one role.")).toBeInTheDocument();
+  });
+
+  it("announces the hours and comments errors through the same one region", async () => {
+    action.mockResolvedValue({
+      fieldErrors: {
+        workHoursPerDay: "Enter between 1 and 8 hours.",
+        comments: "Comments are too long.",
+      },
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await send(user);
+
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent("Check 2 fields");
+    expect(within(alerts[0]).getByText("Hours per day: Enter between 1 and 8 hours.")).toBeInTheDocument();
+    expect(within(alerts[0]).getByText("Comments: Comments are too long.")).toBeInTheDocument();
+  });
+
+  it("keeps the per-field association for the controls that have one", async () => {
+    action.mockResolvedValue({ fieldErrors: { workHoursPerDay: "Enter between 1 and 8 hours." } });
+    const user = userEvent.setup();
+    renderForm();
+
+    await send(user);
+    await screen.findByRole("alert");
+
+    const hours = screen.getByLabelText(/hours/i);
+    expect(hours).toHaveAttribute("aria-invalid", "true");
+    const ids = (hours.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
+    expect(ids.map((id) => document.getElementById(id)?.textContent)).toContain(
+      "Enter between 1 and 8 hours.",
+    );
+  });
+
+  it("does not let the typing counter become a live region", async () => {
+    action.mockResolvedValue({ fieldErrors: {} });
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(screen.getByLabelText(/comments/i), "Some context for the reviewer.");
+
+    // Typing must not produce anything that speaks.
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.querySelectorAll("[aria-live]")).toHaveLength(0);
+  });
+});

@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 
 import { signIn } from "../api/authClient";
@@ -95,7 +96,17 @@ export function LoginPage() {
       }
     >
       {notice ? <Alert tone="info">{notice}</Alert> : null}
-      {formError ? <Alert tone="danger">{formError}</Alert> : null}
+      {/*
+        One alert for whichever way this failed. A credential failure and a
+        validation failure cannot happen together here — validation returns
+        before the request — but the summary would merge them if they did.
+      */}
+      <FormErrorSummary
+        formError={formError}
+        fieldErrors={{ email: emailError ?? undefined, password: passwordError ?? undefined }}
+        labels={{ email: "Email", password: "Password" }}
+        order={["email", "password"]}
+      />
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <Input

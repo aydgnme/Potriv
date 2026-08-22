@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 
@@ -145,7 +146,12 @@ export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
         </>
       }
     >
-      {formError ? <Alert tone="danger">{formError}</Alert> : null}
+      <FormErrorSummary
+        formError={formError}
+        fieldErrors={fieldErrors}
+        labels={{ name: "Your name", email: "Work email", password: "Password" }}
+        order={["name", "email", "password"]}
+      />
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <Input

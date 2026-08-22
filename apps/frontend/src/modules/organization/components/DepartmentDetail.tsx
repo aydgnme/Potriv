@@ -3,6 +3,7 @@
 import { useActionState, useRef } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
 import { formatDate } from "@/shared/utils/formatDate";
 
@@ -75,11 +76,12 @@ function RenameDepartmentForm({
 
   return (
     <form action={formAction} className={styles.form}>
-      {state.error ? (
-        <Alert tone="danger" title="Not saved">
-          {state.error}
-        </Alert>
-      ) : null}
+      <FormErrorSummary
+        formError={state.error}
+        title={state.error ? "Not saved" : undefined}
+        fieldErrors={state.fieldErrors}
+        labels={{ name: "Department name" }}
+      />
       {state.done ? <Alert tone="success">{state.done}</Alert> : null}
 
       <input type="hidden" name="departmentId" value={department.departmentId} />

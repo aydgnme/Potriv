@@ -6,6 +6,7 @@ import styles from "./Field.module.css";
 export type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "id"> & {
   readonly label: string;
   readonly hint?: ReactNode;
+  /** Marks the control invalid and links the message; see `Input` and `FormErrorSummary`. */
   readonly error?: string;
   readonly requirement?: "Required" | "Optional";
 };

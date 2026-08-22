@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
 
 import { EMPTY_TEAM_ROLE_STATE } from "../model/teamRoleActionState";
@@ -36,11 +37,13 @@ export function TeamRoleForm({ teamRole }: TeamRoleFormProps) {
 
   return (
     <form action={formAction} className={styles.form}>
-      {state.error ? (
-        <Alert tone="danger" title={teamRole ? "Not saved" : "Not created"}>
-          {state.error}
-        </Alert>
-      ) : null}
+      <FormErrorSummary
+        formError={state.error}
+        title={state.error ? (teamRole ? "Not saved" : "Not created") : undefined}
+        fieldErrors={state.fieldErrors}
+        labels={{ name: "Name", description: "Description" }}
+        order={["name", "description"]}
+      />
       {state.done ? <Alert tone="success">{state.done}</Alert> : null}
 
       {teamRole ? (

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 
@@ -92,7 +93,15 @@ export function ResetPasswordPage() {
     >
       {/* One state for every rejected token: the backend does not say whether
           it was expired, already used or unknown, and neither should this. */}
-      {formError ? <Alert tone="danger">{formError}</Alert> : null}
+      <FormErrorSummary
+        formError={formError}
+        fieldErrors={{
+          password: passwordError ?? undefined,
+          confirmation: confirmationError ?? undefined,
+        }}
+        labels={{ password: "New password", confirmation: "Confirm new password" }}
+        order={["password", "confirmation"]}
+      />
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <Input

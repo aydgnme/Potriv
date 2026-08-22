@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 
@@ -77,7 +78,11 @@ export function ForgotPasswordPage() {
         </>
       ) : (
         <>
-          {formError ? <Alert tone="danger">{formError}</Alert> : null}
+          <FormErrorSummary
+            formError={formError}
+            fieldErrors={{ email: emailError ?? undefined }}
+            labels={{ email: "Work email" }}
+          />
 
           <form className={styles.form} onSubmit={handleSubmit} noValidate>
             <Input

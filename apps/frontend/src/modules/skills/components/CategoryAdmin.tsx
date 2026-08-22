@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState, useRef } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { formatDate } from "@/shared/utils/formatDate";
@@ -75,11 +76,12 @@ function CreateCategoryForm() {
 
   return (
     <form action={formAction} className={styles.filters}>
-      {state.error ? (
-        <Alert tone="danger" title="Not created">
-          {state.error}
-        </Alert>
-      ) : null}
+      <FormErrorSummary
+        formError={state.error}
+        title={state.error ? "Not created" : undefined}
+        fieldErrors={state.fieldErrors}
+        labels={{ name: "Category name" }}
+      />
       {state.done ? <Alert tone="success">{state.done}</Alert> : null}
 
       <div className={styles.filterRow}>

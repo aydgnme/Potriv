@@ -1,0 +1,12 @@
+/* The summary reuses Alert's container entirely; this is only the list inside it. */
+.list {
+  margin: 0;
+  padding-left: var(--p-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-1);
+}
+
+/* Long organization-authored values reach these messages, and a summary that
+   sets the page width would reintroduce the defect V2-09 just fixed. */
+.list li { overflow-wrap: anywhere; }

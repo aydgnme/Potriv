@@ -311,3 +311,100 @@ describe("errors and blocking", () => {
     expect(container.innerHTML).not.toContain("/api/");
   });
 });
+
+/**
+ * What a rejected Server Action tells somebody who cannot see the form.
+ *
+ * A Server Action's result arrives as new state rather than as a page load, so
+ * nothing about the transition is announced by the platform. Before V2-09's
+ * final pass the field errors simply appeared, silently. This is the
+ * server-action half of the announcement contract.
+ */
+describe("a rejected save is announced", () => {
+  /** An action that rejects once with exactly the state the real one returns. */
+  function rejectingAction(state: ProjectActionState) {
+    return vi.fn(async (): Promise<ProjectActionState> => state);
+  }
+
+  async function submit(user: ReturnType<typeof userEvent.setup>) {
+    const save = screen.getByRole("button", { name: "Save changes" });
+    save.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  it("announces field errors returned by the action, named by field", async () => {
+    const user = userEvent.setup();
+    renderForm({
+      action: rejectingAction({
+        fieldErrors: { name: "Enter a project name.", startDate: "Enter a start date." },
+      }),
+    });
+
+    await submit(user);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Check 2 fields");
+    expect(within(alert).getByText("Project name: Enter a project name.")).toBeInTheDocument();
+    expect(within(alert).getByText("Start date: Enter a start date.")).toBeInTheDocument();
+  });
+
+  it("still associates each returned message with its control", async () => {
+    const user = userEvent.setup();
+    renderForm({ action: rejectingAction({ fieldErrors: { name: "Enter a project name." } }) });
+
+    await submit(user);
+    await screen.findByRole("alert");
+
+    const control = screen.getByLabelText(/Project name/);
+    expect(control).toHaveAttribute("aria-invalid", "true");
+    const ids = (control.getAttribute("aria-describedby") ?? "").split(/\s+/).filter(Boolean);
+    expect(ids.map((id) => document.getElementById(id)?.textContent)).toContain(
+      "Enter a project name.",
+    );
+  });
+
+  it("merges a form-level failure and field errors into one region", async () => {
+    const user = userEvent.setup();
+    renderForm({
+      action: rejectingAction({
+        fieldErrors: { name: "Enter a project name." },
+        formError: "Team roles could not be loaded, so no changes were saved.",
+      }),
+    });
+
+    await submit(user);
+
+    // Both can arrive together from one validation result; neither hides the
+    // other, and there is still only one thing that speaks.
+    const alerts = await screen.findAllByRole("alert");
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]).toHaveTextContent("This was not saved");
+    expect(alerts[0]).toHaveTextContent("Team roles could not be loaded");
+    expect(alerts[0]).toHaveTextContent("Project name: Enter a project name.");
+  });
+
+  it("leaves the form usable so the submission can be retried", async () => {
+    const action = rejectingAction({ fieldErrors: { name: "Enter a project name." } });
+    const user = userEvent.setup();
+    renderForm({ action });
+
+    await submit(user);
+    await screen.findByRole("alert");
+
+    // Not stuck pending, and not disabled: a rejected save has to be fixable.
+    const save = screen.getByRole("button", { name: "Save changes" });
+    expect(save).toBeEnabled();
+
+    await submit(user);
+    expect(action).toHaveBeenCalledTimes(2);
+  });
+
+  it("says nothing when the action returns no errors", async () => {
+    const user = userEvent.setup();
+    renderForm({ action: rejectingAction(EMPTY_ACTION_STATE) });
+
+    await submit(user);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});

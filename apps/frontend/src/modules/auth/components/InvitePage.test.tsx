@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -113,7 +113,13 @@ describe("submitting the form", () => {
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(screen.getByText(/enter your name/i)).toBeInTheDocument();
+    // The message now appears twice on purpose: beside the field, and inside the
+    // one alert that announces the failure. Both are asserted rather than one
+    // being queried loosely enough to match either.
+    expect(screen.getAllByText(/enter your name/i)).toHaveLength(2);
+    expect(
+      within(screen.getByRole("alert")).getByText(/your name: enter your name/i),
+    ).toBeInTheDocument();
   });
 
   it("sends the token through the BFF, never to the backend directly", async () => {

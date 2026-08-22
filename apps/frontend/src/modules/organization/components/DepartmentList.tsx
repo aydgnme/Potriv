@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { formatDate } from "@/shared/utils/formatDate";
@@ -114,11 +115,12 @@ function CreateDepartmentForm() {
 
   return (
     <form action={formAction} className={styles.form}>
-      {state.error ? (
-        <Alert tone="danger" title="Not created">
-          {state.error}
-        </Alert>
-      ) : null}
+      <FormErrorSummary
+        formError={state.error}
+        title={state.error ? "Not created" : undefined}
+        fieldErrors={state.fieldErrors}
+        labels={{ name: "Department name" }}
+      />
       {state.done ? <Alert tone="success">{state.done}</Alert> : null}
 
       <div className={styles.formRow}>
