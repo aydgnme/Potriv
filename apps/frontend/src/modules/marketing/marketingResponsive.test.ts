@@ -129,3 +129,55 @@ describe("the responsibility matrix survives a phone", () => {
     expect(plan.source).toMatch(/\.matrix thead th\s*\{[^}]*white-space:\s*normal/);
   });
 });
+
+/**
+ * The motion contract.
+ *
+ * The site had no motion system at all — the only non-zero transition anywhere
+ * was a button's background colour. The hero spine now reveals once, in order,
+ * to say that the five stages happen in a sequence.
+ *
+ * These pin the three rules that keep that from becoming decoration: it runs
+ * once rather than looping, it is disabled outright under `prefers-reduced-motion`,
+ * and it animates only opacity and transform so it cannot shift layout.
+ */
+describe("the hero motion says something and then stops", () => {
+  it("reveals each stage after the one above it", () => {
+    const stage = plan.rule(".spineStage");
+    expect(plan.source).toMatch(/@keyframes spine-enter/);
+    // Delay derived from the stage's index, so adding a stage needs no new CSS.
+    expect(plan.source).toMatch(/animation-delay:\s*calc\([^)]*--stage-index/);
+    void stage;
+  });
+
+  it("never loops", () => {
+    expect(plan.source).not.toMatch(/animation[^;]*infinite/);
+    expect(plan.source).not.toMatch(/animation-iteration-count:\s*infinite/);
+  });
+
+  it("animates only opacity and transform", () => {
+    const frames = plan.source.slice(plan.source.indexOf("@keyframes spine-enter"));
+    const block = frames.slice(0, frames.indexOf("}\n}") + 3);
+    for (const property of ["width", "height", "margin", "padding", "top", "left"]) {
+      expect(block).not.toMatch(new RegExp(`\\b${property}:`));
+    }
+    expect(block).toMatch(/opacity:/);
+    expect(block).toMatch(/transform:/);
+  });
+
+  it("runs only where motion is welcome", () => {
+    // The animation lives inside the query, so reduced-motion users get the
+    // final state with no opt-out needed and no chance of a stuck first frame.
+    const guarded = plan.source.slice(
+      plan.source.indexOf("@media (prefers-reduced-motion: no-preference)"),
+    );
+    expect(guarded).toMatch(/\.spineStage\s*\{[^}]*animation:/);
+  });
+
+  it("sends the finished state, so nothing waits on JavaScript", () => {
+    // `backwards` only affects the pre-delay frame; the element's own styles are
+    // the final state, which is what the server renders.
+    expect(plan.rule(".spineStage")).not.toMatch(/opacity:\s*0/);
+    expect(plan.rule(".spineName")).not.toMatch(/visibility:\s*hidden/);
+  });
+});

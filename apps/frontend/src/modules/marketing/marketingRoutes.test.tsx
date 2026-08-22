@@ -181,22 +181,56 @@ describe("00 · the overview is an executive summary", () => {
     const main = screen.getByRole("main");
 
     expect(
-      within(main).getByRole("heading", { name: /staffing decisions are made where the evidence is not/i }),
+      within(main).getByRole("heading", { name: /staffing decisions need evidence, an owner, and a record/i }),
     ).toBeInTheDocument();
-    // Named gaps, each one something the product has an object for.
-    expect(within(main).getByRole("heading", { name: /skills are described differently/i })).toBeInTheDocument();
-    expect(within(main).getByRole("heading", { name: /availability is held by the department/i })).toBeInTheDocument();
+    // Named conditions, each one something the product has an object for.
+    expect(within(main).getByRole("heading", { name: /a shared vocabulary for skills/i })).toBeInTheDocument();
+    expect(within(main).getByRole("heading", { name: /availability from the people who own it/i })).toBeInTheDocument();
   });
 
-  it("shows the five-stage model with the relationship grammar", () => {
+  /*
+    These were market claims wearing the clothes of observations — that skills
+    "are described differently by everyone", and that the decision "is usually
+    made in conversation and recorded nowhere". Nothing in this repository
+    supports either as a fact about organizations in general.
+  */
+  it("describes what the product addresses without asserting facts about the market", () => {
+    render(<HomePage />);
+    const main = screen.getByRole("main").textContent ?? "";
+
+    expect(main).not.toMatch(/described differently by everyone/i);
+    expect(main).not.toMatch(/usually made in conversation/i);
+    expect(main).not.toMatch(/\b(most|every|all) (organizations|companies|teams)\b/i);
+  });
+
+  /**
+   * The first viewport has to show the product doing something.
+   *
+   * It used to be a headline against an empty right half, which asked somebody
+   * to create a workspace before they had seen anything. The five stages are
+   * demonstrated in the hero now, and 00.2 carries the rule that governs them
+   * rather than repeating the sequence in a second static form.
+   */
+  it("demonstrates the five-stage model in the hero", () => {
+    render(<HomePage />);
+
+    const spine = screen.getByRole("list", {
+      name: /how a requirement becomes an allocation/i,
+    });
+    expect(within(spine).getAllByRole("listitem")).toHaveLength(5);
+    for (const stage of ["Requirement", "Evidence", "Ranked candidates", "Department review", "Accepted allocation"]) {
+      expect(spine).toHaveTextContent(stage);
+    }
+  });
+
+  it("carries the relationship grammar without repeating the sequence", () => {
     render(<HomePage />);
     const main = screen.getByRole("main");
 
-    for (const stage of ["Requirement", "Evidence", "Ranked candidates", "Department review", "Accepted allocation"]) {
-      expect(within(main).getByRole("heading", { name: stage })).toBeInTheDocument();
-    }
     expect(main).toHaveTextContent(/accepted allocation is the only thing drawn as a solid line/i);
     expect(main).toHaveTextContent(/proposal stays dashed until the owning department accepts it/i);
+    // One rendering of the stages, not two.
+    expect(within(main).getAllByText("Ranked candidates")).toHaveLength(1);
   });
 
   it("indexes the four chapters by their decision question", () => {
@@ -280,10 +314,10 @@ describe("01 · product explains the model, not just the pillars", () => {
     expect(
       within(main).getByRole("heading", { name: /a ranking is evidence\. it is not an assignment\./i }),
     ).toBeInTheDocument();
-    expect(main).toHaveTextContent(/writes nothing, and it creates no proposal/i);
+    expect(main).toHaveTextContent(/no request is made and nobody is put on a project/i);
     expect(main).toHaveTextContent(/the ranking does not choose anyone/i);
-    expect(main).toHaveTextContent(/no model or prediction is involved/i);
-    // The score composition, as the backend defines it.
+    expect(main).toHaveTextContent(/arithmetic, not a prediction/i);
+    // The score composition, as the product defines it.
     expect(main).toHaveTextContent(/matched skills up to 60/i);
   });
 });
@@ -379,6 +413,51 @@ describe("03 · for teams is a governance model", () => {
     const rows = within(table).getAllByRole("rowheader").map((cell) => cell.textContent?.trim());
     expect(new Set(rows)).toEqual(new Set(ROLES.map((role) => role.title)));
     expect(rows).toHaveLength(ROLES.length);
+  });
+
+  /**
+   * The contradiction guard.
+   *
+   * `/for-teams` shipped saying the organization admin "curates the skill
+   * catalogue" while the matrix beside it answered No and the boundary below it
+   * said the same. The prose predated the matrix and had never been checked
+   * against what the backend enforces — every skill write is
+   * `@DepartmentManagerOnly`.
+   *
+   * A page cannot contradict itself about who is allowed to do something. This
+   * checks the one authority claim that appears in both places.
+   */
+  it("does not let a role profile claim an authority the matrix denies", () => {
+    render(<ForTeamsPage />);
+    const main = screen.getByRole("main");
+    const table = within(main).getByRole("table");
+
+    const CATALOGUE = "Maintain the skill catalogue";
+    const column = RESPONSIBILITY_MATRIX.actions.indexOf(CATALOGUE);
+    expect(column).toBeGreaterThanOrEqual(0);
+
+    for (const role of RESPONSIBILITY_MATRIX.roles) {
+      const profile = ROLES.find((candidate) => candidate.title === role.title);
+      if (!profile) continue;
+      /*
+        One-directional on purpose. Prose that omits something the matrix grants
+        is a summary; prose that claims something the matrix denies is a
+        contradiction, and that is the only thing being caught here.
+      */
+      if (!role.owns[column]) {
+        expect(
+          /skill catalogue/i.test(profile.body),
+          `"${role.title}" claims the skill catalogue the matrix denies it`,
+        ).toBe(false);
+      }
+    }
+
+    // And the rendered cell agrees with the constant it was built from.
+    const adminRow = within(table)
+      .getAllByRole("row")
+      .find((row) => within(row).queryByText("Organization admin"));
+    const cells = within(adminRow as HTMLElement).getAllByRole("cell");
+    expect(cells[column]).toHaveTextContent("No");
   });
 
   it("exposes the responsibility matrix as a real table", () => {
@@ -524,6 +603,45 @@ describe("nothing is claimed that the repository cannot prove", () => {
     expect(text).not.toMatch(INVENTED_METRIC);
     expect(text).not.toMatch(EMPTY_SUPERLATIVE);
     expect(text).not.toMatch(OVERPROMISE);
+  });
+
+  /*
+    Implementation vocabulary belongs in a technical reference, not in the copy a
+    buyer scans. The Security control names are the deliberate exception: that
+    section *is* the technical reference, and naming the tier there is precision
+    rather than jargon.
+  */
+  it.each(PAGES)("$at keeps implementation vocabulary out of the page's own prose", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    render(r());
+    const main = screen.getByRole("main").textContent ?? "";
+
+    for (const term of ["endpoint", "persists", "controller", "code that runs it"]) {
+      expect(main.toLowerCase(), `"${term}" reads as implementation detail`).not.toContain(term);
+    }
+  });
+
+  it("states the certification boundary twice on Security, not four times", () => {
+    pathname.mockReturnValue("/security");
+    render(<SecurityPage />);
+    const main = screen.getByRole("main").textContent ?? "";
+
+    // Once in the chapter lead, once in the closing scope block. More than that
+    // turns a trust argument into a risk disclosure.
+    const claims = main.match(/no certification/gi) ?? [];
+    expect(claims.length).toBe(2);
+  });
+
+  it("leads Security with a control, not with an absence", () => {
+    pathname.mockReturnValue("/security");
+    render(<SecurityPage />);
+
+    const parts = within(screen.getByRole("main"))
+      .getAllByRole("heading", { level: 2 })
+      .map((h) => h.textContent?.trim() ?? "");
+    expect(parts[0]).toMatch(/control, evidence, limitation/i);
+    // The scope block comes last, after the controls it bounds.
+    expect(parts.at(-2)).toMatch(/current scope/i);
   });
 
   it("uses 'deterministic' only where the backend proves it", () => {
