@@ -234,6 +234,22 @@ after   ok   ok   ok   ok    ok    ok    ok    0 failures
 Overflow was measured as `documentElement.scrollWidth > clientWidth`, with the
 offending elements enumerated — never from screenshots.
 
+**Provenance, stated exactly.** The 245-check sweep was measured before the WCAG
+2.5.3 correction and was not re-run afterwards. The whole product delta since is
+`aria-label` string content and comments, and no stylesheet in the repository
+contains a selector keyed on `aria-label`, so the change cannot move layout. The
+four surfaces whose labels changed were re-measured directly at 320px: zero
+overflow, worst-case button down from 445px to 141px. The matrix result is
+carried forward on that basis, not re-asserted as a fresh run.
+
+An enumerated offender is not automatically a defect. On Account at 320px three
+elements report a right edge of 418px in a 320px viewport — all three are inside
+a `<thead>` that is `position: absolute; clip-path: inset(50%); width: 1px`, the
+visually-hidden header row the stacked layout replaces with `data-label`. The
+document itself measures 320px against a 320px `clientWidth`. The rule is the
+same one applied to the ten flagged nodes on Home: check what the element *is*
+before calling it overflow.
+
 ### WCAG 1.4.12 text spacing
 
 Applied at 320px across 11 representative surfaces: line height `1.5`, paragraph
