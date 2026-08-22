@@ -33,8 +33,13 @@ The control: a programmatic `form.requestSubmit()` fired the listener that
 
 A second correction came with it. The real page **is** hydrated
 (`__reactFiber` keys present), so "snapshots do not hydrate" was a property of
-the snapshot technique — cross-origin, no chunks — and never of the app or the
-harness.
+the snapshot technique — served cross-origin, so its module chunks never loaded —
+and never of the app or the harness.
+
+This pass changed that technique in one respect: snapshots were served from the
+dev server's **own** origin, so their stylesheets resolve and the geometry is the
+real thing rather than unstyled markup. Scripts are still stripped deliberately,
+so they still do not hydrate — confirmed per page, not assumed.
 
 **What this changed:** real-browser tab-order verification was available for the
 whole programme and went unused. V2-09 uses it.
