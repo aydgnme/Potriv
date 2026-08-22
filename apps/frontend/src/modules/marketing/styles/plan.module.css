@@ -1,0 +1,383 @@
+/**
+ * The business-plan chapters.
+ *
+ * An operating-plan look built from the tokens the product already has: rules
+ * rather than boxes, numbered parts, ledgers and a matrix. Nothing here is a
+ * gradient, a shadow or a card for its own sake — a page where every sentence
+ * is boxed reads as a brochure, and these pages are meant to read as a document
+ * somebody has to make a decision from.
+ */
+
+.container {
+  composes: container from "./landing.module.css";
+}
+
+/* ---------- chapter opening ---------- */
+
+.chapterHead {
+  padding-block: var(--p-space-7) var(--p-space-6);
+  border-bottom: 1px solid var(--p-border);
+  background: var(--p-surface-sunken);
+}
+
+.chapterHeadDark .chapterNumber,
+.chapterHeadDark .chapterLabel {
+  /* Measured: --p-brand on this ground is 2.92:1, which is not text contrast.
+     --p-inverse-brand is the token for brand-coloured text here. */
+  color: var(--p-inverse-brand);
+}
+
+.chapterHeadDark {
+  composes: chapterHead;
+  border-bottom-color: transparent;
+  /* The same surface as the section below it: two inverse tokens meeting here
+     left a visible seam, and the inverse text ratios are set against this one. */
+  background: var(--p-inverse-bg);
+}
+
+.chapterMark {
+  display: flex;
+  align-items: baseline;
+  gap: var(--p-space-3);
+  margin: 0 0 var(--p-space-3);
+}
+
+.chapterNumber {
+  color: var(--p-brand);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.chapterLabel {
+  color: var(--p-brand);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapterTitle {
+  margin: 0;
+  max-width: 24ch;
+  font-size: var(--p-display-2);
+  font-weight: var(--p-weight-bold);
+  line-height: var(--p-leading-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.chapterTitleDark {
+  composes: chapterTitle;
+  color: var(--p-inverse-text);
+}
+
+/* The question the reader arrived with, set apart from the prose that answers it. */
+.chapterQuestion {
+  margin: var(--p-space-4) 0 0;
+  padding-left: var(--p-space-4);
+  border-left: 2px solid var(--p-brand);
+  max-width: 60ch;
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+}
+
+.chapterQuestionDark {
+  composes: chapterQuestion;
+  color: var(--p-inverse-text);
+}
+
+.chapterLead {
+  margin: var(--p-space-4) 0 0;
+  max-width: 62ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading-body);
+}
+
+.chapterLeadDark {
+  composes: chapterLead;
+  color: var(--p-inverse-text-muted);
+}
+
+/* ---------- numbered part of a chapter ---------- */
+
+.section {
+  padding-block: var(--p-space-7);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.sectionDark {
+  composes: section;
+  border-bottom-color: transparent;
+  background: var(--p-inverse-bg);
+  color: var(--p-inverse-text);
+}
+
+.sectionDark .sectionIndex {
+  /* 8.29:1 here, against 2.96:1 for the light-ground muted grey. */
+  color: var(--p-inverse-text-muted);
+}
+
+.sectionHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--p-space-4);
+  align-items: start;
+  margin-bottom: var(--p-space-5);
+}
+
+.sectionIndex {
+  color: var(--p-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-base);
+  /* Optical alignment with the heading's cap height. */
+  padding-top: 3px;
+}
+
+.sectionTitle {
+  margin: 0;
+  max-width: 28ch;
+  font-size: var(--p-text-2xl, var(--p-display-2));
+  font-weight: var(--p-weight-semibold);
+  line-height: var(--p-leading-heading, 1.2);
+  letter-spacing: -0.01em;
+}
+
+.sectionTitleDark {
+  composes: sectionTitle;
+  color: var(--p-inverse-text);
+}
+
+.sectionLead {
+  margin: var(--p-space-3) 0 0;
+  max-width: 62ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: var(--p-leading-body);
+}
+
+.sectionLeadDark {
+  composes: sectionLead;
+  color: var(--p-inverse-text-muted);
+}
+
+/* ---------- ledger: problem on the left, response on the right ---------- */
+
+.ledger {
+  margin: 0;
+  border-top: 1px solid var(--p-border);
+}
+
+.ledgerRow {
+  display: grid;
+  gap: var(--p-space-2);
+  padding-block: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+@media (min-width: 768px) {
+  .ledgerRow {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: var(--p-space-6);
+    align-items: baseline;
+  }
+}
+
+.ledgerTerm {
+  margin: 0;
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.ledgerDetail {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-1);
+}
+
+.ledgerResponse {
+  color: var(--p-text-muted);
+  line-height: var(--p-leading-body);
+}
+
+.ledgerObject {
+  color: var(--p-brand-strong);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+/* ---------- stage rail ---------- */
+
+.rail {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--p-border);
+}
+
+@media (min-width: 900px) {
+  .rail {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-top: none;
+  }
+}
+
+.railStage {
+  padding-block: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+@media (min-width: 900px) {
+  .railStage {
+    padding: var(--p-space-4) var(--p-space-4) var(--p-space-5) 0;
+    border-top: 2px solid var(--p-brand);
+    border-bottom: none;
+  }
+}
+
+.railNumber {
+  display: block;
+  color: var(--p-brand);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.railName {
+  margin: var(--p-space-2) 0 var(--p-space-1);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.railBody {
+  margin: 0;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: var(--p-leading-body);
+}
+
+/* ---------- responsibility matrix ---------- */
+
+.matrixScroll {
+  /* Wide content scrolls inside its own container rather than pushing the
+     document sideways. Below the stacking breakpoint there is nothing to
+     scroll, because the table is no longer a grid. */
+  overflow-x: auto;
+}
+
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.matrix th,
+.matrix td {
+  padding: var(--p-space-3);
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: top;
+}
+
+.matrix thead th {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+  /* Wrapping, not nowrap: six column names on one line is what makes a table
+     set the page width. */
+  white-space: normal;
+}
+
+.matrix tbody th {
+  color: var(--p-text);
+  font-weight: var(--p-weight-semibold);
+}
+
+.matrixYes {
+  color: var(--p-brand-strong);
+  font-weight: var(--p-weight-semibold);
+}
+
+.matrixNo {
+  color: var(--p-text-muted);
+}
+
+@media (max-width: 767px) {
+  /* One labelled block per role. The header row stays in the DOM — visually
+     hidden, not removed — so the column names remain available. */
+  .matrix,
+  .matrix tbody,
+  .matrix tr,
+  .matrix td {
+    display: block;
+  }
+
+  .matrix thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .matrix tr {
+    padding-block: var(--p-space-3);
+    border-bottom: 1px solid var(--p-border);
+  }
+
+  .matrix tbody th {
+    display: block;
+    padding-inline: 0;
+    border-bottom: none;
+    font-size: var(--p-text-lg);
+  }
+
+  .matrix td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--p-space-4);
+    padding-inline: 0;
+    border-bottom: none;
+  }
+
+  /* The column name travels with the cell, so a stacked row still says what
+     each answer is an answer to. */
+  .matrix td::before {
+    content: attr(data-label);
+    color: var(--p-text-muted);
+    font-size: var(--p-text-sm);
+  }
+}
+
+/* ---------- continuation ---------- */
+
+.continuation {
+  padding-block: var(--p-space-6);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.continuationBecause {
+  margin: 0 0 var(--p-space-3);
+  max-width: 58ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading-body);
+}
+
+.continuationLink {
+  display: inline-flex;
+  align-items: center;
+  /* 44px minimum target, per 2.5.5. */
+  min-height: 44px;
+  color: var(--p-brand-strong);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.continuationLink:hover {
+  text-decoration: underline;
+}

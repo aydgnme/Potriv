@@ -15,12 +15,48 @@
 export const SIGN_IN_HREF = "/login";
 export const CREATE_WORKSPACE_HREF = "/create-workspace";
 
-export const LANDING_SECTIONS = [
-  { id: "product", label: "Product" },
-  { id: "how-it-works", label: "How it works" },
-  { id: "for-teams", label: "For teams" },
-  { id: "security", label: "Security" },
+/** Declared here so the route table and the Security page cannot disagree. */
+const SECURITY_TITLE = "What we can state plainly";
+
+/**
+ * The public marketing routes, and the one place the header and footer read.
+ *
+ * These were `{ id }` fragments until the four destinations became real pages.
+ * A fragment is not a page: it cannot be linked to from elsewhere, cannot carry
+ * its own title or description, and cannot be marked `aria-current="page"`
+ * truthfully. They are routes now, and both navigation surfaces read this array
+ * so they cannot drift apart.
+ *
+ * `title` is the `h1` each page carries. It is the same sentence the section
+ * heading used before the split, so nothing had to be written to fill a page.
+ */
+export const MARKETING_ROUTES = [
+  {
+    href: "/product",
+    label: "Product",
+    title: "Four things Potriv keeps straight",
+  },
+  {
+    href: "/how-it-works",
+    label: "How it works",
+    title: "From empty workspace to a reviewed team",
+  },
+  {
+    href: "/for-teams",
+    label: "For teams",
+    title: "Four responsibilities, one workspace",
+  },
+  {
+    href: "/security",
+    label: "Security",
+    title: SECURITY_TITLE,
+  },
 ] as const;
+
+export type MarketingRoute = (typeof MARKETING_ROUTES)[number];
+
+/** Where the landing page itself lives, and what the wordmark points at. */
+export const HOME_HREF = "/";
 
 export const HERO = {
   eyebrow: "Workforce staffing for multi-team organizations",
@@ -157,7 +193,7 @@ export const ROLES = [
  */
 export const SECURITY = {
   eyebrow: "Security",
-  title: "What we can state plainly",
+  title: SECURITY_TITLE,
   intro:
     "No certifications are claimed. Each line below is a property of the " +
     "system as it is built today, verifiable in the code that runs it.",
