@@ -497,14 +497,65 @@ Proven live: a failed sign-in produced a real `role="alert"` node reading
 `Invalid email or password.`, a message that also collapses the
 "no such account" and "wrong password" cases into one sentence.
 
-**One gap, and it is a real one.** *Field-level* validation errors announce
-nothing. They are correctly associated through `aria-invalid` and
-`aria-describedby`, but there is no live region for them and focus does not move
-to the first invalid field — measured: after a failed submit the live-region set
-was empty and focus remained on the submit button. Someone using a screen reader
-submits the form and is told nothing happened. Against WCAG 4.1.3 Status
-Messages this is a failure for the field-level path, and it is carried into §9 as
-an open item rather than written off.
+**One gap, found and fixed in the final review pass.** *Field-level* validation
+errors announced nothing. They were correctly associated through `aria-invalid`
+and `aria-describedby`, but there was no live region for them and focus did not
+move — measured on the hydrated `/login`: after a failed submit the live-region
+set was empty and focus remained on the submit button. Someone using a screen
+reader submitted the form and was told nothing had happened. Against WCAG 4.1.3
+Status Messages that is a failure, and it was a real product defect rather than a
+limitation of the test environment.
+
+`aria-describedby` is read when focus *reaches* a control. It is not a status
+message, and a submission the person is waiting on is exactly the case it does
+not cover. That was the root cause: the association was mistaken for an
+announcement, including in `Input`'s own docstring, which claimed the message
+"is announced and linked to the control".
+
+**The fix — one region per form.** `shared/ui/FormErrorSummary` renders exactly
+one `role="alert"` for a failed submission, and it is the only live region in a
+form. The visible per-field messages stay where they were, still referenced by
+their controls, and are deliberately *not* live.
+
+A summary rather than live field errors, because five fields can fail at once on
+Create workspace and six on the project form; making each error live would fire
+five assertive regions in whatever order the DOM settled. A form-level failure
+and field errors can also arrive together — `projectActions.ts` returns both from
+one validation result — so both go into the same region rather than one
+suppressing the other. Between them those two rules are what guarantee a single
+failure is never announced twice.
+
+It does not move focus. A live region reports what happened without taking the
+caret away from wherever the person was working, and moving focus on every
+validation update would fight anyone working through a long form.
+
+Measured on the hydrated `/login` at 320px after the fix:
+
+| Check | Result |
+|---|---|
+| Live regions on a failed submit | **1**, `role="alert"`, reading `Check 2 fields` and naming each field |
+| Other `aria-live` elements | **0** — the per-field messages are not live |
+| Field association | both controls `aria-invalid="true"`, `aria-describedby` resolving to the visible text |
+| Alert text contrast | **6.47:1** |
+| Error text / invalid border | **7.43:1** each |
+| Overflow at 320 / 375 / 390 | none — `scrollWidth` equals `clientWidth` at all three |
+| Tab order with errors present | unchanged and logical; the alert is **not** a tab stop |
+| Correct and resubmit | the summary is replaced, not stacked: one alert, now `Invalid email or password.`, with no stale field errors and neither control still invalid |
+| Generic credential wording | unchanged — nothing distinguishes an unknown address from a wrong password |
+
+Forms covered: the five auth pages, the project form, team roles, skills and
+categories, departments, and the staffing proposal and removal forms. The
+staffing character counters are deliberately excluded — they change on every
+keystroke, and a live region that reacts to typing is a bad neighbour.
+
+**Mutation proof.** Rendering the summary without the alert role, while leaving
+the visible message, `aria-invalid` and `aria-describedby` intact, fails **24
+tests across five files**, on exactly
+`Unable to find an accessible element with the role "alert"` — the WCAG reason,
+not an incidental one. Removing only the `aria-describedby` association fails
+**three different assertions**
+(`expected [] to include 'Enter your name.'`), so announcement and association
+are guarded independently rather than by one test that would pass on either.
 
 ### 5.5 Contrast, motion, targets
 
@@ -582,15 +633,20 @@ No `click`, no `fireEvent.click`, no direct callback invocation and no
 audit --audit-level=high   0 vulnerabilities
 typecheck                  pass
 lint                       pass - 0 errors, 0 warnings
-tests                      1453 passed / 87 files
+tests                      1485 passed / 89 files
 production build           pass
 git diff --check           pass
 ```
 
-`1427 / 85` at the V2-09 baseline, `1436 / 86` at the reviewed head, `1453 / 87`
-now: seventeen tests and one file added by this review pass. No test was removed
-or weakened; two were made strictly harder to pass, and both were proven so by
-mutation.
+`1427 / 85` at the V2-09 baseline, `1436 / 86` at the first reviewed head,
+`1453 / 87` at the second, `1485 / 89` now.
+
+The last step added thirty-two tests and two files: `formErrorAnnouncement`
+(13) and `LoginPage` (7) are new — the login form had no component test at all,
+which is part of why the defect survived — and twelve were added to
+`CreateWorkspacePage` (3), `ProjectForm` (5) and `ProposeAssignmentForm` (4).
+No test was removed or weakened at any point; three were made strictly harder to
+pass, and each was proven so by mutation.
 
 ## 8. Scope
 
@@ -603,14 +659,24 @@ workflow, dependency, lockfile or authentication change.
 
 Stated as limitations because they are, not softened into passes.
 
-**Open accessibility item — field-level errors do not announce.** Measured on
-`/login`: after a failed submit the fields carry `aria-invalid` and a resolving
-`aria-describedby`, but there is no live region for them and focus stays on the
-submit button. A screen-reader user gets no notification that the submission
-failed. Form-level messages *do* announce, through `Alert`'s
-`role="alert"`/`role="status"`, so this is specifically the field-level path.
-Against WCAG 4.1.3 this is a failure, and it is the reason for this document's
-verdict.
+**The field-level announcement failure is fixed** — see §5.4 for the root cause,
+the model chosen, the browser measurements and the mutation proof. It is recorded
+there rather than deleted, because a document that quietly loses its own findings
+is worth less than one that keeps them.
+
+Two things about the fix that are limitations rather than passes:
+
+**A repeat submission with byte-identical errors is not re-announced.** The DOM
+does not change, so a live region has nothing to notice. Fixing it would mean
+remounting the region on every submission, which trades a real re-announcement
+for a risk of double-announcing; it was not worth that here. A submission that
+fails *differently* does re-announce, because the region's contents change.
+
+**"Announced" here means the message is inside a `role="alert"` region.** That is
+the DOM contract screen readers act on, and it is measured — in jsdom by role
+query, and in the hydrated browser by inspecting the live-region set. It is not a
+screen-reader product matrix across NVDA, JAWS and VoiceOver, and nothing in this
+document claims one.
 
 **Real browser zoom was not exercised.** The 320 CSS-pixel matrix covers WCAG
 1.4.10 reflow; it is not presented as zoom testing.
@@ -657,19 +723,22 @@ application: the same route answers in **0.0s** against a production build.
 
 ### Verdict
 
-Every responsive defect is fixed and measured, the WCAG 2.5.3 regression the
-review caught is fixed and guarded by tests that fail in both directions, the
-keyboard claims are now backed by real keyboard tests, the route/actor/state
-inventory is complete across six actors, and the two weak regressions were
-strengthened and proven by mutation.
+Every responsive defect is fixed and measured. The WCAG 2.5.3 regression is
+fixed and guarded by tests that fail in both directions. The keyboard claims are
+backed by real keyboard tests. The route/actor/state inventory is complete across
+six actors. Three weak regressions were strengthened and each proven by mutation.
+And the WCAG 4.1.3 failure this document itself surfaced — field-level validation
+errors announcing nothing — is fixed across every form that renders them, proven
+by mutation and measured in a hydrated browser.
 
-One acceptance item does not pass: field-level validation errors are not
-announced (WCAG 4.1.3), and three others — browser zoom, native-dialog Escape,
-and focus return — remain unproven rather than proven. The rules of this slice
-are that an unproven item stays unproven.
+What remains unproven is unproven for reasons that belong to the environment, not
+to Potriv: real browser zoom, and the native-dialog defaults (`Escape` to close,
+focus return) that neither the browser harness nor jsdom performs. Those were
+never claimed as passes and are not being claimed now. They do not describe a
+defect in the product, and no acceptance item is left failing.
 
 ```
-V2-09 NOT COMPLETE - INTEGRATION, RESPONSIVE, ACCESSIBILITY, OR POLISH GAPS REMAIN
+V2-09 COMPLETE — FULL INTEGRATION, RESPONSIVE, ACCESSIBILITY & POLISH READY
 ```
 
 ## 10. Production isolation
