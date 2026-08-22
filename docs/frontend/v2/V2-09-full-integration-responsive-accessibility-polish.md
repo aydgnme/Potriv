@@ -489,13 +489,19 @@ Measured on `/login` against the real hydrated page.
 | Invalid border | `rgb(163,36,28)` — **7.43:1** against the field's surroundings, above the 3:1 non-text minimum |
 | Recovery | Correcting the value and resubmitting clears the state; the failed submit does not lose what was typed |
 
-**Announcement semantics.** The shared `Alert` decides this in one place —
-`Alert.tsx:32` renders `role="alert"` for the `danger` tone and `role="status"`
-otherwise — so success, denied, conflict and failure messages all announce, and
-an icon accompanies the colour so the tone survives for anyone who cannot see it.
-Proven live: a failed sign-in produced a real `role="alert"` node reading
-`Invalid email or password.`, a message that also collapses the
-"no such account" and "wrong password" cases into one sentence.
+**Announcement semantics.** The shared `Alert` decides this for panel-level
+messages — `Alert.tsx:32` renders `role="alert"` for the `danger` tone and
+`role="status"` otherwise — and an icon accompanies the colour so the tone
+survives for anyone who cannot see it. Proven live: a failed sign-in produced a
+real `role="alert"` node reading `Invalid email or password.`, a message that
+also collapses the "no such account" and "wrong password" cases into one
+sentence.
+
+**But `Alert` was not everywhere it needed to be.** A separate review pass found
+that action results in compact rows and tables were still plain `<span>` and
+`<p>`: visible, and announced to nobody. See §5.7 — the acceptance item covers
+success, denied, conflict *and* failure, and only the validation half had been
+closed.
 
 **One gap, found and fixed in the final review pass.** *Field-level* validation
 errors announced nothing. They were correctly associated through `aria-invalid`
@@ -556,6 +562,82 @@ not an incidental one. Removing only the `aria-describedby` association fails
 **three different assertions**
 (`expected [] to include 'Enter your name.'`), so announcement and association
 are guarded independently rather than by one test that would pass on either.
+
+### 5.7 Action results, announced
+
+Validation is the failure that happens *before* an action runs. This is what
+happens after one, and it was the other half of the same acceptance item.
+
+**What was wrong.** A revoke that failed, a skill that saved, a category that
+could not be renamed — all rendered as plain `<span>` or `<p>`. Somebody using a
+screen reader could complete an action and hear nothing at all about the result.
+The complete inventory found exactly four components in that state; everything
+else already went through `Alert`.
+
+| Site | Results affected |
+|---|---|
+| `SessionTable` | revoke `error`, revoke `done` |
+| `DepartmentPeople` | add-member `error`, remove-member `error` |
+| `CategoryAdmin` (row) | rename/retire/restore `error`, rename `done`, confirmation |
+| `MySkills` (row) | save `error`, remove `error`, save `done` |
+
+**The contract.** `shared/ui/ActionFeedback` renders a failure as one
+`role="alert"`, a success as one `role="status"`, and nothing when there is no
+outcome. It keeps each site's existing element and class — an `Alert` box inside
+a `<th>` would have been a visual redesign and would have regressed the mobile
+layouts measured in §3.
+
+**Rows that own several actions.** A category row has rename, retire and restore;
+a skill row has save and remove. Rendering every result left a stale failure
+beside a later confirmation and could put two assertive regions on one row.
+`useLatestOutcome` reports only the outcome whose object identity just changed —
+`useActionState` returns a new object per submission, so identity is the signal.
+The retire/restore confirmation is still filtered against the row's own state, so
+a "retired" message never appears under a row that still reads Available.
+
+One trap worth recording, because it was written and then caught: passing freshly
+built wrapper objects to that hook makes every render look like a new result and
+pins the answer to one entry forever. The raw states go in; the filtering happens
+on the way out.
+
+**Repeated identical outcomes now re-announce.** The previous pass recorded this
+as a limitation and attributed it to the environment. That was wrong — it was
+ours. A live region reports DOM changes, so an identical message re-rendered into
+the same node says nothing. Both primitives remount on a new result, and
+`FormErrorSummary` takes a `submission` for the same reason: the action state for
+server actions, an attempt counter for client-side forms.
+
+**Measured in the browser.** Feedback was injected into authenticated snapshots
+with the components' real hashed classes and real containers — a snapshot cannot
+run a Server Action, so the trigger is simulated while the layout being measured
+is the real one. Across the four surfaces at 320, 375 and 390px:
+
+```
+document overflow      0 / 12
+feedback overflow      0 / 12
+clipped feedback       0 / 12
+feedback tab stops     0 / 12
+minimum contrast       5.75:1  (error 6.99:1, status 5.75:1)
+```
+
+Tab order on Account with feedback present: 12 distinct stops, cycling cleanly,
+every stop with a visible ring, and focus never landing on a live region.
+
+On the live hydrated `/forgot-password`, one further copy defect from the
+previous pass was fixed and verified: the summary named the field `Work email`
+beside a visible label reading `Email`, which sends a speech-input user after a
+control that is not on the page. It now reads `Email: Enter a valid email
+address.`, with the field still `aria-invalid` and its `aria-describedby`
+resolving.
+
+**Mutation proof.** Four, each reverted:
+
+| Mutation | Result |
+|---|---|
+| roles removed, text still rendered | **28 tests** fail across 5 files on `Unable to find role="alert"`, with the message still in the DOM |
+| every row result allowed to survive | **4 tests** fail; `expected <p role="alert"> to be null` |
+| `"Work email"` restored | the label test fails on `Unable to find … Email: Enter a valid email address.` |
+| remount removed | **2 tests** fail on `expected <p role="alert"> not to be <p role="alert">` |
 
 ### 5.5 Contrast, motion, targets
 
@@ -633,18 +715,23 @@ No `click`, no `fireEvent.click`, no direct callback invocation and no
 audit --audit-level=high   0 vulnerabilities
 typecheck                  pass
 lint                       pass - 0 errors, 0 warnings
-tests                      1485 passed / 89 files
+tests                      1527 passed / 93 files
 production build           pass
 git diff --check           pass
 ```
 
 `1427 / 85` at the V2-09 baseline, `1436 / 86` at the first reviewed head,
-`1453 / 87` at the second, `1485 / 89` now.
+`1453 / 87` at the second, `1485 / 89` at the third, `1527 / 93` now.
 
 The last step added thirty-two tests and two files: `formErrorAnnouncement`
 (13) and `LoginPage` (7) are new — the login form had no component test at all,
 which is part of why the defect survived — and twelve were added to
 `CreateWorkspacePage` (3), `ProjectForm` (5) and `ProposeAssignmentForm` (4).
+The action-result pass added forty-two more tests in four files:
+`actionFeedback` (12), `SessionTable` (6), `DepartmentPeople` (4) and
+`ForgotPasswordPage` (5) are new, plus eight in `SkillAdminScreens` and seven in
+`SkillsScreens`.
+
 No test was removed or weakened at any point; three were made strictly harder to
 pass, and each was proven so by mutation.
 
@@ -664,19 +751,20 @@ the model chosen, the browser measurements and the mutation proof. It is recorde
 there rather than deleted, because a document that quietly loses its own findings
 is worth less than one that keeps them.
 
-Two things about the fix that are limitations rather than passes:
+**A correction to what this document said last.** It recorded "a repeat
+submission with byte-identical errors is not re-announced" as a limitation, and
+filed it beside the environment-owned ones. That was wrong twice over: it was a
+product limitation, not an environment one, and it was fixable. Both primitives
+now remount on a new result, so a repeat of an identical failure is announced
+again. See §5.7.
 
-**A repeat submission with byte-identical errors is not re-announced.** The DOM
-does not change, so a live region has nothing to notice. Fixing it would mean
-remounting the region on every submission, which trades a real re-announcement
-for a risk of double-announcing; it was not worth that here. A submission that
-fails *differently* does re-announce, because the region's contents change.
+The one thing that remains a limitation rather than a pass:
 
-**"Announced" here means the message is inside a `role="alert"` region.** That is
-the DOM contract screen readers act on, and it is measured — in jsdom by role
-query, and in the hydrated browser by inspecting the live-region set. It is not a
-screen-reader product matrix across NVDA, JAWS and VoiceOver, and nothing in this
-document claims one.
+**"Announced" here means the message is inside a `role="alert"` or
+`role="status"` region.** That is the DOM contract screen readers act on, and it
+is measured — in jsdom by role query, and in the hydrated browser by inspecting
+the live-region set. It is not a screen-reader product matrix across NVDA, JAWS
+and VoiceOver, and nothing in this document claims one.
 
 **Real browser zoom was not exercised.** The 320 CSS-pixel matrix covers WCAG
 1.4.10 reflow; it is not presented as zoom testing.
@@ -727,9 +815,10 @@ Every responsive defect is fixed and measured. The WCAG 2.5.3 regression is
 fixed and guarded by tests that fail in both directions. The keyboard claims are
 backed by real keyboard tests. The route/actor/state inventory is complete across
 six actors. Three weak regressions were strengthened and each proven by mutation.
-And the WCAG 4.1.3 failure this document itself surfaced — field-level validation
-errors announcing nothing — is fixed across every form that renders them, proven
-by mutation and measured in a hydrated browser.
+And the WCAG 4.1.3 acceptance item is closed in both halves: field-level
+validation errors, and the action results — success, denied, conflict and failure
+— that a later review found still rendering as plain elements in four components.
+Both are proven by mutation and measured in the browser.
 
 What remains unproven is unproven for reasons that belong to the environment, not
 to Potriv: real browser zoom, and the native-dialog defaults (`Escape` to close,
