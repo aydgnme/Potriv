@@ -126,15 +126,17 @@ function TeamRoleStatePanel({ teamRole }: { readonly teamRole: TeamRole }) {
           </p>
 
           <div>
-            {/* Same reason as the skill link controls: a team-role name is free
-                text, and a button label cannot wrap. The dialog heading below
-                still names the role in full, where it can wrap. */}
+            {/* Same reason as the skill link controls: a team-role name is
+                bounded at 120 characters but still wider than a mobile control,
+                and a button label cannot wrap. The accessible name begins with
+                the visible label so the two agree (WCAG 2.5.3); the dialog
+                heading below names the role in full, where it can wrap. */}
             <Button
               variant="secondary"
               size="sm"
               onClick={() => dialogRef.current?.showModal()}
               loading={isDeactivating}
-              aria-label={`Retire ${teamRole.name}`}
+              aria-label={`Retire team role: ${teamRole.name}`}
             >
               Retire team role
             </Button>
@@ -179,7 +181,7 @@ function TeamRoleStatePanel({ teamRole }: { readonly teamRole: TeamRole }) {
             variant="secondary"
             size="sm"
             loading={isReactivating}
-            aria-label={`Restore ${teamRole.name}`}
+            aria-label={`Restore team role: ${teamRole.name}`}
           >
             Restore team role
           </Button>

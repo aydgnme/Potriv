@@ -169,7 +169,7 @@ describe("the detail", () => {
     const user = userEvent.setup();
     render(<TeamRoleDetail teamRole={teamRole()} />);
 
-    await user.click(screen.getByRole("button", { name: "Retire Backend Engineer" }));
+    await user.click(screen.getByRole("button", { name: "Retire team role: Backend Engineer" }));
 
     const dialog = within(document.querySelector("dialog")!);
     expect(dialog.getByText("Retire Backend Engineer?")).toBeInTheDocument();
@@ -182,7 +182,7 @@ describe("the detail", () => {
   it("offers a restore instead once retired", () => {
     render(<TeamRoleDetail teamRole={teamRole({ active: false })} />);
 
-    expect(screen.getByRole("button", { name: "Restore Backend Engineer" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Restore team role: Backend Engineer" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Retire/ })).toBeNull();
     expect(screen.getByText(/Projects that already require it are unchanged/)).toBeInTheDocument();
   });
@@ -191,7 +191,7 @@ describe("the detail", () => {
     const user = userEvent.setup();
     render(<TeamRoleDetail teamRole={teamRole({ active: false })} />);
 
-    await user.click(screen.getByRole("button", { name: "Restore Backend Engineer" }));
+    await user.click(screen.getByRole("button", { name: "Restore team role: Backend Engineer" }));
 
     const formData = reactivate.mock.calls[0]![1];
     expect([...formData.keys()]).toEqual(["teamRoleId"]);
@@ -206,7 +206,7 @@ describe("the detail", () => {
     deactivate.mockResolvedValue({ done: "Backend Engineer is no longer offered for new work." });
     const { rerender } = render(<TeamRoleDetail teamRole={teamRole()} />);
 
-    await user.click(screen.getByRole("button", { name: "Retire Backend Engineer" }));
+    await user.click(screen.getByRole("button", { name: "Retire team role: Backend Engineer" }));
     const dialog = within(document.querySelector("dialog")!);
     await user.click(dialog.getByRole("button", { name: "Retire team role" }));
 
@@ -234,32 +234,48 @@ describe("the detail", () => {
  * where length costs nothing; the dialog heading still shows it in full, where
  * it can wrap.
  */
-describe("long team-role names do not ride in a button label", () => {
+describe("long team-role names stay out of the visible button label", () => {
   const longName = "Senior Backend Engineer With A Deliberately Long Team Role Name";
 
-  it("keeps the retire control's visible label short and its accessible name complete", () => {
+  /**
+   * A team-role name is bounded at 120 characters — still far wider than a
+   * mobile control, and a button label cannot wrap. Moving it to the accessible
+   * name fixes the layout; keeping the visible label *inside* that accessible
+   * name is what keeps WCAG 2.5.3 satisfied.
+   */
+  const assertLabelInName = (button: HTMLElement, visible: string, value: string) => {
+    expect(button.textContent?.trim()).toBe(visible);
+    expect(button.textContent).not.toContain(value);
+    const accessible = button.getAttribute("aria-label") ?? "";
+    expect(accessible).toContain(visible);
+    expect(accessible).toContain(value);
+  };
+
+  it("keeps the retire control short and its accessible name label-consistent", () => {
     render(<TeamRoleDetail teamRole={teamRole({ name: longName })} />);
 
-    const button = screen.getByRole("button", { name: `Retire ${longName}` });
-    expect(button).toHaveAccessibleName(`Retire ${longName}`);
-    expect(button.textContent?.trim()).toBe("Retire team role");
-    expect(button.textContent).not.toContain(longName);
+    assertLabelInName(
+      screen.getByRole("button", { name: `Retire team role: ${longName}` }),
+      "Retire team role",
+      longName,
+    );
   });
 
-  it("keeps the restore control's visible label short and its accessible name complete", () => {
+  it("keeps the restore control short and its accessible name label-consistent", () => {
     render(<TeamRoleDetail teamRole={teamRole({ name: longName, active: false })} />);
 
-    const button = screen.getByRole("button", { name: `Restore ${longName}` });
-    expect(button).toHaveAccessibleName(`Restore ${longName}`);
-    expect(button.textContent?.trim()).toBe("Restore team role");
-    expect(button.textContent).not.toContain(longName);
+    assertLabelInName(
+      screen.getByRole("button", { name: `Restore team role: ${longName}` }),
+      "Restore team role",
+      longName,
+    );
   });
 
   it("still names the role in full where the text can wrap", async () => {
     const user = userEvent.setup();
     render(<TeamRoleDetail teamRole={teamRole({ name: longName })} />);
 
-    await user.click(screen.getByRole("button", { name: `Retire ${longName}` }));
+    await user.click(screen.getByRole("button", { name: `Retire team role: ${longName}` }));
 
     // The dialog heading is prose, not a control, so the full name belongs there.
     expect(screen.getByRole("heading", { name: `Retire ${longName}?` })).toBeInTheDocument();

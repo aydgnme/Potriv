@@ -159,7 +159,7 @@ describe("the category screen", () => {
     const user = userEvent.setup();
     render(<CategoryAdmin categories={[category(BACKEND, "Backend")]} includeInactive={false} />);
 
-    await user.click(screen.getByRole("button", { name: "Retire Backend" }));
+    await user.click(screen.getByRole("button", { name: "Retire category: Backend" }));
 
     const dialog = within(document.querySelector("dialog")!);
     expect(dialog.getByText("Retire Backend?")).toBeInTheDocument();
@@ -174,16 +174,16 @@ describe("the category screen", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Restore Retired tooling" }),
+      screen.getByRole("button", { name: "Restore category: Retired tooling" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Retire Retired/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Retire category: Retired/ })).toBeNull();
   });
 
   it("sends only the id when retiring", async () => {
     const user = userEvent.setup();
     render(<CategoryAdmin categories={[category(BACKEND, "Backend")]} includeInactive={false} />);
 
-    await user.click(screen.getByRole("button", { name: "Retire Backend" }));
+    await user.click(screen.getByRole("button", { name: "Retire category: Backend" }));
     const dialog = within(document.querySelector("dialog")!);
     await user.click(dialog.getByRole("button", { name: "Retire category" }));
 
@@ -318,7 +318,7 @@ describe("the admin panel on a skill", () => {
 
     expect(screen.getByText(/not assigned to manage a department/)).toBeInTheDocument();
     expect(screen.getByText(/still add skills and categories/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Link department/ })).toBeNull();
   });
 
   it("does not claim an absent appointment when the lookup failed", () => {
@@ -338,8 +338,8 @@ describe("the admin panel on a skill", () => {
     expect(screen.queryByText(/not assigned to manage a department/)).toBeNull();
 
     // The relationship fails closed while everything else stays usable.
-    expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Unlink from/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Link department/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Unlink department/ })).toBeNull();
     expect(screen.getByRole("link", { name: "Edit skill" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retire skill" })).toBeInTheDocument();
   });
@@ -354,7 +354,7 @@ describe("the admin panel on a skill", () => {
     );
 
     // Bob wrote nothing here; link authority is the appointment, not authorship.
-    expect(screen.getByRole("button", { name: "Link to Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Link department: Platform" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Edit skill" })).toBeNull();
   });
 
@@ -367,7 +367,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Unlink from Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unlink department: Platform" })).toBeInTheDocument();
   });
 
   it("offers no new link on a retired skill, and says why", () => {
@@ -379,7 +379,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Link department/ })).toBeNull();
     expect(screen.getByText(/retired skill cannot be linked to Platform/)).toBeInTheDocument();
   });
 
@@ -396,7 +396,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Unlink from Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unlink department: Platform" })).toBeInTheDocument();
   });
 
   it("offers no department picker anywhere", () => {
@@ -424,7 +424,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Link to Platform" }));
+    await user.click(screen.getByRole("button", { name: "Link department: Platform" }));
 
     const formData = link.mock.calls[0]![1];
     expect([...formData.keys()]).toEqual(["skillId"]);
@@ -450,20 +450,62 @@ describe("the admin panel on a skill", () => {
 /**
  * Free text belongs in the accessible name, not the visible button label.
  *
- * A button cannot wrap its label, and category/department/skill names are
- * organization-authored with no length limit. One long category name — "Retire
- * Programming Languages And Runtime Platforms" — measured 367px inside a 248px
- * row and pushed the whole document to 422px at every mobile width.
+ * A button cannot wrap its label, and category/department names are
+ * organization-authored and long: bounded at 120 and 160 characters
+ * respectively, which is far wider than any mobile control. The bound is not the
+ * point — a perfectly valid, contract-respecting name still does not fit. One
+ * such category name, "Programming Languages And Runtime Platforms", made a
+ * `Retire` button 367px wide inside a 248px row and pushed the whole document to
+ * 422px at every mobile width.
  *
  * These regressions fail for that exact reason: putting the name back into the
  * visible label breaks the visible-text assertion, while the accessible name
  * stays intact so nothing is lost to a screen reader.
  */
-describe("long organization names do not ride in a button label", () => {
+describe("long organization names stay out of the visible button label", () => {
   const longCategory = "Programming Languages And Runtime Platforms For Backend Services";
   const longDepartment = "Platform Engineering And Developer Experience Department";
 
-  it("keeps the department link control's visible label short", () => {
+  /**
+   * Two halves, and both must hold.
+   *
+   * The label has to stay short, or a 120/160-character name sets the page
+   * width from inside a control that cannot wrap. And the accessible name has
+   * to *contain* that visible label, or WCAG 2.5.3 fails and a speech-input
+   * user saying what they can see does not reach the control.
+   *
+   * Fixing only the first is what the first attempt did.
+   */
+  const assertLabelInName = (button: HTMLElement, visible: string, value: string) => {
+    expect(button.textContent?.trim()).toBe(visible);
+    expect(button.textContent).not.toContain(value);
+
+    const accessible = button.getAttribute("aria-label") ?? "";
+    expect(accessible).toContain(visible);
+    expect(accessible).toContain(value);
+  };
+
+  it("keeps the retire control short and its accessible name label-consistent", () => {
+    render(<CategoryAdmin categories={[category(BACKEND, longCategory)]} includeInactive={false} />);
+
+    assertLabelInName(
+      screen.getByRole("button", { name: `Retire category: ${longCategory}` }),
+      "Retire category",
+      longCategory,
+    );
+  });
+
+  it("keeps the restore control short and its accessible name label-consistent", () => {
+    render(<CategoryAdmin categories={[category(RETIRED, longCategory, false)]} includeInactive />);
+
+    assertLabelInName(
+      screen.getByRole("button", { name: `Restore category: ${longCategory}` }),
+      "Restore category",
+      longCategory,
+    );
+  });
+
+  it("keeps the department link control short and label-consistent", () => {
     const target = skill({ departments: [] });
     render(
       <SkillAdminPanel
@@ -472,12 +514,14 @@ describe("long organization names do not ride in a button label", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: `Link to ${longDepartment}` });
-    expect(button.textContent?.trim()).toBe("Link department");
-    expect(button.textContent).not.toContain(longDepartment);
+    assertLabelInName(
+      screen.getByRole("button", { name: `Link department: ${longDepartment}` }),
+      "Link department",
+      longDepartment,
+    );
   });
 
-  it("keeps the department unlink control's visible label short", () => {
+  it("keeps the department unlink control short and label-consistent", () => {
     const target = skill({ departments: [{ departmentId: PLATFORM, name: longDepartment }] });
     render(
       <SkillAdminPanel
@@ -486,29 +530,10 @@ describe("long organization names do not ride in a button label", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: `Unlink from ${longDepartment}` });
-    expect(button.textContent?.trim()).toBe("Unlink department");
-    expect(button.textContent).not.toContain(longDepartment);
-  });
-
-  it("keeps the retire control's visible label short and its accessible name complete", () => {
-    render(<CategoryAdmin categories={[category(BACKEND, longCategory)]} includeInactive={false} />);
-
-    const button = screen.getByRole("button", { name: `Retire ${longCategory}` });
-
-    // Accessible name carries the category; the visible text does not.
-    expect(button).toHaveAccessibleName(`Retire ${longCategory}`);
-    expect(button.textContent?.trim()).toBe("Retire category");
-    expect(button.textContent).not.toContain(longCategory);
-  });
-
-  it("keeps the restore control's visible label short and its accessible name complete", () => {
-    render(<CategoryAdmin categories={[category(RETIRED, longCategory, false)]} includeInactive />);
-
-    const button = screen.getByRole("button", { name: `Restore ${longCategory}` });
-
-    expect(button).toHaveAccessibleName(`Restore ${longCategory}`);
-    expect(button.textContent?.trim()).toBe("Restore category");
-    expect(button.textContent).not.toContain(longCategory);
+    assertLabelInName(
+      screen.getByRole("button", { name: `Unlink department: ${longDepartment}` }),
+      "Unlink department",
+      longDepartment,
+    );
   });
 });

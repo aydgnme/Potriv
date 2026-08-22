@@ -128,7 +128,9 @@ function SessionRow({ session }: { readonly session: AccountSession }) {
               variant="secondary"
               size="sm"
               loading={isPending}
-              aria-label={`Revoke the session last seen ${
+              /* Begins with the visible label so the two agree (WCAG 2.5.3),
+                 then adds the detail that tells one session from another. */
+              aria-label={`Revoke session last seen ${
                 formatDateTime(session.lastSeenAt) ?? "at an unrecorded time"
               }`}
             >

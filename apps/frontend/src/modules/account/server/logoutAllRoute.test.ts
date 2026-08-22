@@ -39,8 +39,16 @@ function request(accessToken?: string) {
 
 async function post(accessToken?: string) {
   const { POST } = await import("../../../../app/api/auth/logout-all/route");
-  // The stub carries only the cookie accessor this route reads; the cast is to
-  // `NextRequest` rather than `any`, so the shape stays checked at the boundary.
+  /*
+    A deliberate double assertion, and it is worth naming as one: `as unknown as
+    NextRequest` bypasses structural checking exactly as completely as the `any`
+    it replaced. Nothing here is compiler-verified.
+
+    It stays because the route reads one property — the access cookie — and
+    constructing a real `NextRequest` would mean building a whole Request just to
+    exercise `cookies.get`. The narrow stub is honest about what it covers; the
+    cast is not evidence of anything.
+  */
   return POST(request(accessToken) as unknown as NextRequest);
 }
 

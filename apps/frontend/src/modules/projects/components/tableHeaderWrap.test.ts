@@ -1,51 +1,59 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
+import { cssContract } from "@/test/cssContract";
+
 /**
- * The Projects table headers must stay wrappable.
+ * The two stylesheet contracts that keep the Projects tables from overflowing.
  *
- * This asserts a stylesheet contract rather than behaviour, because the defect
- * is a layout one that jsdom cannot measure — and the responsive matrix that
- * caught it is not something a unit test can run.
+ * These assert CSS source rather than behaviour, because the defect is a layout
+ * one that jsdom cannot measure and the responsive matrix that caught it is not
+ * unit-runnable.
  *
- * The defect: `white-space: nowrap` on `.table th` made the header row the
- * table's min-content floor. The Project Team page has seven columns, so
- * between 768px and the width where these tables fold into stacked records the
- * row could not fit, and the document scrolled sideways (measured: 772px in a
- * 768px viewport). Letting "Review department" wrap onto two lines removes the
- * only reason the page overflowed.
+ * The assertions are scoped to the exact rules they protect. An earlier version
+ * matched `@media (max-width: 767px)` and `content: attr(data-label)`
+ * independently anywhere in the file — and this stylesheet has a *second* 767px
+ * block, so the table contract could have moved to another breakpoint, or broken
+ * outright, while the test stayed green.
  *
- * Reintroducing `nowrap` on the header rule fails this test for exactly that
- * reason.
+ * The defect they protect against: `white-space: nowrap` on `.table th` made the
+ * header row the table's min-content floor. Project Team has seven columns, so
+ * between 768px and the point where these tables fold into stacked records the
+ * row could not fit — measured at 772px inside a 768px viewport.
  */
 
-// Resolved from the project root: vitest runs with `apps/frontend` as cwd.
-const css = readFileSync(
-  join(process.cwd(), "src/modules/projects/components/Projects.module.css"),
-  "utf8",
-);
+const css = cssContract("src/modules/projects/components/Projects.module.css");
 
-/** The declaration block for a selector at the top level of the stylesheet. */
-function ruleBody(selector: string): string {
-  const start = css.indexOf(`${selector} {`);
-  if (start === -1) throw new Error(`no rule for ${selector}`);
-  return css.slice(start, css.indexOf("}", start));
-}
-
-describe("projects table headers", () => {
+describe("table headers may wrap", () => {
   it("does not pin the header row to a single line", () => {
-    const header = ruleBody(".table th");
+    const header = css.rule(".table th");
 
     expect(header).toMatch(/white-space:\s*normal/);
     expect(header).not.toMatch(/white-space:\s*nowrap/);
   });
+});
 
-  it("still stacks into labelled records at narrow widths", () => {
-    // The other half of the contract: below 768 the table stops being a table,
-    // which is what keeps seven columns readable on a phone.
-    expect(css).toMatch(/@media\s*\(max-width:\s*767px\)/);
-    expect(css).toMatch(/content:\s*attr\(data-label\)/);
+describe("tables stack into labelled records below the table breakpoint", () => {
+  /** The one 767px block that actually carries the table-stacking contract. */
+  const stacking = css.mediaBlocks(767).find((body) => /\.table\b/.test(body));
+
+  it("has a 767px block that redefines the table", () => {
+    expect(stacking).toBeDefined();
+  });
+
+  it("turns the table and its rows into blocks in that same block", () => {
+    expect(stacking).toMatch(/\.table\s*,/);
+    expect(stacking).toMatch(/display:\s*block/);
+  });
+
+  it("labels each cell from within that same block", () => {
+    // `data-label` is what replaces the visually hidden header row. If it ever
+    // moves outside this breakpoint the records lose their column names.
+    expect(stacking).toMatch(/content:\s*attr\(data-label\)/);
+  });
+
+  it("keeps the header row in the DOM rather than removing it", () => {
+    // Visually hidden, not `display: none` — the header cells stay available to
+    // anyone listening to the table.
+    expect(stacking).toMatch(/clip-path:\s*inset\(50%\)/);
   });
 });

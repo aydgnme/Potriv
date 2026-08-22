@@ -180,17 +180,22 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
       <div>
         {category.active ? (
           <>
-            {/* The category name is organization-authored free text of unbounded
-                length, and a button label cannot wrap — one long name pushed the
-                whole page sideways at every mobile width. The accessible name
-                still says exactly which category this retires, and the dialog
-                heading below names it in full where it can wrap. */}
+            {/*
+              A category name is bounded at 120 characters, which is still far
+              wider than a mobile control — one long name pushed the whole page
+              sideways at every width below 768px. Keeping it out of the visible
+              label fixes that.
+
+              The accessible name **starts with the visible label** so the two
+              agree: WCAG 2.5.3 requires the visible text to be contained in the
+              accessible name, and speech-input users say what they can see.
+            */}
             <Button
               variant="secondary"
               size="sm"
               onClick={() => dialogRef.current?.showModal()}
               loading={isRetiring}
-              aria-label={`Retire ${category.name}`}
+              aria-label={`Retire category: ${category.name}`}
             >
               Retire category
             </Button>
@@ -235,7 +240,7 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
               variant="secondary"
               size="sm"
               loading={isRestoring}
-              aria-label={`Restore ${category.name}`}
+              aria-label={`Restore category: ${category.name}`}
             >
               Restore category
             </Button>
