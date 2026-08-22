@@ -71,8 +71,9 @@ export function proxy(request: NextRequest) {
  *
  * Deliberately excluded: `/login`, `/forgot-password` and `/reset-password`
  * (guarding them would lock out the people who need them most), `/console` (a
- * developer tool with its own token), `/api/auth/*` (the recovery path itself —
- * guarding it would loop), and Next's own assets.
+ * developer tool with its own token, and one that only exists under the
+ * development server — see `next.config.ts`), `/api/auth/*` (the recovery path
+ * itself — guarding it would loop), and Next's own assets.
  */
 export const config = {
   matcher: [
