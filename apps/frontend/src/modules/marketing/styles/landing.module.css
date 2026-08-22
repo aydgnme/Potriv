@@ -636,3 +636,95 @@
 .footerLink:hover {
   color: var(--p-text);
 }
+
+/* ---------- subpage headings ----------
+   A page title is the same type as a section title was; only its level changed
+   when the four sections became four routes. */
+.pageTitle {
+  composes: sectionTitle;
+  max-width: 24ch;
+}
+
+.securityPageTitle {
+  composes: pageTitle;
+  color: var(--p-inverse-text);
+}
+
+/* The flow diagram and the two rules it encodes, kept together on How it works. */
+.flowPanel {
+  margin-top: var(--p-space-6);
+  display: grid;
+  gap: var(--p-space-5);
+}
+
+/* The hero motif on `/`, where the flow diagram used to sit. */
+.heroMotif {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .heroMotif {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+}
+
+/* ---------- the four route previews on `/` ----------
+   Headings and destinations only. Bodies live on the pages they belong to; two
+   canonical copies of the same claim is what the split was for. */
+.overview {
+  margin: var(--p-space-6) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--p-space-4);
+}
+
+@media (min-width: 720px) {
+  .overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.overviewItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-2);
+  padding: var(--p-space-5);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius);
+  background: var(--p-surface);
+}
+
+.overviewLabel {
+  margin: 0;
+  font-size: var(--p-text-base);
+  font-weight: var(--p-weight-semibold);
+  color: var(--p-brand);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.overviewTitle {
+  margin: 0;
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  color: var(--p-text);
+  text-wrap: balance;
+}
+
+.overviewLink {
+  display: inline-flex;
+  align-items: center;
+  /* 44px minimum target, per 2.5.5. */
+  min-height: 44px;
+  margin-top: auto;
+  color: var(--p-brand-strong);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.overviewLink:hover {
+  text-decoration: underline;
+}

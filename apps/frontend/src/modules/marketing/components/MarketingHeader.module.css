@@ -3,6 +3,31 @@
  * It is 64px of chrome that gets out of the way of the hero underneath it.
  */
 
+/**
+ * Off-screen until focused, then the first thing a keyboard reaches. It exists
+ * because the wordmark used to double as `href="#main"`, which meant the only
+ * way past the navigation was a link that did not say what it did.
+ */
+.skipLink {
+  position: absolute;
+  left: var(--p-space-4);
+  top: -100%;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-inline: var(--p-space-4);
+  background: var(--p-surface);
+  border: 1px solid var(--p-border-strong);
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  text-decoration: none;
+}
+
+.skipLink:focus-visible {
+  top: var(--p-space-2);
+}
+
 .header {
   position: sticky;
   top: 0;
@@ -55,6 +80,18 @@
 .navLink:hover {
   color: var(--p-text);
   text-decoration: none;
+}
+
+/*
+  The current page is marked by `aria-current` first — that is what a screen
+  reader reads. This adds a rule under it so the same fact is visible, and a
+  weight change so it does not rest on colour alone.
+*/
+.navLink[aria-current="page"] {
+  color: var(--p-text);
+  font-weight: var(--p-weight-semibold);
+  border-bottom: 2px solid var(--p-brand);
+  padding-bottom: 2px;
 }
 
 .actions {
@@ -153,11 +190,20 @@
 }
 
 .panelLink {
-  display: block;
+  display: flex;
+  align-items: center;
+  /* 44px minimum target, per 2.5.5 — these are the primary phone navigation. */
+  min-height: 44px;
   padding: var(--p-space-3) 0;
   color: var(--p-text);
   font-size: var(--p-text-lg);
   text-decoration: none;
+}
+
+.panelLink[aria-current="page"] {
+  font-weight: var(--p-weight-semibold);
+  box-shadow: inset 3px 0 0 0 var(--p-brand);
+  padding-left: var(--p-space-3);
 }
 
 .panelLink:hover {

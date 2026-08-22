@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { LandingPage } from "@/modules/marketing";
+import { HomePage } from "@/modules/marketing";
 
 /**
  * The public entry point.
@@ -29,5 +29,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <LandingPage />;
+  return <HomePage />;
 }
