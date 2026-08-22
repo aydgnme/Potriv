@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 
+import { ActionFeedback, useLatestOutcome } from "@/shared/ui/ActionFeedback";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 import { EmptyState } from "@/shared/ui/EmptyState";
@@ -92,6 +93,7 @@ function AssignmentRow({ assignment }: { readonly assignment: EmployeeSkill }) {
     keeps one row = one submission without breaking table semantics.
   */
   const formId = `save-${assignment.employeeSkillId}`;
+  const latest = useLatestOutcome([state, removeState]);
 
   return (
     <tr>
@@ -104,9 +106,15 @@ function AssignmentRow({ assignment }: { readonly assignment: EmployeeSkill }) {
              is not removed by that. */
           <span className={styles.inactiveTag}>Inactive catalogue skill</span>
         ) : null}
-        {state.error ? <p className={styles.fieldError}>{state.error}</p> : null}
-        {removeState.error ? <p className={styles.fieldError}>{removeState.error}</p> : null}
-        {state.done ? <p className={styles.panelNote}>{state.done}</p> : null}
+        {/* Save and remove are separate actions on one row. Only the newer of
+            them is feedback — a save failure must not sit beside a later remove
+            failure, and neither may linger past a later success. */}
+        <ActionFeedback
+          outcome={latest.outcome}
+          revision={latest.revision}
+          errorClassName={styles.fieldError}
+          doneClassName={styles.panelNote}
+        />
       </th>
 
       <td data-label="Category" className={styles.muted}>

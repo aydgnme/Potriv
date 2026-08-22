@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import { Alert } from "./Alert";
 
 import styles from "./FormErrorSummary.module.css";
@@ -21,6 +25,16 @@ export type FormErrorSummaryProps = {
    * Anything not listed keeps its original position, after the listed keys.
    */
   readonly order?: readonly string[];
+  /**
+   * Anything that changes per submission attempt. Without it, submitting the
+   * same invalid form twice changes no DOM, so the second failure is announced
+   * to nobody — a live region reports changes, not intentions.
+   *
+   * Server-action forms pass their action state, which `useActionState` replaces
+   * on every submission. Client-side forms pass a counter they increment when
+   * they validate.
+   */
+  readonly submission?: unknown;
 };
 
 /**
@@ -52,9 +66,12 @@ export type FormErrorSummaryProps = {
  * **What it does not do.** It does not move focus. A live region tells the
  * person what happened without stealing the caret from wherever they were, and
  * moving focus on every validation update would fight anyone working through a
- * long form. It also cannot re-announce a submission that fails a second time
- * with byte-identical errors: the DOM does not change, so there is nothing for a
- * live region to notice. Both are recorded in the V2-09 document.
+ * long form.
+ *
+ * It *does* re-announce a submission that fails a second time with identical
+ * text, provided the caller passes `submission`. The region is keyed on the
+ * attempt, so a new attempt remounts it and the live region has a change to
+ * report. Without that key, resubmitting an unchanged invalid form is silent.
  */
 export function FormErrorSummary({
   formError,
@@ -62,7 +79,16 @@ export function FormErrorSummary({
   fieldErrors,
   labels,
   order,
+  submission,
 }: FormErrorSummaryProps) {
+  // Remount on a new attempt so a repeat of the same failure is announced again.
+  const [seen, setSeen] = useState(submission);
+  const [attempt, setAttempt] = useState(0);
+  if (submission !== seen) {
+    setSeen(submission);
+    setAttempt((previous) => previous + 1);
+  }
+
   const entries = sortEntries(
     Object.entries(fieldErrors ?? {}).filter(
       (entry): entry is [string, string] => Boolean(entry[1]),
@@ -73,7 +99,7 @@ export function FormErrorSummary({
   if (!formError && entries.length === 0) return null;
 
   return (
-    <Alert tone="danger" title={title ?? headingFor(entries.length)}>
+    <Alert key={attempt} tone="danger" title={title ?? headingFor(entries.length)}>
       {formError ? <p>{formError}</p> : null}
       {entries.length > 0 ? (
         <ul className={styles.list}>

@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { useActionState, useRef } from "react";
 
+import { ActionFeedback, useLatestOutcome } from "@/shared/ui/ActionFeedback";
 import { Alert } from "@/shared/ui/Alert";
-import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { formatDate } from "@/shared/utils/formatDate";
 
@@ -77,6 +78,7 @@ function CreateCategoryForm() {
   return (
     <form action={formAction} className={styles.filters}>
       <FormErrorSummary
+        submission={state}
         formError={state.error}
         title={state.error ? "Not created" : undefined}
         fieldErrors={state.fieldErrors}
@@ -130,8 +132,32 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
   const nameId = `category-name-${category.categoryId}`;
   const titleId = `retire-category-${category.categoryId}`;
 
-  // Only the message that agrees with the state as it is now.
-  const confirmation = category.active ? restoreState.done : retireState.done;
+  /*
+    Three actions, one row, and only the newest of them is feedback.
+
+    Rendering all three results side by side left a rename failure sitting beside
+    a later retire confirmation, and could put two assertive regions on one row at
+    once. `useLatestOutcome` picks the state whose object identity just changed —
+    `useActionState` hands back a new one per submission — so a later result
+    always replaces an earlier one, in either direction.
+
+    The retire/restore confirmation is still filtered against the row's current
+    state first: a "restored" message under a row that reads Retired would be
+    worse than none.
+  */
+  const latest = useLatestOutcome([renameState, retireState, restoreState]);
+
+  /*
+    The raw states go in, because `useLatestOutcome` compares by identity and a
+    freshly built wrapper object would look like a new result on every render.
+    The filtering happens here instead: a "retired" confirmation under a row that
+    still reads Available contradicts what is on screen, so the confirmation is
+    dropped while any failure from the same action is kept.
+  */
+  const contradicts =
+    (latest.outcome === retireState && category.active) ||
+    (latest.outcome === restoreState && !category.active);
+  const shown = contradicts ? { error: latest.outcome?.error } : latest.outcome;
 
   return (
     <div className={styles.assignment}>
@@ -147,11 +173,12 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
           </span>
         </span>
 
-        {renameState.error ? <p className={styles.fieldError}>{renameState.error}</p> : null}
-        {retireState.error ? <p className={styles.fieldError}>{retireState.error}</p> : null}
-        {restoreState.error ? <p className={styles.fieldError}>{restoreState.error}</p> : null}
-        {renameState.done ? <p className={styles.panelNote}>{renameState.done}</p> : null}
-        {confirmation ? <p className={styles.panelNote}>{confirmation}</p> : null}
+        <ActionFeedback
+          outcome={shown}
+          revision={latest.revision}
+          errorClassName={styles.fieldError}
+          doneClassName={styles.panelNote}
+        />
       </div>
 
       <form action={renameAction} className={styles.assignmentControls}>

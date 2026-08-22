@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
-import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 
 import { EMPTY_PROPOSAL_STATE } from "../model/proposalState";
 import type { Candidate } from "../model/teamFinderData";
@@ -113,6 +113,7 @@ export function ProposeAssignmentForm({
           typing-time hint, not a submission error, and is deliberately left out
           of here so it cannot chatter. */}
       <FormErrorSummary
+        submission={state}
         formError={state.formError}
         title={state.formError ? "This was not sent" : undefined}
         fieldErrors={state.fieldErrors}

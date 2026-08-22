@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -535,5 +535,150 @@ describe("long organization names stay out of the visible button label", () => {
       "Unlink department",
       longDepartment,
     );
+  });
+});
+
+/**
+ * One row, three actions, and only the newest of them speaking.
+ *
+ * A category row owns rename, retire and restore, each with its own action
+ * state. Rendering all three results side by side left a rename failure sitting
+ * beside a later retire confirmation, and could put two assertive regions on one
+ * row at once. Worse, all three were plain `<p>` elements — visible and
+ * announced to nobody.
+ */
+describe("a category row reports only its latest action", () => {
+  const BACKEND_ROW = () => category(BACKEND, "Backend");
+
+  /** Submits the rename form from the keyboard. */
+  async function rename(user: ReturnType<typeof userEvent.setup>) {
+    const save = screen.getByRole("button", { name: /^Save Backend$/ });
+    save.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  /** Opens the retire dialog and confirms, from the keyboard. */
+  async function retire(user: ReturnType<typeof userEvent.setup>) {
+    const open = screen.getByRole("button", { name: "Retire category: Backend" });
+    open.focus();
+    await user.keyboard("{Enter}");
+    const confirm = within(document.querySelector("dialog")!).getByRole("button", {
+      name: /^Retire category$/,
+    });
+    confirm.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  it("announces a rename failure assertively", async () => {
+    updateCategory.mockResolvedValue({ error: "That name is already used." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("That name is already used.");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("announces a rename success politely", async () => {
+    updateCategory.mockResolvedValue({ done: "Category renamed." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Category renamed.");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("announces a retire failure assertively", async () => {
+    deactivateCategory.mockResolvedValue({ error: "Backend could not be retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await retire(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Backend could not be retired.",
+    );
+  });
+
+  it("replaces a stale rename failure when a later retire fails", async () => {
+    updateCategory.mockResolvedValue({ error: "That name is already used." });
+    deactivateCategory.mockResolvedValue({ error: "Backend could not be retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("That name is already used.");
+
+    await retire(user);
+    await screen.findByText("Backend could not be retired.");
+
+    // The earlier failure is gone, and there is still exactly one region.
+    expect(screen.queryByText("That name is already used.")).toBeNull();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("clears a stale rename failure even when the later confirmation is suppressed", async () => {
+    updateCategory.mockResolvedValue({ error: "That name is already used." });
+    deactivateCategory.mockResolvedValue({ done: "Backend retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("That name is already used.");
+
+    await retire(user);
+
+    /*
+      The retire succeeded, but this row still renders as Available — the server
+      data has not come back changed in this test — so its confirmation is
+      suppressed as contradicting what is on screen. What must *not* survive is
+      the earlier rename failure: it is no longer the latest thing that happened,
+      and leaving it there would attach it to the retire the user just did.
+    */
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.queryByText("That name is already used.")).toBeNull();
+    expect(screen.queryByText("Backend retired.")).toBeNull();
+  });
+
+  it("lets a later success replace an earlier failure", async () => {
+    deactivateCategory.mockResolvedValue({ error: "Backend could not be retired." });
+    updateCategory.mockResolvedValue({ done: "Category renamed." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await retire(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Backend could not be retired.");
+
+    // A rename confirmation carries no claim about Available/Retired, so it is
+    // never filtered — which makes it the clean case for proving that a success
+    // replaces a failure rather than stacking under it.
+    await rename(user);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Category renamed.");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Backend could not be retired.")).toBeNull();
+  });
+
+  it("keeps a retire confirmation off a row that still reads Available", async () => {
+    // The row's own state has not changed in this render, so a "retired"
+    // confirmation under an Available row would contradict what is on screen.
+    deactivateCategory.mockResolvedValue({ done: "Backend retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await retire(user);
+
+    expect(screen.queryByText("Backend retired.")).toBeNull();
+  });
+
+  it("says nothing before any of the three actions has run", () => {
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });

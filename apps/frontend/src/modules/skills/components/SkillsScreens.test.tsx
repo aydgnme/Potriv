@@ -614,3 +614,117 @@ describe("my skills", () => {
     }
   });
 });
+
+/**
+ * A skill row owns a save and a remove, and only one of them speaks.
+ *
+ * Both results were plain `<p>` elements: the save failed, the remove failed,
+ * the save succeeded — and none of it was announced. Worse, all three could
+ * render at once, so a save failure could sit under a later remove failure with
+ * nothing to say which belonged to what the user had just done.
+ */
+describe("a skill row reports only its latest action", () => {
+  async function save(user: ReturnType<typeof userEvent.setup>) {
+    const button = screen.getByRole("button", { name: "Save Java" });
+    button.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  async function removeSkill(user: ReturnType<typeof userEvent.setup>) {
+    const open = screen.getByRole("button", { name: "Remove Java" });
+    open.focus();
+    await user.keyboard("{Enter}");
+    const confirm = within(document.querySelector("dialog")!).getByRole("button", {
+      name: "Remove skill",
+    });
+    confirm.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  it("announces a save failure assertively", async () => {
+    update.mockResolvedValue({ error: "That level is not valid." });
+    const user = userEvent.setup();
+    render(<MySkills assignments={[assignmentOf()]} />);
+
+    await save(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("That level is not valid.");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("announces a save success politely", async () => {
+    update.mockResolvedValue({ done: "Java updated." });
+    const user = userEvent.setup();
+    render(<MySkills assignments={[assignmentOf()]} />);
+
+    await save(user);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Java updated.");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("announces a remove failure assertively", async () => {
+    remove.mockResolvedValue({ error: "Java could not be removed." });
+    const user = userEvent.setup();
+    render(<MySkills assignments={[assignmentOf()]} />);
+
+    await removeSkill(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Java could not be removed.");
+  });
+
+  it("replaces a stale save failure with a later remove failure", async () => {
+    update.mockResolvedValue({ error: "That level is not valid." });
+    remove.mockResolvedValue({ error: "Java could not be removed." });
+    const user = userEvent.setup();
+    render(<MySkills assignments={[assignmentOf()]} />);
+
+    await save(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("That level is not valid.");
+
+    await removeSkill(user);
+    await screen.findByText("Java could not be removed.");
+
+    expect(screen.queryByText("That level is not valid.")).toBeNull();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("does not let an earlier save success mask a later remove failure", async () => {
+    update.mockResolvedValue({ done: "Java updated." });
+    remove.mockResolvedValue({ error: "Java could not be removed." });
+    const user = userEvent.setup();
+    render(<MySkills assignments={[assignmentOf()]} />);
+
+    await save(user);
+    expect(await screen.findByRole("status")).toHaveTextContent("Java updated.");
+
+    await removeSkill(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Java could not be removed.");
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("Java updated.")).toBeNull();
+  });
+
+  it("keeps the row's table and form associations intact", async () => {
+    update.mockResolvedValue({ error: "That level is not valid." });
+    const user = userEvent.setup();
+    render(<MySkills assignments={[assignmentOf()]} />);
+
+    await save(user);
+    const alert = await screen.findByRole("alert");
+
+    // The feedback lives in the row header cell, and the controls still reach
+    // their form by id — a <form> cannot wrap the children of a <tr>.
+    expect(alert.closest("th")).not.toBeNull();
+    const control = screen.getByLabelText("Java level");
+    expect(control).toHaveAttribute("form");
+    expect(document.getElementById(control.getAttribute("form")!)).not.toBeNull();
+  });
+
+  it("says nothing before either action has run", () => {
+    render(<MySkills assignments={[assignmentOf()]} />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+});

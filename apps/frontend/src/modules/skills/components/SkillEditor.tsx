@@ -3,8 +3,8 @@
 import { useActionState } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
-import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 
 import {
   activeCategories,
@@ -65,6 +65,7 @@ export function SkillEditor({ categories, skill }: SkillEditorProps) {
   return (
     <form action={formAction} className={styles.filters}>
       <FormErrorSummary
+        submission={state}
         formError={state.error}
         title={state.error ? (skill ? "Not saved" : "Not created") : undefined}
         fieldErrors={state.fieldErrors}

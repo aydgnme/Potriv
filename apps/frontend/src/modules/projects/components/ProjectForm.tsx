@@ -4,8 +4,8 @@ import { useActionState, useRef, useState } from "react";
 
 import { PROJECT_STATUSES, type ProjectStatus } from "@/shared/types/projectStatus";
 import { Alert } from "@/shared/ui/Alert";
-import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import { Textarea } from "@/shared/ui/Textarea";
@@ -121,6 +121,7 @@ export function ProjectForm({
           a form-level message *and* field errors at once (projectActions.ts),
           so both go into the same region rather than one hiding the other. */}
       <FormErrorSummary
+        submission={state}
         formError={state.formError}
         title={state.formError ? "This was not saved" : undefined}
         fieldErrors={errors}

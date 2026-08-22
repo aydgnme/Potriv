@@ -6,8 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
-import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 
 import { confirmPasswordReset } from "../api/authClient";
@@ -34,10 +34,12 @@ export function ResetPasswordPage() {
   const [confirmationError, setConfirmationError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
+    setAttempt((previous) => previous + 1);
 
     // Mirrors PasswordResetConfirmRequest: 8–72 characters.
     const nextPasswordError =
@@ -94,6 +96,7 @@ export function ResetPasswordPage() {
       {/* One state for every rejected token: the backend does not say whether
           it was expired, already used or unknown, and neither should this. */}
       <FormErrorSummary
+            submission={attempt}
         formError={formError}
         fieldErrors={{
           password: passwordError ?? undefined,

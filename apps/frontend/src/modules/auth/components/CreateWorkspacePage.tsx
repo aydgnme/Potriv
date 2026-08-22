@@ -83,11 +83,13 @@ export function CreateWorkspacePage() {
   const [fieldErrors, setFieldErrors] = useState<WorkspaceFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [createdEmail, setCreatedEmail] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
+    setAttempt((previous) => previous + 1);
 
     // The same pure validator the route handler runs, so the two cannot drift.
     const validated = validateWorkspaceRegistration(values);
@@ -156,6 +158,7 @@ export function CreateWorkspacePage() {
           the same FIELDS array the form renders from, so a summary line can
           never name a field differently from its label. */}
       <FormErrorSummary
+        submission={attempt}
         formError={formError}
         fieldErrors={fieldErrors}
         labels={Object.fromEntries(FIELDS.map((field) => [field.name, field.label]))}

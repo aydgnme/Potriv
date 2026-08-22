@@ -37,6 +37,7 @@ export function LoginPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   const notice =
     params.get("session") === "expired"
@@ -56,6 +57,8 @@ export function LoginPage() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
+    // A new attempt, so a repeat of the same failure is announced again.
+    setAttempt((previous) => previous + 1);
 
     // Mirrors LoginRequest: a valid address, and 8–72 characters.
     const nextEmailError = /.+@.+\..+/.test(email) ? null : "Enter a valid email address.";
@@ -102,6 +105,7 @@ export function LoginPage() {
         before the request — but the summary would merge them if they did.
       */}
       <FormErrorSummary
+        submission={attempt}
         formError={formError}
         fieldErrors={{ email: emailError ?? undefined, password: passwordError ?? undefined }}
         labels={{ email: "Email", password: "Password" }}

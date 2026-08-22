@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
-import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 
 import { registerWithInvite } from "../api/authClient";
@@ -61,11 +61,13 @@ export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
   const [formError, setFormError] = useState<string | null>(null);
   const [inviteDead, setInviteDead] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [createdEmail, setCreatedEmail] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
+    setAttempt((previous) => previous + 1);
 
     const validated = validateInviteRegistration({ name, email, password });
     if (!validated.ok) {
@@ -147,6 +149,7 @@ export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
       }
     >
       <FormErrorSummary
+            submission={attempt}
         formError={formError}
         fieldErrors={fieldErrors}
         labels={{ name: "Your name", email: "Work email", password: "Password" }}

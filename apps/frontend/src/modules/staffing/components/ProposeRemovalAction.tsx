@@ -2,8 +2,8 @@
 
 import { useActionState, useRef, useState } from "react";
 
-import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 
 import { EMPTY_REMOVAL_STATE } from "../model/reviewActionState";
 import { proposeDeallocationAction } from "../server/actions/removalActions";
@@ -77,6 +77,7 @@ export function ProposeRemovalAction({
             every keystroke; it stays out of here so it cannot chatter. Only the
             action's own field error is announced. */}
         <FormErrorSummary
+        submission={state}
           formError={state.formError}
           title={state.formError ? "This was not sent" : undefined}
           fieldErrors={state.fieldErrors}
