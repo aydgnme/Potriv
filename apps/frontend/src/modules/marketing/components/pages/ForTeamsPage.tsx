@@ -48,7 +48,7 @@ export function ForTeamsPage() {
         index="03.2"
         title="Decisions and hand-offs"
         titleId="for-teams-matrix"
-        lead="Read from what each endpoint actually enforces, not from what the role is called."
+        lead="What each role may actually do, checked against what the system allows rather than what the role is called."
       >
         <ResponsibilityMatrix captionId="for-teams-matrix" />
       </PlanSection>

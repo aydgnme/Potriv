@@ -135,36 +135,44 @@ export const CONTINUATION: Readonly<Record<string, Continuation>> = {
  * common that gap is. No frequency, cost or duration is asserted anywhere.
  */
 export const OPERATING_PROBLEM = {
-  title: "Staffing decisions are made where the evidence is not",
+  title: "Staffing decisions need evidence, an owner, and a record",
   lead:
     "A project needs particular skills for a particular number of hours. The " +
     "people who could meet that need belong to departments that answer for " +
-    "their capacity. Between the two sits a decision that is usually made in " +
-    "conversation and recorded nowhere.",
+    "their capacity. Potriv is built for the four things that decision needs " +
+    "in order to be made well.",
+  /*
+    Stated as conditions Potriv addresses, not as universal facts about every
+    organization. An earlier draft said skills "are described differently by
+    everyone" and that the decision "is usually made in conversation and
+    recorded nowhere" — market claims presented as observations, with nothing
+    behind them. Each line below describes something the product has an object
+    for, which is a statement about Potriv rather than about the world.
+  */
   gaps: [
     {
-      title: "Skills are described differently by everyone",
+      title: "A shared vocabulary for skills",
       body:
-        "Without a shared catalogue, two people describing the same ability " +
-        "do not match, and neither does a search for it.",
+        "Without one, two people describing the same ability do not match — " +
+        "and neither does a search for it.",
     },
     {
-      title: "A requirement is not the same as a gap",
+      title: "A gap, not just a requirement",
       body:
         "What a project still needs is what it asked for minus who is already " +
-        "on it. Until both are written down, the gap is an opinion.",
+        "on it. Both have to be written down before the gap is a fact.",
     },
     {
-      title: "Availability is held by the department, not the project",
+      title: "Availability from the people who own it",
       body:
-        "The manager who knows what a person's week already contains is not " +
+        "The manager who knows what someone's week already contains is not " +
         "the manager asking for their hours.",
     },
     {
-      title: "The decision leaves no record",
+      title: "A decision somebody owns",
       body:
-        "If nobody owns the approval, there is nothing to look back at when " +
-        "the question is why somebody joined a team.",
+        "When the approval has a named owner, there is something to look back " +
+        "at when the question is why somebody joined a team.",
     },
   ],
 } as const;
@@ -279,20 +287,21 @@ export const OPERATING_OBJECTS = [
 export const DECISION_BOUNDARY = {
   title: "A ranking is evidence. It is not an assignment.",
   body:
-    "Team Finder reads the record and returns candidates in a fixed order. It " +
-    "writes nothing, and it creates no proposal. A project manager decides what " +
-    "to ask for; the owning department decides whether it happens.",
+    "Team Finder shows you who could do the work and why, ranked. Looking " +
+    "changes nothing: no request is made and nobody is put on a project. A " +
+    "project manager decides what to ask for, and the department that owns the " +
+    "person decides whether it happens.",
   score: {
     title: "What the score is made of",
     body:
-      "A total out of 100, composed the same way every time: matched skills " +
-      "up to 60, past projects up to 20, and current availability up to 20. " +
-      "The same inputs produce the same order, and nothing is inferred.",
+      "A total out of 100 you can read line by line: matched skills up to 60, " +
+      "past projects up to 20, and current availability up to 20. The same " +
+      "information always produces the same ranking, and nothing is guessed.",
   },
   notClaimed: [
     "The ranking does not choose anyone.",
-    "Running Team Finder changes no record.",
-    "No model or prediction is involved in the score.",
+    "Looking at candidates changes nothing.",
+    "The score is arithmetic, not a prediction.",
   ],
 } as const;
 
@@ -410,6 +419,9 @@ export const GOVERNANCE_SUMMARY = {
  * name suggests:
  *
  *   departments, team roles, invites  → `@OrganizationAdminOnly`
+ *   who is in the workspace, and the
+ *   roles they hold                  → `UserManagementController`, which is
+ *                                       `@OrganizationAdminOnly` at class level
  *   skill categories, skills          → `@DepartmentManagerOnly`
  *   skill-to-department link          → `@DepartmentManagerOnly` **and** an
  *                                       appointment; without one the backend
@@ -426,6 +438,7 @@ export const GOVERNANCE_SUMMARY = {
 export const RESPONSIBILITY_MATRIX = {
   actions: [
     "Create departments and team roles",
+    "Decide who is in the workspace",
     "Maintain the skill catalogue",
     "Declare their own skills",
     "Define project requirements",
@@ -435,19 +448,19 @@ export const RESPONSIBILITY_MATRIX = {
   roles: [
     {
       title: "Organization admin",
-      owns: [true, false, true, false, false, false],
+      owns: [true, true, false, true, false, false, false],
     },
     {
       title: "Department manager",
-      owns: [false, true, true, false, false, true],
+      owns: [false, false, true, true, false, false, true],
     },
     {
       title: "Project manager",
-      owns: [false, false, true, true, true, false],
+      owns: [false, false, false, true, true, true, false],
     },
     {
       title: "Employee",
-      owns: [false, false, true, false, false, false],
+      owns: [false, false, false, true, false, false, false],
     },
   ],
 } as const;
@@ -510,12 +523,17 @@ export const HANDOFF = {
    Security — chapter 04
    ────────────────────────────────────────────────────────────────────────── */
 
+/*
+  The certification boundary is stated twice on this page and nowhere else: once
+  in the chapter lead, and once in the scope block at the end. It was in four
+  places, which turned a trust argument into a risk disclosure — a reader met
+  five absences before a single control.
+*/
 export const TRUST_STATEMENT = {
-  title: "What can be stated, and what cannot",
+  title: "Current scope",
   body:
-    "No certifications are claimed. What follows is a description of controls " +
-    "the system enforces today, each with the observable behaviour behind it, " +
-    "and each with what it does not extend to.",
+    "Everything above is enforced today. These are the things Potriv does not " +
+    "do, listed so the boundary is as clear as the controls.",
 } as const;
 
 /**
@@ -533,7 +551,7 @@ export const CONTROL_AREAS = [
   {
     area: "Authorization and isolation",
     facts: ["Backend authorization", "Organization isolation"],
-    evidence: "Every request re-derives the decision from the backend, and a record outside your organization answers exactly as one that does not exist.",
+    evidence: "Permission is decided fresh on every request, and a record outside your organization answers exactly as one that does not exist.",
     limit: "The interface never grants what the API refuses. It does not audit what an authorised person then chooses to do.",
   },
   {
@@ -553,7 +571,7 @@ export const CONTROL_AREAS = [
 export const RESPONSIBILITY_BOUNDARY = {
   title: "Where the product stops and the organization starts",
   enforced: [
-    "Who may call which endpoint, re-checked on every request.",
+    "What each person is allowed to do, re-checked on every request.",
     "That a record outside your organization is indistinguishable from one that does not exist.",
     "That an allocation exists only after a named department manager accepted it.",
   ],

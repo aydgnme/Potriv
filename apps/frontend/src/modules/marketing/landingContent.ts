@@ -131,7 +131,7 @@ export const WORKFLOW_STEPS = [
   {
     number: "05",
     title: "Run Team Finder",
-    body: "Candidates ranked by the backend against those requirements.",
+    body: "Candidates ranked against those requirements, the same way every time.",
   },
   {
     number: "06",
@@ -170,9 +170,17 @@ export const ROLES = [
     title: "Organization admin",
     glyph: "organization",
     owns: "Owns the structure.",
+    /*
+      This used to say the organization admin "curates the skill catalogue". The
+      backend refuses that: every skill and skill-category write is
+      `@DepartmentManagerOnly`, and an organization admin calling it is answered
+      403. The line predates the responsibility matrix and was never checked
+      against what the system enforces — putting the two side by side is what
+      exposed it. Corrected to what this role actually owns.
+    */
     body:
-      "Creates departments and team roles, curates the skill catalogue and " +
-      "decides who is in the workspace.",
+      "Creates departments and team roles, invites people to the workspace " +
+      "and decides which roles each person holds.",
   },
   {
     title: "Employee",
@@ -194,9 +202,14 @@ export const ROLES = [
 export const SECURITY = {
   eyebrow: "Security",
   title: SECURITY_TITLE,
+  /*
+    "verifiable in the code that runs it" said the right thing to the wrong
+    reader — it is the chapter lead, which is the most-read line on the page.
+    The claim it carries is unchanged: these are checkable, not asserted.
+  */
   intro:
     "No certifications are claimed. Each line below is a property of the " +
-    "system as it is built today, verifiable in the code that runs it.",
+    "system as it is built today — checkable, not asserted.",
   facts: [
     {
       title: "Server-managed sessions",

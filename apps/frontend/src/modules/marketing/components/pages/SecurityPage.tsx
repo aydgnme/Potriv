@@ -42,22 +42,6 @@ export function SecurityPage() {
 
       <PlanSection
         index="04.1"
-        title={TRUST_STATEMENT.title}
-        titleId="security-trust"
-        lead={TRUST_STATEMENT.body}
-        tone="dark"
-      >
-        <ul className={pageStyles.notClaimed}>
-          {NOT_CLAIMED.map((line) => (
-            <li className={pageStyles.notClaimedItem} key={line}>
-              {line}
-            </li>
-          ))}
-        </ul>
-      </PlanSection>
-
-      <PlanSection
-        index="04.2"
         title="Control, evidence, limitation"
         titleId="security-controls"
         lead="Each area names the claims it covers, what stands behind them, and what it does not extend to."
@@ -96,7 +80,7 @@ export function SecurityPage() {
       </PlanSection>
 
       <PlanSection
-        index="04.3"
+        index="04.2"
         title={RESPONSIBILITY_BOUNDARY.title}
         titleId="security-responsibility"
         lead="Some of this the product decides. The rest is yours, and saying so is part of the boundary."
@@ -120,6 +104,22 @@ export function SecurityPage() {
             </ul>
           </div>
         </div>
+      </PlanSection>
+
+      <PlanSection
+        index="04.3"
+        title={TRUST_STATEMENT.title}
+        titleId="security-trust"
+        lead={TRUST_STATEMENT.body}
+        tone="dark"
+      >
+        <ul className={pageStyles.notClaimed}>
+          {NOT_CLAIMED.map((line) => (
+            <li className={pageStyles.notClaimedItem} key={line}>
+              {line}
+            </li>
+          ))}
+        </ul>
       </PlanSection>
 
       {/*
