@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  FINAL_CTA,
   MARKETING_ROUTES,
   PILLARS,
   ROLES,
@@ -318,12 +319,20 @@ describe("what the marketing pages claim", () => {
       SECURITY.title,
       SECURITY.intro,
       ...SECURITY.facts.flatMap((fact) => [fact.title, fact.body]),
+      // Shared marketing copy, not a security claim: every page closes on it.
+      FINAL_CTA.title,
+      // The onward link to the next page.
+      MARKETING_ROUTES[0].label,
     ];
-    const headings = screen
+    /*
+      Scoped to `main`: the claim surface is the page's own content. The site
+      header and footer are chrome — "Pages" and "Account" are column labels, not
+      assertions about how the system is built.
+    */
+    const headings = within(screen.getByRole("main"))
       .getAllByRole("heading")
       .map((heading) => heading.textContent?.trim() ?? "")
-      // The header and footer are outside the claim surface.
-      .filter((text) => text && text !== "POTRIV");
+      .filter(Boolean);
     for (const heading of headings) {
       expect(allowed, `"${heading}" is not a SECURITY constant`).toContain(heading);
     }
@@ -397,5 +406,122 @@ describe("the mobile menu", () => {
     await user.click(within(panel).getByRole("link", { name: "Product" }));
 
     expect(container.querySelector("#marketing-menu")).toBeNull();
+  });
+});
+
+/**
+ * The footer is not the header again.
+ *
+ * For a while it was: a wordmark on the left and the same four links on the
+ * right, so the bottom of every page repeated the top and a reader who had
+ * scrolled the whole way down arrived at nothing new. The header is a one-line
+ * control strip; the footer is the site laid out in columns.
+ */
+describe("the header and the footer are different objects", () => {
+  it("groups the footer into labelled columns", () => {
+    render(<HomePage />);
+    const footer = screen.getByRole("contentinfo");
+
+    for (const column of ["Pages", "Account"]) {
+      expect(within(footer).getByRole("heading", { name: column })).toBeInTheDocument();
+    }
+  });
+
+  it("keeps those groupings out of the header", () => {
+    render(<HomePage />);
+    const banner = screen.getByRole("banner");
+
+    // A column heading in the bar would mean the two had converged again.
+    expect(within(banner).queryByRole("heading")).toBeNull();
+  });
+
+  it("gives the footer the account actions the header has, as its own group", () => {
+    render(<HomePage />);
+    const footer = screen.getByRole("contentinfo");
+
+    const account = within(footer).getByRole("navigation", { name: "Account" });
+    const hrefs = [...account.querySelectorAll("a")].map((a) => a.getAttribute("href"));
+    expect(hrefs).toEqual(["/login", "/create-workspace"]);
+  });
+
+  it("still says in the footer that no certification is claimed", () => {
+    render(<HomePage />);
+
+    // A security page that claims none should not sit above a footer that
+    // implies otherwise by saying nothing.
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(/no certifications are claimed/i);
+  });
+
+  it("exposes exactly one banner landmark per page", () => {
+    for (const page of PAGES) {
+      pathname.mockReturnValue(page.at);
+      const { unmount } = render(page.render());
+      // The subpage header band is a section, not a second `<header>`.
+      expect(screen.getAllByRole("banner")).toHaveLength(1);
+      unmount();
+    }
+  });
+});
+
+/**
+ * Every subpage is a page, not a fragment.
+ *
+ * They were a heading and one row of content each, ending straight into the
+ * footer. A product page is expected to say what it is, show the content, and
+ * offer somewhere to go.
+ */
+describe("each subpage carries a header band, a way onward and a closing action", () => {
+  const SUBPAGES = PAGES.filter((page) => page.at !== "/");
+
+  it.each(SUBPAGES)("$at leads with the label and title of its own route", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    render(r());
+
+    const route = MARKETING_ROUTES.find((candidate) => candidate.href === at);
+    const main = screen.getByRole("main");
+    expect(main).toHaveTextContent(route?.label ?? "");
+    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+  });
+
+  it.each(SUBPAGES)("$at offers the next page in the sequence", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    render(r());
+
+    const index = MARKETING_ROUTES.findIndex((candidate) => candidate.href === at);
+    // Wraps, so the last page leads back to the first rather than nowhere.
+    const next = MARKETING_ROUTES[(index + 1) % MARKETING_ROUTES.length];
+
+    const onward = screen.getByRole("navigation", { name: "Next page" });
+    const link = within(onward).getByRole("link");
+    expect(link).toHaveAttribute("href", next.href);
+    expect(link).toHaveTextContent(next.label);
+    expect(link).not.toHaveAttribute("href", at);
+  });
+
+  it.each(SUBPAGES)("$at closes on the create-workspace action", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    render(r());
+
+    const main = screen.getByRole("main");
+    expect(
+      within(main).getByRole("link", { name: /create your workspace/i }),
+    ).toHaveAttribute("href", "/create-workspace");
+    expect(within(main).getByRole("link", { name: /^sign in$/i })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+  });
+
+  it("leads Product, For teams and Security with copy that already existed", () => {
+    for (const [at, renderPage, lead] of [
+      ["/product", () => <ProductPage />, /potriv connects project requirements/i],
+      ["/for-teams", () => <ForTeamsPage />, /a person holds the roles they have been granted/i],
+      ["/security", () => <SecurityPage />, /no certifications are claimed/i],
+    ] as const) {
+      pathname.mockReturnValue(at);
+      const { unmount } = render(renderPage());
+      expect(screen.getByRole("main")).toHaveTextContent(lead);
+      unmount();
+    }
   });
 });

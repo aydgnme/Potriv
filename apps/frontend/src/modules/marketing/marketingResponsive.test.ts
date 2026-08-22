@@ -43,6 +43,10 @@ describe("phone-width touch targets", () => {
     expect(header.rule(".panelLink")).toMatch(/min-height:\s*44px/);
     expect(header.rule(".skipLink")).toMatch(/min-height:\s*44px/);
     expect(landing.rule(".overviewLink")).toMatch(/min-height:\s*44px/);
+    // The footer is real navigation now, not a decorative strip.
+    expect(landing.rule(".footerLink")).toMatch(/min-height:\s*44px/);
+    expect(landing.rule(".footerWordmark")).toMatch(/min-height:\s*44px/);
+    expect(landing.rule(".pageOnwardLink")).toMatch(/min-height:\s*44px/);
   });
 });
 

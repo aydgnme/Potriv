@@ -1,25 +1,24 @@
 import { HERO, WORKFLOW_STEPS } from "../../landingContent";
 import { HeroFlowDiagram } from "../HeroFlowDiagram";
+import { MarketingPage } from "../MarketingPage";
 import styles from "../../styles/landing.module.css";
-import { MarketingShell } from "../MarketingShell";
 
 /**
  * `/how-it-works` — the staffing flow, and the seven steps that perform it.
  *
- * The flow diagram moves here from the home hero, because this is the page it
- * explains. The two relationship rules sit directly under it, as they always
- * have: they turn a line style into a stated rule.
+ * The flow diagram lives here rather than on the landing hero, because this is
+ * the page it explains. The two relationship rules sit directly under it, as
+ * they always have: they turn a line style into a stated rule.
  */
 export function HowItWorksPage() {
   return (
-    <MarketingShell>
-      <section className={styles.section} aria-labelledby="how-it-works-title">
+    <MarketingPage
+      href="/how-it-works"
+      title="From empty workspace to a reviewed team"
+      titleId="how-it-works-title"
+    >
+      <section className={styles.section} aria-label="The staffing flow">
         <div className={styles.container}>
-          <p className={styles.eyebrow}>How it works</p>
-          <h1 className={styles.pageTitle} id="how-it-works-title">
-            From empty workspace to a reviewed team
-          </h1>
-
           <div className={styles.flowPanel}>
             <HeroFlowDiagram />
             <div className={styles.truthNote}>
@@ -33,7 +32,11 @@ export function HowItWorksPage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
 
+      <section className={styles.section} aria-label="The seven steps">
+        <div className={styles.container}>
           {/* An ordered list because the steps are a sequence, not a set. */}
           <ol className={styles.steps}>
             {WORKFLOW_STEPS.map((step) => (
@@ -46,6 +49,6 @@ export function HowItWorksPage() {
           </ol>
         </div>
       </section>
-    </MarketingShell>
+    </MarketingPage>
   );
 }

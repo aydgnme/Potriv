@@ -28,6 +28,11 @@ import styles from "./MarketingHeader.module.css";
  * block that pushes the page down rather than an overlay, so the page behind it
  * is not obscured and there is nothing to trap focus away from. Closed means
  * unmounted, so a hidden link can never be reached by Tab.
+ *
+ * This stays a one-line utility bar on purpose. The footer used to repeat it
+ * exactly — same wordmark, same four links — so the bottom of every page was a
+ * copy of the top. The footer is columns now; this is the control strip, and the
+ * two no longer look like the same component twice.
  */
 export function MarketingHeader() {
   const [open, setOpen] = useState(false);
@@ -66,6 +71,9 @@ export function MarketingHeader() {
         </nav>
 
         <div className={styles.actions}>
+          {/* A rule, so the account actions read as a separate group from the
+              pages rather than as two more links in the same list. */}
+          <span className={styles.actionsDivider} aria-hidden="true" />
           <Link className={styles.signIn} href={SIGN_IN_HREF}>
             Sign in
           </Link>

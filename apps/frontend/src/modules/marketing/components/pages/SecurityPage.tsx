@@ -1,6 +1,6 @@
 import { SECURITY } from "../../landingContent";
+import { MarketingPage } from "../MarketingPage";
 import styles from "../../styles/landing.module.css";
-import { MarketingShell } from "../MarketingShell";
 
 /**
  * `/security` — every claim, bounded by the `SECURITY` constants.
@@ -11,15 +11,15 @@ import { MarketingShell } from "../MarketingShell";
  */
 export function SecurityPage() {
   return (
-    <MarketingShell>
-      <section className={styles.security} aria-labelledby="security-title">
+    <MarketingPage
+      href="/security"
+      title={SECURITY.title}
+      titleId="security-title"
+      lead={SECURITY.intro}
+      tone="dark"
+    >
+      <section className={styles.security} aria-label="Security properties">
         <div className={`${styles.container} ${styles.securityInner}`}>
-          <p className={styles.securityEyebrow}>{SECURITY.eyebrow}</p>
-          <h1 className={styles.securityPageTitle} id="security-title">
-            {SECURITY.title}
-          </h1>
-          <p className={styles.securityIntro}>{SECURITY.intro}</p>
-
           <ul className={styles.facts}>
             {SECURITY.facts.map((fact) => (
               <li className={styles.fact} key={fact.title}>
@@ -30,6 +30,6 @@ export function SecurityPage() {
           </ul>
         </div>
       </section>
-    </MarketingShell>
+    </MarketingPage>
   );
 }

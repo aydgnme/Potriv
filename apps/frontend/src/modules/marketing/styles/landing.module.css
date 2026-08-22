@@ -250,7 +250,11 @@
  */
 .pillars {
   display: grid;
-  margin-top: var(--p-space-6);
+  /* A list now that it is a `<ul>`; the visible 01-04 are the copy's own
+     numbering, so the browser's markers would be a second, competing one. */
+  margin: var(--p-space-6) 0 0;
+  padding: 0;
+  list-style: none;
   border: 1px solid var(--p-border);
   border-radius: var(--p-radius);
   background: var(--p-surface);
@@ -597,49 +601,121 @@
 
 .footer {
   border-top: 1px solid var(--p-border);
-  padding-block: var(--p-space-5);
+  background: var(--p-surface-sunken);
 }
 
+/*
+  Columns, not a second header. The header is a one-line control strip; this is
+  the site laid out, so reaching the bottom of a page gives a reader something
+  the top did not already give them.
+*/
 .footerInner {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--p-space-4);
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  gap: var(--p-space-6);
+  padding-block: var(--p-space-7);
 }
 
-.footerBrand {
-  color: var(--p-text-muted);
-  font-size: var(--p-text-sm);
+@media (min-width: 720px) {
+  .footerInner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: var(--p-space-8);
+  }
+}
+
+.footerBrandBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-2);
 }
 
 .footerWordmark {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  /* A link is a link: 44px like every other target in this footer. */
+  min-height: 44px;
   color: var(--p-text);
+  font-size: var(--p-text-lg);
   font-weight: var(--p-weight-bold);
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  text-decoration: none;
 }
 
-.footerLinks {
+.footerTagline {
+  margin: 0;
+  max-width: 28ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+}
+
+.footerColumns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--p-space-6);
+}
+
+@media (min-width: 720px) {
+  .footerColumns {
+    gap: var(--p-space-8);
+  }
+}
+
+.footerColumn {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--p-space-4);
+  flex-direction: column;
+  gap: var(--p-space-3);
+}
+
+.footerColumnTitle {
+  margin: 0;
+  color: var(--p-text);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.footerList {
   margin: 0;
   padding: 0;
   list-style: none;
+  display: flex;
+  flex-direction: column;
 }
 
 .footerLink {
+  display: inline-flex;
+  align-items: center;
+  /* 44px minimum target, per 2.5.5 — these are real phone navigation. */
+  min-height: 44px;
   color: var(--p-text-muted);
-  font-size: var(--p-text-sm);
+  font-size: var(--p-text-base);
+  text-decoration: none;
 }
 
 .footerLink:hover {
   color: var(--p-text);
+  text-decoration: underline;
 }
 
-/* ---------- subpage headings ----------
-   A page title is the same type as a section title was; only its level changed
-   when the four sections became four routes. */
+/* The legal-ish baseline every business footer ends on — here it carries the
+   one claim this product is willing to make about certification. */
+.footerBaseline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-2) var(--p-space-5);
+  justify-content: space-between;
+  padding-block: var(--p-space-4);
+  border-top: 1px solid var(--p-border);
+}
+
+.footerNote {
+  margin: 0;
+  color: var(--p-text-subtle, var(--p-text-muted));
+  font-size: var(--p-text-sm);
+}
+
 .pageTitle {
   composes: sectionTitle;
   max-width: 24ch;
@@ -727,4 +803,92 @@
 
 .overviewLink:hover {
   text-decoration: underline;
+}
+
+/* ---------- subpage header band ----------
+   A page that opens straight onto a grid of cards reads as a fragment. The band
+   states what the page is before the content starts. */
+.pageHeader {
+  padding-block: var(--p-space-7) var(--p-space-6);
+  border-bottom: 1px solid var(--p-border);
+  background: var(--p-surface-sunken);
+}
+
+.pageHeaderDark {
+  composes: pageHeader;
+  border-bottom-color: transparent;
+  /*
+    `--p-inverse-bg`, not `--p-inverse-surface`. The two differ enough to leave a
+    visible seam where this band meets the Security section below it — and the
+    inverse text tokens are calibrated against this one, so a lighter surface
+    would quietly cost contrast the tokens claim to have.
+  */
+  background: var(--p-inverse-bg);
+}
+
+.eyebrowInverse {
+  composes: eyebrow;
+  color: var(--p-inverse-text-muted);
+}
+
+.pageLead {
+  margin: var(--p-space-4) 0 0;
+  max-width: 62ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading-body);
+}
+
+.pageLeadInverse {
+  composes: pageLead;
+  color: var(--p-inverse-text-muted);
+}
+
+/* ---------- onward navigation ----------
+   Nobody should reach the bottom of a page and find the only move is back up. */
+.pageOnward {
+  border-top: 1px solid var(--p-border);
+}
+
+.pageOnwardInner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-1);
+  padding-block: var(--p-space-6);
+}
+
+.pageOnwardLabel {
+  color: var(--p-brand);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pageOnwardLink {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-1);
+  min-height: 44px;
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.pageOnwardLink:hover .pageOnwardTitle {
+  text-decoration: underline;
+}
+
+.pageOnwardTitle {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  font-weight: var(--p-weight-normal);
+}
+
+.closingInner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--p-space-3);
 }

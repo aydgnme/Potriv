@@ -1,20 +1,19 @@
 import { FOR_TEAMS_INTRO, ROLES } from "../../landingContent";
+import { MarketingPage } from "../MarketingPage";
 import { RoleGlyph } from "../RoleGlyph";
 import styles from "../../styles/landing.module.css";
-import { MarketingShell } from "../MarketingShell";
 
 /** `/for-teams` — the canonical home of the four role responsibilities. */
 export function ForTeamsPage() {
   return (
-    <MarketingShell>
-      <section className={styles.section} aria-labelledby="for-teams-title">
+    <MarketingPage
+      href="/for-teams"
+      title="Four responsibilities, one workspace"
+      titleId="for-teams-title"
+      lead={FOR_TEAMS_INTRO}
+    >
+      <section className={styles.section} aria-label="Role responsibilities">
         <div className={styles.container}>
-          <p className={styles.eyebrow}>For teams</p>
-          <h1 className={styles.pageTitle} id="for-teams-title">
-            Four responsibilities, one workspace
-          </h1>
-          <p className={styles.sectionIntro}>{FOR_TEAMS_INTRO}</p>
-
           <ul className={styles.roles}>
             {ROLES.map((role) => (
               <li className={styles.role} key={role.title}>
@@ -31,6 +30,6 @@ export function ForTeamsPage() {
           </ul>
         </div>
       </section>
-    </MarketingShell>
+    </MarketingPage>
   );
 }

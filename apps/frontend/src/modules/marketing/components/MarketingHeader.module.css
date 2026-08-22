@@ -46,11 +46,16 @@
 }
 
 .wordmark {
+  display: inline-flex;
+  align-items: center;
   color: var(--p-text);
   font-size: var(--p-text-lg);
   font-weight: var(--p-weight-bold);
   letter-spacing: 0.06em;
   text-decoration: none;
+  /* Its own group, separated from the pages by the gap rather than by a rule —
+     one divider in the bar is enough, and it belongs before the actions. */
+  padding-right: var(--p-space-2);
 }
 
 .wordmark:hover {
@@ -99,6 +104,22 @@
   align-items: center;
   gap: var(--p-space-3);
   margin-left: auto;
+}
+
+/* Hidden until the desktop nav exists — with the menu button there is already a
+   clear break, and a rule beside it would just be noise. */
+.actionsDivider {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .actionsDivider {
+    display: block;
+    width: 1px;
+    height: 24px;
+    margin-right: var(--p-space-2);
+    background: var(--p-border);
+  }
 }
 
 .signIn {

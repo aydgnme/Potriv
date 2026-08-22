@@ -1,34 +1,35 @@
-import { PILLARS } from "../../landingContent";
+import { HERO, PILLARS } from "../../landingContent";
+import { MarketingPage } from "../MarketingPage";
 import styles from "../../styles/landing.module.css";
-import { MarketingShell } from "../MarketingShell";
 
 /**
  * `/product` — the canonical home of the four pillars.
  *
  * This was a `#product` section on the landing page. It is a route now, so the
- * heading it always had is its `h1` rather than one `h2` among five.
+ * heading it always had is its `h1`, and the product's own summary sentence
+ * leads it rather than the page starting on a bare grid.
  */
 export function ProductPage() {
   return (
-    <MarketingShell>
-      <section className={styles.section} aria-labelledby="product-title">
+    <MarketingPage
+      href="/product"
+      title="Four things Potriv keeps straight"
+      titleId="product-title"
+      lead={HERO.lead}
+    >
+      <section className={styles.section} aria-label="Product pillars">
         <div className={styles.container}>
-          <p className={styles.eyebrow}>Product</p>
-          <h1 className={styles.pageTitle} id="product-title">
-            Four things Potriv keeps straight
-          </h1>
-
-          <div className={styles.pillars}>
+          <ul className={styles.pillars}>
             {PILLARS.map((pillar) => (
-              <div className={styles.pillar} key={pillar.number}>
+              <li className={styles.pillar} key={pillar.number}>
                 <span className={styles.pillarNumber}>{pillar.number}</span>
                 <h2 className={styles.pillarTitle}>{pillar.title}</h2>
                 <p className={styles.pillarBody}>{pillar.body}</p>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
-    </MarketingShell>
+    </MarketingPage>
   );
 }
