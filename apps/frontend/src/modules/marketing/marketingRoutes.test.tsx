@@ -2,14 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  FINAL_CTA,
-  MARKETING_ROUTES,
-  PILLARS,
-  ROLES,
-  SECURITY,
-  WORKFLOW_STEPS,
-} from "./landingContent";
+import { CHAPTERS, CONTINUATION, PLAN_CHAPTERS, RESPONSIBILITY_MATRIX } from "./businessPlan";
+import { MARKETING_ROUTES, ROLES, SECURITY, WORKFLOW_STEPS } from "./landingContent";
 import { ForTeamsPage } from "./components/pages/ForTeamsPage";
 import { HomePage } from "./components/pages/HomePage";
 import { HowItWorksPage } from "./components/pages/HowItWorksPage";
@@ -17,13 +11,17 @@ import { ProductPage } from "./components/pages/ProductPage";
 import { SecurityPage } from "./components/pages/SecurityPage";
 
 /**
- * The public marketing architecture.
+ * The public site as a five-chapter business case.
  *
- * Product, How it works, For teams and Security were four `#fragment` sections
- * on one long page while the header advertised them as four destinations. A
- * fragment cannot be linked to from elsewhere, cannot carry a title, and cannot
- * honestly be `aria-current="page"`. These lock in the split: four routes, one
- * canonical home for each body, and a landing page that stops holding all of it.
+ * The first version of these pages was four routes each holding one heading and
+ * one list, wrapped in a template that gave every route the same band, the same
+ * "Next", and the same closing CTA. That is a URL split, not an information
+ * architecture: a reader could not use it to answer what the problem is, who
+ * decides, or what is not being claimed.
+ *
+ * These lock the replacement — route-specific narrative, a linear chapter
+ * progression that ends rather than loops, and a claim surface that stays inside
+ * what the repository can prove.
  */
 
 const pathname = vi.fn(() => "/");
@@ -49,189 +47,498 @@ const PAGES = [
   { at: "/security", render: () => <SecurityPage />, h1: /what we can state plainly/i },
 ] as const;
 
-describe("every marketing route is a real page", () => {
-  it.each(PAGES)("$at has one h1 naming its subject", ({ at, render: renderPage, h1 }) => {
+const SUBPAGES = PAGES.filter((page) => page.at !== "/");
+
+/** The `h2` sequence a page renders, which is its narrative skeleton. */
+function sectionTitles() {
+  return within(screen.getByRole("main"))
+    .getAllByRole("heading", { level: 2 })
+    .map((heading) => heading.textContent?.trim() ?? "");
+}
+
+describe("every route is a page with its own subject", () => {
+  it.each(PAGES)("$at has one h1 naming its subject", ({ at, render: r, h1 }) => {
     pathname.mockReturnValue(at);
-    render(renderPage());
+    render(r());
 
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
     expect(screen.getByRole("heading", { level: 1, name: h1 })).toBeInTheDocument();
   });
 
-  it.each(PAGES)("$at exposes the landmarks a reader navigates by", ({ at, render: r }) => {
+  it.each(PAGES)("$at exposes exactly one of each landmark", ({ at, render: r }) => {
     pathname.mockReturnValue(at);
     render(r());
 
-    expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByRole("main")).toBeInTheDocument();
-    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    expect(screen.getAllByRole("banner")).toHaveLength(1);
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(screen.getAllByRole("contentinfo")).toHaveLength(1);
   });
 
-  it.each(PAGES)("$at is public — no password field, no session prompt", ({ at, render: r }) => {
+  it.each(PAGES)("$at is public — no password field", ({ at, render: r }) => {
     pathname.mockReturnValue(at);
     render(r());
 
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   });
-});
 
-describe("the header and footer point at routes, not fragments", () => {
-  const marketingLinks = (container: HTMLElement, within_: "banner" | "contentinfo") => {
-    const region = within_ === "banner" ? screen.getByRole("banner") : screen.getByRole("contentinfo");
-    void container;
-    return [...region.querySelectorAll("a")].map((a) => a.getAttribute("href") ?? "");
-  };
+  it.each(PAGES)("$at states its chapter number and decision question", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    render(r());
 
-  it("exposes exactly the four marketing routes in the header nav", () => {
-    const { container } = render(<HomePage />);
-
-    const nav = container.querySelector('nav[aria-label="Marketing"]');
-    expect(nav).not.toBeNull();
-    const hrefs = [...(nav?.querySelectorAll("a") ?? [])].map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual(MARKETING_ROUTES.map((route) => route.href));
-  });
-
-  it("exposes the same four routes in the footer, from the same source", () => {
-    render(<HomePage />);
-
-    const footer = screen.getByRole("contentinfo");
-    const hrefs = [...footer.querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    for (const route of MARKETING_ROUTES) {
-      expect(hrefs).toContain(route.href);
-    }
-  });
-
-  it("has no link anywhere in the header or footer that is only a fragment", () => {
-    const { container } = render(<HomePage />);
-
-    for (const region of ["banner", "contentinfo"] as const) {
-      for (const href of marketingLinks(container, region)) {
-        // The skip link is the one legitimate fragment, and it is not navigation.
-        if (href === "#main") continue;
-        expect(href.startsWith("#"), `${region} link "${href}" is a fragment`).toBe(false);
+    const chapter = CHAPTERS.find((candidate) => candidate.href === at);
+    const main = screen.getByRole("main");
+    if (at === "/") {
+      /*
+        The overview does not label itself as a chapter — it is the document, not
+        a part of it. What it must carry is the index, and that is asserted in
+        full by "indexes the four chapters by their decision question".
+      */
+      for (const other of PLAN_CHAPTERS) {
+        expect(main).toHaveTextContent(other.number);
       }
+      return;
     }
-  });
-
-  it("gives the wordmark the home route and the skip link the main landmark", () => {
-    render(<HomePage />);
-
-    const banner = screen.getByRole("banner");
-    const wordmark = within(banner).getByRole("link", { name: "POTRIV" });
-    expect(wordmark).toHaveAttribute("href", "/");
-
-    // The wordmark used to double as `href="#main"`, which meant the only way
-    // past the navigation was a link that did not say what it did.
-    const skip = within(banner).getByRole("link", { name: /skip to content/i });
-    expect(skip).toHaveAttribute("href", "#main");
-    expect(skip).not.toBe(wordmark);
-  });
-
-  it("names the navigation for what it now is", () => {
-    const { container } = render(<HomePage />);
-
-    // Not "Landing sections": the destinations are pages.
-    expect(container.querySelector('nav[aria-label="Marketing"]')).not.toBeNull();
-    expect(container.querySelector('nav[aria-label="Landing sections"]')).toBeNull();
+    expect(main).toHaveTextContent(chapter?.number ?? "");
+    expect(main).toHaveTextContent(chapter?.question ?? "");
   });
 });
 
-describe("the current page is announced, not merely coloured", () => {
-  it.each(MARKETING_ROUTES)("marks $href current when that is the path", (route) => {
-    pathname.mockReturnValue(route.href);
-    const { container } = render(<ProductPage />);
+describe("the four chapters are not one template rendered four times", () => {
+  it("gives each subpage a different section sequence", () => {
+    const sequences = new Map<string, readonly string[]>();
+    for (const page of SUBPAGES) {
+      pathname.mockReturnValue(page.at);
+      const { unmount } = render(page.render());
+      sequences.set(page.at, sectionTitles());
+      unmount();
+    }
 
-    const current = [...container.querySelectorAll('a[aria-current="page"]')].map((a) =>
-      a.getAttribute("href"),
-    );
-    // Every navigation surface that shows the link marks it, and nothing else.
-    expect(new Set(current)).toEqual(new Set([route.href]));
+    // Four distinct skeletons. When every page shared one template these were
+    // identical, and the pages were interchangeable.
+    const joined = [...sequences.values()].map((titles) => titles.join(" | "));
+    expect(new Set(joined).size).toBe(SUBPAGES.length);
+    for (const [href, titles] of sequences) {
+      expect(titles.length, `${href} has too few sections to be a chapter`).toBeGreaterThanOrEqual(3);
+    }
   });
 
-  it("marks nothing current on the landing page", () => {
-    pathname.mockReturnValue("/");
-    const { container } = render(<HomePage />);
-
-    expect(container.querySelectorAll('a[aria-current="page"]')).toHaveLength(0);
+  it("does not close all four on the same block", () => {
+    const closings = new Map<string, string>();
+    for (const page of SUBPAGES) {
+      pathname.mockReturnValue(page.at);
+      const { unmount } = render(page.render());
+      closings.set(page.at, sectionTitles().at(-1) ?? "");
+      unmount();
+    }
+    // Security ends on its own conclusion; the others end on their own last part.
+    expect(new Set(closings.values()).size).toBe(SUBPAGES.length);
   });
 });
 
-describe("each body has exactly one canonical home", () => {
-  it("puts the four pillars on Product", () => {
-    pathname.mockReturnValue("/product");
-    render(<ProductPage />);
+describe("chapter progression is linear and ends", () => {
+  it.each(Object.keys(CONTINUATION))("%s explains why the next chapter follows", (from) => {
+    const page = SUBPAGES.find((candidate) => candidate.at === from);
+    if (!page) throw new Error(`no page for ${from}`);
+    pathname.mockReturnValue(from);
+    render(page.render());
 
-    for (const pillar of PILLARS) {
-      expect(screen.getByRole("heading", { name: pillar.title })).toBeInTheDocument();
-      expect(screen.getByText(pillar.body)).toBeInTheDocument();
-    }
+    const onward = screen.getByRole("navigation", { name: "Continue the plan" });
+    const link = within(onward).getByRole("link");
+    expect(link).toHaveAttribute("href", CONTINUATION[from].href);
+    // Not the bare word "Next": the reader is told why it is worth following.
+    expect(onward).toHaveTextContent(CONTINUATION[from].because);
   });
 
-  it("puts all seven workflow steps, in order, on How it works", () => {
-    pathname.mockReturnValue("/how-it-works");
-    const { container } = render(<HowItWorksPage />);
-
-    // An ordered list, because the steps happen in this order.
-    const steps = container.querySelectorAll("ol > li");
-    expect(steps).toHaveLength(WORKFLOW_STEPS.length);
-    expect([...steps].map((step) => step.querySelector("h2")?.textContent)).toEqual(
-      WORKFLOW_STEPS.map((step) => step.title),
-    );
-  });
-
-  it("puts the four role responsibilities on For teams", () => {
-    pathname.mockReturnValue("/for-teams");
-    render(<ForTeamsPage />);
-
-    for (const role of ROLES) {
-      expect(screen.getByRole("heading", { name: role.title })).toBeInTheDocument();
-      expect(screen.getByText(role.body)).toBeInTheDocument();
-    }
-  });
-
-  it("puts every security fact on Security", () => {
+  it("does not wrap Security back to Product", () => {
     pathname.mockReturnValue("/security");
     render(<SecurityPage />);
 
-    for (const fact of SECURITY.facts) {
-      expect(screen.getByRole("heading", { name: fact.title })).toBeInTheDocument();
-      expect(screen.getByText(fact.body)).toBeInTheDocument();
-    }
-  });
-
-  it("no longer renders those bodies on the landing page", () => {
-    pathname.mockReturnValue("/");
-    render(<HomePage />);
-
-    const main = screen.getByRole("main").textContent ?? "";
-    // The previews carry headings and destinations. The bodies live on the
-    // pages they belong to; two canonical copies is what the split was for.
-    for (const body of [
-      PILLARS[0].body,
-      WORKFLOW_STEPS[0].body,
-      ROLES[0].body,
-      SECURITY.facts[0].body,
-    ]) {
-      expect(main).not.toContain(body);
-    }
-    expect(screen.queryByRole("heading", { name: WORKFLOW_STEPS[0].title })).toBeNull();
-  });
-
-  it("links the landing previews at the four real routes", () => {
-    pathname.mockReturnValue("/");
-    render(<HomePage />);
-
+    expect(screen.queryByRole("navigation", { name: "Continue the plan" })).toBeNull();
     const main = screen.getByRole("main");
-    for (const route of MARKETING_ROUTES) {
-      const link = within(main).getByRole("link", {
-        name: new RegExp(`^read ${route.label}$`, "i"),
-      });
-      expect(link).toHaveAttribute("href", route.href);
-    }
+    // The last chapter offers a decision, not another lap.
+    expect(within(main).queryByRole("link", { name: /continue to product/i })).toBeNull();
+    expect(within(main).getByRole("link", { name: /create your workspace/i })).toHaveAttribute(
+      "href",
+      "/create-workspace",
+    );
+    expect(within(main).getByRole("link", { name: /back to the overview/i })).toHaveAttribute(
+      "href",
+      "/",
+    );
+  });
+
+  it("orders the chapters 00 through 04 exactly once each", () => {
+    expect(CHAPTERS.map((chapter) => chapter.number)).toEqual(["00", "01", "02", "03", "04"]);
+    expect(new Set(CHAPTERS.map((chapter) => chapter.href)).size).toBe(CHAPTERS.length);
   });
 });
 
-describe("where the marketing pages send people", () => {
+describe("00 · the overview is an executive summary", () => {
+  beforeEach(() => pathname.mockReturnValue("/"));
+
+  it("states the operating problem, not only the proposition", () => {
+    render(<HomePage />);
+    const main = screen.getByRole("main");
+
+    expect(
+      within(main).getByRole("heading", { name: /staffing decisions are made where the evidence is not/i }),
+    ).toBeInTheDocument();
+    // Named gaps, each one something the product has an object for.
+    expect(within(main).getByRole("heading", { name: /skills are described differently/i })).toBeInTheDocument();
+    expect(within(main).getByRole("heading", { name: /availability is held by the department/i })).toBeInTheDocument();
+  });
+
+  it("shows the five-stage model with the relationship grammar", () => {
+    render(<HomePage />);
+    const main = screen.getByRole("main");
+
+    for (const stage of ["Requirement", "Evidence", "Ranked candidates", "Department review", "Accepted allocation"]) {
+      expect(within(main).getByRole("heading", { name: stage })).toBeInTheDocument();
+    }
+    expect(main).toHaveTextContent(/accepted allocation is the only thing drawn as a solid line/i);
+    expect(main).toHaveTextContent(/proposal stays dashed until the owning department accepts it/i);
+  });
+
+  it("indexes the four chapters by their decision question", () => {
+    render(<HomePage />);
+    const main = screen.getByRole("main");
+
+    for (const chapter of PLAN_CHAPTERS) {
+      expect(within(main).getByRole("heading", { name: chapter.question })).toBeInTheDocument();
+      expect(main).toHaveTextContent(chapter.summary);
+      expect(
+        within(main).getByRole("link", { name: `Read chapter ${chapter.number}` }),
+      ).toHaveAttribute("href", chapter.href);
+    }
+  });
+
+  it("still does not hold the four canonical bodies", () => {
+    render(<HomePage />);
+    const main = screen.getByRole("main").textContent ?? "";
+
+    // Chapter summaries, not the chapters.
+    expect(main).not.toContain(WORKFLOW_STEPS[0].body);
+    expect(main).not.toContain(ROLES[0].body);
+    expect(main).not.toContain(SECURITY.facts[0].body);
+    expect(screen.queryByRole("heading", { name: ROLES[0].title })).toBeNull();
+  });
+
+  it("offers the bounded starting point", () => {
+    render(<HomePage />);
+    const main = screen.getByRole("main");
+
+    expect(within(main).getByRole("heading", { name: /start with one department and one project/i }))
+      .toBeInTheDocument();
+    expect(within(main).getAllByRole("link", { name: /create your workspace/i })[0]).toHaveAttribute(
+      "href",
+      "/create-workspace",
+    );
+  });
+});
+
+describe("01 · product explains the model, not just the pillars", () => {
+  beforeEach(() => pathname.mockReturnValue("/product"));
+
+  it("pairs each operating problem with the object that answers it", () => {
+    render(<ProductPage />);
+    const main = screen.getByRole("main");
+
+    expect(main).toHaveTextContent(/skill descriptions do not match between people/i);
+    expect(main).toHaveTextContent(/a curated catalogue of categories and skills/i);
+    expect(main).toHaveTextContent(/nobody owns the approval/i);
+  });
+
+  it("names the operating objects in the product's own terms", () => {
+    render(<ProductPage />);
+    const main = screen.getByRole("main");
+
+    for (const object of ["People and skills", "Departments", "Projects and requirements", "Proposals", "Allocations"]) {
+      expect(within(main).getByRole("heading", { name: object })).toBeInTheDocument();
+    }
+  });
+
+  it("keeps all four pillars and gives each an input, a decision and a record", () => {
+    render(<ProductPage />);
+    const main = screen.getByRole("main");
+
+    expect(within(main).getByRole("heading", { name: "Know your people" })).toBeInTheDocument();
+    expect(within(main).getByRole("heading", { name: "Keep staffing accountable" })).toBeInTheDocument();
+    expect(within(main).getAllByText("Input")).toHaveLength(4);
+    expect(within(main).getAllByText("Decision")).toHaveLength(4);
+    expect(within(main).getAllByText("Recorded")).toHaveLength(4);
+  });
+
+  /**
+   * The single most load-bearing claim on the site, and the one a redesign is
+   * most likely to trim: Team Finder writes nothing and creates no proposal.
+   * Proven by `TeamFinderController`, whose contract says exactly that.
+   */
+  it("states that a ranking is evidence and not an assignment", () => {
+    render(<ProductPage />);
+    const main = screen.getByRole("main");
+
+    expect(
+      within(main).getByRole("heading", { name: /a ranking is evidence\. it is not an assignment\./i }),
+    ).toBeInTheDocument();
+    expect(main).toHaveTextContent(/writes nothing, and it creates no proposal/i);
+    expect(main).toHaveTextContent(/the ranking does not choose anyone/i);
+    expect(main).toHaveTextContent(/no model or prediction is involved/i);
+    // The score composition, as the backend defines it.
+    expect(main).toHaveTextContent(/matched skills up to 60/i);
+  });
+});
+
+describe("02 · how it works keeps the process whole", () => {
+  beforeEach(() => pathname.mockReturnValue("/how-it-works"));
+
+  it("opens on inputs, the governed decision and the output", () => {
+    render(<HowItWorksPage />);
+    const main = screen.getByRole("main");
+
+    expect(within(main).getByText("Inputs")).toBeInTheDocument();
+    expect(within(main).getByText("Governed decision")).toBeInTheDocument();
+    expect(within(main).getByText("Output")).toBeInTheDocument();
+  });
+
+  it("keeps all seven steps, in order, with an owner and a record", () => {
+    render(<HowItWorksPage />);
+    const main = screen.getByRole("main");
+
+    const steps = main.querySelectorAll("ol > li");
+    const titles = [...steps]
+      .map((step) => step.querySelector("h3")?.textContent ?? "")
+      .filter(Boolean);
+    for (const step of WORKFLOW_STEPS) {
+      expect(titles).toContain(step.title);
+    }
+    expect(within(main).getAllByText("Owner")).toHaveLength(WORKFLOW_STEPS.length);
+    expect(within(main).getAllByText("Produces")).toHaveLength(WORKFLOW_STEPS.length);
+  });
+
+  it("tells the same five-stage story as the diagram", () => {
+    render(<HowItWorksPage />);
+    const main = screen.getByRole("main");
+
+    for (const stage of ["Requirement", "Evidence", "Ranked candidates", "Department review", "Accepted allocation"]) {
+      expect(within(main).getByRole("heading", { name: stage })).toBeInTheDocument();
+    }
+    // And the diagram itself is still here, still inline SVG.
+    expect(main.querySelectorAll('svg[role="img"]').length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("labels the worked example as an example", () => {
+    render(<HowItWorksPage />);
+    const main = screen.getByRole("main");
+
+    expect(main).toHaveTextContent(/illustrative data, not a customer or a production result/i);
+    expect(main).toHaveTextContent(/project orion/i);
+  });
+
+  it("states the three decision rules", () => {
+    render(<HowItWorksPage />);
+    const main = screen.getByRole("main");
+
+    expect(main).toHaveTextContent(/an accepted allocation is drawn solid/i);
+    expect(main).toHaveTextContent(/a proposal stays dashed/i);
+    expect(main).toHaveTextContent(/nobody joins a team silently/i);
+  });
+});
+
+describe("03 · for teams is a governance model", () => {
+  beforeEach(() => pathname.mockReturnValue("/for-teams"));
+
+  it("keeps all four roles and their verified boundaries", () => {
+    render(<ForTeamsPage />);
+    const main = screen.getByRole("main");
+
+    /*
+      Scoped to the profiles section: a role name appears more than once on this
+      page on purpose — once as a profile, again in the hand-off narrative — and
+      a document-wide query would read that as an ambiguity rather than as the
+      same person being referred to twice.
+    */
+    const profiles = within(main).getByRole("heading", { name: /responsibility profiles/i })
+      .closest("section") as HTMLElement;
+    for (const role of ROLES) {
+      expect(within(profiles).getByRole("heading", { name: role.title })).toBeInTheDocument();
+      expect(profiles).toHaveTextContent(role.owns);
+    }
+  });
+
+  /*
+    Pinned against `ROLES` rather than against the matrix's own list. Iterating
+    `RESPONSIBILITY_MATRIX.roles` proves only that the component renders whatever
+    it was given — deleting a role from that constant left every test green,
+    which a mutation caught. `ROLES` is the independent source for who the four
+    are.
+  */
+  it("covers exactly the four roles the product defines", () => {
+    render(<ForTeamsPage />);
+    const table = within(screen.getByRole("main")).getByRole("table");
+
+    const rows = within(table).getAllByRole("rowheader").map((cell) => cell.textContent?.trim());
+    expect(new Set(rows)).toEqual(new Set(ROLES.map((role) => role.title)));
+    expect(rows).toHaveLength(ROLES.length);
+  });
+
+  it("exposes the responsibility matrix as a real table", () => {
+    render(<ForTeamsPage />);
+    const table = within(screen.getByRole("main")).getByRole("table");
+
+    // Column headers are the actions; row headers are the roles.
+    const columns = within(table).getAllByRole("columnheader").map((cell) => cell.textContent);
+    for (const action of RESPONSIBILITY_MATRIX.actions) {
+      expect(columns).toContain(action);
+    }
+    const rows = within(table).getAllByRole("rowheader").map((cell) => cell.textContent);
+    for (const role of RESPONSIBILITY_MATRIX.roles) {
+      expect(rows).toContain(role.title);
+    }
+  });
+
+  it("answers each cell in words, not by colour or a mark alone", () => {
+    render(<ForTeamsPage />);
+    const table = within(screen.getByRole("main")).getByRole("table");
+
+    const cells = within(table).getAllByRole("cell").map((cell) => cell.textContent?.trim());
+    expect(cells.length).toBe(
+      RESPONSIBILITY_MATRIX.roles.length * RESPONSIBILITY_MATRIX.actions.length,
+    );
+    for (const cell of cells) {
+      expect(["Yes", "No"]).toContain(cell);
+    }
+  });
+
+  it("carries the column name on every cell, so a stacked row keeps its meaning", () => {
+    render(<ForTeamsPage />);
+    const table = within(screen.getByRole("main")).getByRole("table");
+
+    for (const cell of within(table).getAllByRole("cell")) {
+      expect(RESPONSIBILITY_MATRIX.actions).toContain(cell.getAttribute("data-label"));
+    }
+  });
+
+  /** An organization admin is not a superuser; the matrix has to say so. */
+  it("shows the authority boundaries the backend actually enforces", () => {
+    render(<ForTeamsPage />);
+    const main = screen.getByRole("main");
+
+    expect(main).toHaveTextContent(/cannot create a project, run team finder/i);
+    expect(main).toHaveTextContent(/without an appointment to a department/i);
+    expect(main).toHaveTextContent(/manages the projects they own, not every project/i);
+  });
+
+  it("narrates the hand-off between the four desks", () => {
+    render(<ForTeamsPage />);
+    const main = screen.getByRole("main");
+
+    expect(within(main).getByRole("heading", { name: /one request, three desks/i })).toBeInTheDocument();
+    expect(main).toHaveTextContent(/only the last of those four changes who is on a team/i);
+  });
+});
+
+describe("04 · security states controls and limits together", () => {
+  beforeEach(() => pathname.mockReturnValue("/security"));
+
+  it("keeps the no-certification boundary near the top", () => {
+    render(<SecurityPage />);
+    const main = screen.getByRole("main");
+
+    expect(main).toHaveTextContent(/no certifications are claimed/i);
+    expect(main).toHaveTextContent(/neither held nor claimed/i);
+  });
+
+  it("groups every existing security fact into a control area", () => {
+    render(<SecurityPage />);
+    const main = screen.getByRole("main");
+
+    for (const fact of SECURITY.facts) {
+      expect(main).toHaveTextContent(fact.title);
+      expect(main).toHaveTextContent(fact.body);
+    }
+    for (const area of ["Session handling", "Authorization and isolation", "Delivery gates", "Allocation governance"]) {
+      expect(within(main).getByRole("heading", { name: area })).toBeInTheDocument();
+    }
+  });
+
+  it("pairs every area with evidence and a stated limit", () => {
+    render(<SecurityPage />);
+    const main = screen.getByRole("main");
+
+    expect(within(main).getAllByText("Evidence")).toHaveLength(4);
+    expect(within(main).getAllByText("Not claimed")).toHaveLength(4);
+  });
+
+  it("separates what the product enforces from what the organization decides", () => {
+    render(<SecurityPage />);
+    const main = screen.getByRole("main");
+
+    expect(within(main).getByRole("heading", { name: /the product enforces/i })).toBeInTheDocument();
+    expect(within(main).getByRole("heading", { name: /your organization decides/i })).toBeInTheDocument();
+  });
+
+  it("lists the absences plainly", () => {
+    render(<SecurityPage />);
+    const main = screen.getByRole("main");
+
+    expect(main).toHaveTextContent(/no third-party audit or penetration test/i);
+    expect(main).toHaveTextContent(/no uptime, availability or service-level guarantee/i);
+    expect(main).toHaveTextContent(/no single sign-on, directory sync or exported audit trail/i);
+  });
+});
+
+/**
+ * The claim surface.
+ *
+ * Deliberately not a word ban: the Security page has to be able to say "SOC 2"
+ * in order to disclaim it, and a test that forbade the string outright would
+ * force the page to be vaguer than the truth. This checks the shape of a claim
+ * instead — a certification named *as held*, a metric, or an empty superlative.
+ */
+describe("nothing is claimed that the repository cannot prove", () => {
+  const CLAIMED_CERTIFICATION =
+    /(soc\s*2|iso\s*27001|hipaa|pci|gdpr)[^.]{0,40}\b(certified|compliant|compliance|accredited|audited)\b/i;
+  const INVENTED_METRIC = /\b\d+\s*(%|percent)\b|\b(save|saves|saving)\s+\d+/i;
+  const EMPTY_SUPERLATIVE = /\b(enterprise-grade|world-class|best-in-class|cutting-edge|ai-powered|machine learning)\b/i;
+  /*
+    Shaped as a promise, not as the word. The Security page has to be able to say
+    "no uptime, availability or service-level guarantee is offered" — a ban on
+    the noun would force it to be vaguer than the truth, which is the opposite of
+    what this test is for. The negation is excluded explicitly.
+  */
+  const OVERPROMISE = /(?<!\bno\s)(?<!\bnor\s)\b(guaranteed|100% uptime|zero downtime)\b/i;
+
+  it.each(PAGES)("$at claims no certification it does not hold", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    render(r());
+    const text = document.body.textContent ?? "";
+
+    expect(text).not.toMatch(CLAIMED_CERTIFICATION);
+  });
+
+  it.each(PAGES)("$at invents no metric and promises no outcome", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    render(r());
+    const text = document.body.textContent ?? "";
+
+    expect(text).not.toMatch(INVENTED_METRIC);
+    expect(text).not.toMatch(EMPTY_SUPERLATIVE);
+    expect(text).not.toMatch(OVERPROMISE);
+  });
+
+  it("uses 'deterministic' only where the backend proves it", () => {
+    pathname.mockReturnValue("/product");
+    render(<ProductPage />);
+
+    // `TeamFinderController` states the score is deterministic and that no AI is
+    // involved. The page may say so; it may not say the ranking decides.
+    const main = screen.getByRole("main").textContent ?? "";
+    expect(main).not.toMatch(/ranking (decides|assigns|chooses)/i);
+    expect(main).not.toMatch(/automatically (assigns|allocates|staffs)/i);
+  });
+});
+
+describe("navigation destinations", () => {
   const REAL = new Set<string>([
     "/",
     "/login",
@@ -249,43 +556,16 @@ describe("where the marketing pages send people", () => {
     }
   });
 
-  it("sends the hero's secondary action to the How it works route", () => {
-    pathname.mockReturnValue("/");
-    render(<HomePage />);
-
-    // It used to be `#how-it-works`, a scroll to a section further down.
-    const link = screen.getByRole("link", { name: /see how it works/i });
-    expect(link).toHaveAttribute("href", "/how-it-works");
-  });
-
-  it.each(PAGES)("$at sends every create-workspace call to the real route", ({ at, render: r }) => {
+  it.each(PAGES)("$at has no navigation link that is only a fragment", ({ at, render: r }) => {
     pathname.mockReturnValue(at);
     const { container } = render(r());
 
-    /*
-      Queried by attribute rather than by role: the header's create action is
-      `display: none` below 640px and the mobile panel carries it instead, so at
-      jsdom's width the role query would miss the very link being asserted. The
-      contract is about where each one points, not which are painted.
-    */
-    const ctas = [...container.querySelectorAll("a")].filter((a) =>
-      /create (your )?workspace/i.test(a.textContent ?? ""),
-    );
-    expect(ctas.length).toBeGreaterThan(0);
-    for (const cta of ctas) {
-      // A control that says "Create your workspace" and delivers a password
-      // prompt is a false promise, however convenient.
-      expect(cta).toHaveAttribute("href", "/create-workspace");
+    for (const anchor of container.querySelectorAll("a")) {
+      const href = anchor.getAttribute("href") ?? "";
+      // The skip link is the one legitimate fragment, and it is not navigation.
+      if (href === "#main") continue;
+      expect(href.startsWith("#"), `"${href}" is a fragment`).toBe(false);
     }
-  });
-
-  it("gives the landing page two visible create-workspace calls", () => {
-    pathname.mockReturnValue("/");
-    render(<HomePage />);
-
-    // The hero and the closing section, both painted at every width.
-    const visible = screen.getAllByRole("link", { name: /create (your )?workspace/i });
-    expect(visible.length).toBeGreaterThanOrEqual(2);
   });
 
   it.each(PAGES)("$at sends Sign in to the real login route", ({ at, render: r }) => {
@@ -296,58 +576,88 @@ describe("where the marketing pages send people", () => {
       expect(link).toHaveAttribute("href", "/login");
     }
   });
+
+  it.each(PAGES)("$at sends every create-workspace call to the real route", ({ at, render: r }) => {
+    pathname.mockReturnValue(at);
+    const { container } = render(r());
+
+    // By attribute: the header's create action is display:none below 640px, so
+    // at jsdom's width a role query would miss the very link being asserted.
+    const ctas = [...container.querySelectorAll("a")].filter((a) =>
+      /create (your )?workspace/i.test(a.textContent ?? ""),
+    );
+    expect(ctas.length).toBeGreaterThan(0);
+    for (const cta of ctas) {
+      expect(cta).toHaveAttribute("href", "/create-workspace");
+    }
+  });
 });
 
-describe("what the marketing pages claim", () => {
-  it("claims no certification it does not hold", () => {
-    pathname.mockReturnValue("/security");
-    render(<SecurityPage />);
+describe("the header and the footer stay different objects", () => {
+  it("exposes exactly the four marketing routes in the header nav", () => {
+    const { container } = render(<HomePage />);
 
-    const page = screen.getByRole("main").textContent ?? "";
-    for (const forbidden of ["SOC 2", "SOC2", "ISO 27001", "HIPAA", "PCI", "GDPR-certified"]) {
-      expect(page).not.toContain(forbidden);
-    }
-    expect(page).toMatch(/no certifications are claimed/i);
+    const nav = container.querySelector('nav[aria-label="Marketing"]');
+    expect(nav).not.toBeNull();
+    expect([...(nav?.querySelectorAll("a") ?? [])].map((a) => a.getAttribute("href"))).toEqual(
+      MARKETING_ROUTES.map((route) => route.href),
+    );
   });
 
-  it("says nothing on Security that is not in the SECURITY constants", () => {
-    pathname.mockReturnValue("/security");
-    render(<SecurityPage />);
+  it("groups the footer into labelled columns the header does not have", () => {
+    render(<HomePage />);
 
-    const allowed = [
-      SECURITY.eyebrow,
-      SECURITY.title,
-      SECURITY.intro,
-      ...SECURITY.facts.flatMap((fact) => [fact.title, fact.body]),
-      // Shared marketing copy, not a security claim: every page closes on it.
-      FINAL_CTA.title,
-      // The onward link to the next page.
-      MARKETING_ROUTES[0].label,
-    ];
-    /*
-      Scoped to `main`: the claim surface is the page's own content. The site
-      header and footer are chrome — "Pages" and "Account" are column labels, not
-      assertions about how the system is built.
-    */
-    const headings = within(screen.getByRole("main"))
-      .getAllByRole("heading")
-      .map((heading) => heading.textContent?.trim() ?? "")
-      .filter(Boolean);
-    for (const heading of headings) {
-      expect(allowed, `"${heading}" is not a SECURITY constant`).toContain(heading);
+    const footer = screen.getByRole("contentinfo");
+    for (const column of ["Pages", "Account"]) {
+      expect(within(footer).getByRole("heading", { name: column })).toBeInTheDocument();
     }
+    expect(within(screen.getByRole("banner")).queryByRole("heading")).toBeNull();
   });
 
-  it("states the solid-versus-dashed rule in words, not only as a line style", () => {
-    pathname.mockReturnValue("/how-it-works");
-    render(<HowItWorksPage />);
+  it("gives the footer the account actions as their own group", () => {
+    render(<HomePage />);
 
-    expect(
-      screen.getByText(/accepted allocation is the only thing drawn as a solid line/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/proposal stays dashed until the owning department accepts it/i),
-    ).toBeInTheDocument();
+    const account = within(screen.getByRole("contentinfo")).getByRole("navigation", {
+      name: "Account",
+    });
+    expect([...account.querySelectorAll("a")].map((a) => a.getAttribute("href"))).toEqual([
+      "/login",
+      "/create-workspace",
+    ]);
+  });
+
+  it("still says in the footer that no certification is claimed", () => {
+    render(<HomePage />);
+    expect(screen.getByRole("contentinfo")).toHaveTextContent(/no certifications are claimed/i);
+  });
+
+  it("gives the wordmark the home route and the skip link the main landmark", () => {
+    render(<HomePage />);
+    const banner = screen.getByRole("banner");
+
+    expect(within(banner).getByRole("link", { name: "POTRIV" })).toHaveAttribute("href", "/");
+    expect(within(banner).getByRole("link", { name: /skip to content/i })).toHaveAttribute(
+      "href",
+      "#main",
+    );
+  });
+});
+
+describe("the current chapter is announced, not merely coloured", () => {
+  it.each(MARKETING_ROUTES)("marks $href current when that is the path", (route) => {
+    pathname.mockReturnValue(route.href);
+    const { container } = render(<ProductPage />);
+
+    const current = [...container.querySelectorAll('a[aria-current="page"]')].map((a) =>
+      a.getAttribute("href"),
+    );
+    expect(new Set(current)).toEqual(new Set([route.href]));
+  });
+
+  it("marks nothing current on the overview", () => {
+    pathname.mockReturnValue("/");
+    const { container } = render(<HomePage />);
+    expect(container.querySelectorAll('a[aria-current="page"]')).toHaveLength(0);
   });
 });
 
@@ -374,27 +684,7 @@ describe("the mobile menu", () => {
 
   it("leaves no hidden links behind when closed", () => {
     const { container } = render(<HomePage />);
-
-    // Closed means unmounted, not merely invisible — otherwise Tab would walk
-    // into links nobody can see.
     expect(container.querySelector("#marketing-menu")).toBeNull();
-  });
-
-  it("offers the four routes and the create-workspace action when open", async () => {
-    const user = userEvent.setup();
-    const { container } = render(<HomePage />);
-
-    await user.click(screen.getByRole("button", { name: /open menu/i }));
-    const panel = container.querySelector("#marketing-menu") as HTMLElement;
-    expect(panel).not.toBeNull();
-
-    const hrefs = [...panel.querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    for (const route of MARKETING_ROUTES) {
-      expect(hrefs).toContain(route.href);
-    }
-    expect(
-      within(panel).getByRole("link", { name: /create workspace/i }),
-    ).toHaveAttribute("href", "/create-workspace");
   });
 
   it("closes once a destination is chosen", async () => {
@@ -406,122 +696,5 @@ describe("the mobile menu", () => {
     await user.click(within(panel).getByRole("link", { name: "Product" }));
 
     expect(container.querySelector("#marketing-menu")).toBeNull();
-  });
-});
-
-/**
- * The footer is not the header again.
- *
- * For a while it was: a wordmark on the left and the same four links on the
- * right, so the bottom of every page repeated the top and a reader who had
- * scrolled the whole way down arrived at nothing new. The header is a one-line
- * control strip; the footer is the site laid out in columns.
- */
-describe("the header and the footer are different objects", () => {
-  it("groups the footer into labelled columns", () => {
-    render(<HomePage />);
-    const footer = screen.getByRole("contentinfo");
-
-    for (const column of ["Pages", "Account"]) {
-      expect(within(footer).getByRole("heading", { name: column })).toBeInTheDocument();
-    }
-  });
-
-  it("keeps those groupings out of the header", () => {
-    render(<HomePage />);
-    const banner = screen.getByRole("banner");
-
-    // A column heading in the bar would mean the two had converged again.
-    expect(within(banner).queryByRole("heading")).toBeNull();
-  });
-
-  it("gives the footer the account actions the header has, as its own group", () => {
-    render(<HomePage />);
-    const footer = screen.getByRole("contentinfo");
-
-    const account = within(footer).getByRole("navigation", { name: "Account" });
-    const hrefs = [...account.querySelectorAll("a")].map((a) => a.getAttribute("href"));
-    expect(hrefs).toEqual(["/login", "/create-workspace"]);
-  });
-
-  it("still says in the footer that no certification is claimed", () => {
-    render(<HomePage />);
-
-    // A security page that claims none should not sit above a footer that
-    // implies otherwise by saying nothing.
-    expect(screen.getByRole("contentinfo")).toHaveTextContent(/no certifications are claimed/i);
-  });
-
-  it("exposes exactly one banner landmark per page", () => {
-    for (const page of PAGES) {
-      pathname.mockReturnValue(page.at);
-      const { unmount } = render(page.render());
-      // The subpage header band is a section, not a second `<header>`.
-      expect(screen.getAllByRole("banner")).toHaveLength(1);
-      unmount();
-    }
-  });
-});
-
-/**
- * Every subpage is a page, not a fragment.
- *
- * They were a heading and one row of content each, ending straight into the
- * footer. A product page is expected to say what it is, show the content, and
- * offer somewhere to go.
- */
-describe("each subpage carries a header band, a way onward and a closing action", () => {
-  const SUBPAGES = PAGES.filter((page) => page.at !== "/");
-
-  it.each(SUBPAGES)("$at leads with the label and title of its own route", ({ at, render: r }) => {
-    pathname.mockReturnValue(at);
-    render(r());
-
-    const route = MARKETING_ROUTES.find((candidate) => candidate.href === at);
-    const main = screen.getByRole("main");
-    expect(main).toHaveTextContent(route?.label ?? "");
-    expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
-  });
-
-  it.each(SUBPAGES)("$at offers the next page in the sequence", ({ at, render: r }) => {
-    pathname.mockReturnValue(at);
-    render(r());
-
-    const index = MARKETING_ROUTES.findIndex((candidate) => candidate.href === at);
-    // Wraps, so the last page leads back to the first rather than nowhere.
-    const next = MARKETING_ROUTES[(index + 1) % MARKETING_ROUTES.length];
-
-    const onward = screen.getByRole("navigation", { name: "Next page" });
-    const link = within(onward).getByRole("link");
-    expect(link).toHaveAttribute("href", next.href);
-    expect(link).toHaveTextContent(next.label);
-    expect(link).not.toHaveAttribute("href", at);
-  });
-
-  it.each(SUBPAGES)("$at closes on the create-workspace action", ({ at, render: r }) => {
-    pathname.mockReturnValue(at);
-    render(r());
-
-    const main = screen.getByRole("main");
-    expect(
-      within(main).getByRole("link", { name: /create your workspace/i }),
-    ).toHaveAttribute("href", "/create-workspace");
-    expect(within(main).getByRole("link", { name: /^sign in$/i })).toHaveAttribute(
-      "href",
-      "/login",
-    );
-  });
-
-  it("leads Product, For teams and Security with copy that already existed", () => {
-    for (const [at, renderPage, lead] of [
-      ["/product", () => <ProductPage />, /potriv connects project requirements/i],
-      ["/for-teams", () => <ForTeamsPage />, /a person holds the roles they have been granted/i],
-      ["/security", () => <SecurityPage />, /no certifications are claimed/i],
-    ] as const) {
-      pathname.mockReturnValue(at);
-      const { unmount } = render(renderPage());
-      expect(screen.getByRole("main")).toHaveTextContent(lead);
-      unmount();
-    }
   });
 });

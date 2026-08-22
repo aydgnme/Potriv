@@ -14,6 +14,8 @@ import { cssContract } from "@/test/cssContract";
 
 const header = cssContract("src/modules/marketing/components/MarketingHeader.module.css");
 const landing = cssContract("src/modules/marketing/styles/landing.module.css");
+const plan = cssContract("src/modules/marketing/styles/plan.module.css");
+const pages = cssContract("src/modules/marketing/styles/pages.module.css");
 const diagram = cssContract("src/modules/marketing/components/HeroFlowDiagram.module.css");
 
 describe("one navigation model is visible at a time", () => {
@@ -42,11 +44,15 @@ describe("phone-width touch targets", () => {
   it("gives every phone navigation link at least 44px of height", () => {
     expect(header.rule(".panelLink")).toMatch(/min-height:\s*44px/);
     expect(header.rule(".skipLink")).toMatch(/min-height:\s*44px/);
-    expect(landing.rule(".overviewLink")).toMatch(/min-height:\s*44px/);
     // The footer is real navigation now, not a decorative strip.
     expect(landing.rule(".footerLink")).toMatch(/min-height:\s*44px/);
     expect(landing.rule(".footerWordmark")).toMatch(/min-height:\s*44px/);
-    expect(landing.rule(".pageOnwardLink")).toMatch(/min-height:\s*44px/);
+    // The bar's own controls, which are touch targets below 900px.
+    expect(header.rule(".wordmark")).toMatch(/min-height:\s*44px/);
+    expect(header.rule(".signIn")).toMatch(/min-height:\s*44px/);
+    // And the two links that carry the plan forward.
+    expect(pages.rule(".chapterEntryLink")).toMatch(/min-height:\s*44px/);
+    expect(plan.rule(".continuationLink")).toMatch(/min-height:\s*44px/);
   });
 });
 
@@ -87,12 +93,39 @@ describe("the diagram swaps composition rather than scaling", () => {
   });
 });
 
-describe("the landing previews stack before they sit side by side", () => {
+describe("the chapter index stacks before it sits side by side", () => {
   it("is a single column until there is room for two", () => {
-    expect(landing.rule(".overview")).toMatch(/display:\s*grid/);
+    expect(pages.rule(".chapters")).toMatch(/display:\s*grid/);
     // No `grid-template-columns` in the base rule: one column at 320 and 375.
-    expect(landing.rule(".overview")).not.toMatch(/grid-template-columns/);
-    const wide = landing.source.slice(landing.source.indexOf("@media (min-width: 720px)"));
-    expect(wide).toMatch(/\.overview\s*\{[^}]*grid-template-columns/);
+    expect(pages.rule(".chapters")).not.toMatch(/grid-template-columns/);
+    const wide = pages.source.slice(pages.source.indexOf("@media (min-width: 900px)"));
+    expect(wide).toMatch(/\.chapters\s*\{[^}]*grid-template-columns/);
+  });
+});
+
+/**
+ * The responsibility matrix is the one genuinely two-dimensional thing on these
+ * pages, and the one most likely to push a phone sideways. jsdom applies no
+ * media queries, so this pins the stacking contract at the source.
+ */
+describe("the responsibility matrix survives a phone", () => {
+  it("stacks into labelled blocks below the table breakpoint", () => {
+    const stacking = plan.mediaBlocks(767).find((body) => /\.matrix\b/.test(body));
+    expect(stacking).toBeDefined();
+    expect(stacking).toMatch(/display:\s*block/);
+    // The column name travels with the cell, so a stacked row keeps its meaning.
+    expect(stacking).toMatch(/content:\s*attr\(data-label\)/);
+    // The header row is hidden, not removed: anything reading the table keeps it.
+    expect(stacking).toMatch(/clip-path:\s*inset\(50%\)/);
+  });
+
+  it("lets a wide table scroll inside its own container", () => {
+    // Never the document. A page that scrolls sideways has lost its layout.
+    expect(plan.rule(".matrixScroll")).toMatch(/overflow-x:\s*auto/);
+  });
+
+  it("lets the column headings wrap", () => {
+    // `nowrap` on six column names is what makes a table set the page width.
+    expect(plan.source).toMatch(/\.matrix thead th\s*\{[^}]*white-space:\s*normal/);
   });
 });
