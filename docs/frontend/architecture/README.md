@@ -57,12 +57,19 @@ app/
 │               └── edit/page.tsx settings   (owner-scoped management read)
 ├── api/auth/…              the BFF routes; the browser's only auth surface
 └── (dev)/
-    ├── layout.tsx          developer console chrome + its own stylesheet
-    └── console/page.tsx    the API console
+    ├── layout.dev.tsx           developer console chrome + its own stylesheet
+    └── console/page.dev.tsx     the API console — development server only
 ```
 
 Route groups do not change URLs: `/console` is still `/console`, and `/login` is
 still `/login`.
+
+The `.dev.tsx` suffix in `(dev)/` is not decoration. `next.config.ts` gives the
+development server a `pageExtensions` list that includes `dev.tsx` and the
+production build one that does not, so those two files are routes under
+`next dev` and ordinary unreferenced modules under `next build`. The console is
+therefore absent from the production output entirely, and `/console` answers 404
+there like any other unknown URL.
 
 A page file should read like a table of contents:
 
@@ -83,7 +90,7 @@ dark theme — but it shares nothing with the product beyond the document itself
 
 | | Product | Developer console |
 | --- | --- | --- |
-| Routes | `app/(product)/` | `app/(dev)/` |
+| Routes | `app/(product)/` | `app/(dev)/`, development server only |
 | Code | `src/modules/`, `src/shared/` | `src/dev-console/` |
 | Styles | `src/shared/styles/` (light) | `src/dev-console/console.css` (dark) |
 | Session | FE-02, not yet built | `localStorage` token, dev only |
@@ -96,6 +103,15 @@ absent from `document.styleSheets` and its `--bg` custom property is undefined.
 **The product must never import from `src/dev-console/`** — above all not
 `tokenStore`. The console's token is a developer convenience with developer
 security properties, and the product session is FE-02's to design.
+
+**And the console must never reach a production origin.** It was prerendered
+into the production build until the `pageExtensions` split above; nothing leaked
+through it — it holds no credentials and the backend authorizes every call it
+makes — but a request builder and endpoint enumerator is attack surface with no
+production reason to exist. `src/dev-console/developmentOnly.test.ts` fails if
+any file in `app/(dev)/` is named such that the production build would route it,
+because the protection is a naming convention and conventions get undone by
+accident.
 
 ---
 

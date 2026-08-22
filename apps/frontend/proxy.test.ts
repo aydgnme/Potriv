@@ -64,7 +64,7 @@ describe("which routes the proxy guards", () => {
     ["/login", "guarding it would lock out the people who need it"],
     ["/forgot-password", "same"],
     ["/reset-password", "same"],
-    ["/console", "a developer tool with its own token"],
+    ["/console", "a developer tool with its own token, and dev-only in the build"],
     ["/api/auth/refresh", "the recovery path itself — guarding it would loop"],
     ["/api/auth/login", "same"],
     ["/", "the entry redirector"],

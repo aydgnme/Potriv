@@ -10,6 +10,11 @@ import "@/dev-console/console.css";
  *
  * Nothing here may be reused by the product, and the product must never import
  * this group's token store or API client.
+ *
+ * The `.dev.tsx` suffix is load-bearing: only the development server's
+ * `pageExtensions` recognise it, so this group is a route there and nothing at
+ * all in a production build. See `next.config.ts`. Renaming this file to
+ * `layout.tsx` puts the console back on the production origin.
  */
 export const metadata: Metadata = {
   title: "Potriv Backend Control Console",
