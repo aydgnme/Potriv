@@ -18,6 +18,28 @@
   border-bottom: 1px solid var(--p-border);
 }
 
+/*
+  Two columns above 1024px. The hero was a headline against an empty right half,
+  which meant the first viewport asked for a workspace before showing anything
+  the product does.
+*/
+.heroInner {
+  display: grid;
+  gap: var(--p-space-7);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .heroInner {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: var(--p-space-8);
+  }
+}
+
+.heroDemo {
+  padding-top: var(--p-space-2);
+}
+
 .heroEyebrow {
   margin: 0;
   color: var(--p-brand);

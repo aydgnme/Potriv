@@ -381,3 +381,100 @@
 .continuationLink:hover {
   text-decoration: underline;
 }
+
+/* ---------- the hero spine ----------
+   The five stages as the first thing a visitor sees the product do. */
+.spine {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+}
+
+.spineStage {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--p-space-3);
+  padding: var(--p-space-3) 0 var(--p-space-3) var(--p-space-5);
+}
+
+/* The spine itself: a rule down the left, drawn behind the marks. */
+.spineStage::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--p-border-strong);
+}
+
+.spineStage:first-child::before {
+  top: 50%;
+}
+
+.spineStage:last-child::before {
+  bottom: 50%;
+}
+
+.spineMark {
+  position: absolute;
+  left: 0;
+  top: calc(50% - 4.5px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--p-surface);
+  border: 1.5px solid var(--p-border-strong);
+}
+
+/*
+  The last stage is the only one that means somebody is on a team, so it is the
+  only filled mark — the same "accepted is different" rule the diagram draws.
+*/
+.spineStage:last-child .spineMark {
+  background: var(--p-brand);
+  border-color: var(--p-brand);
+}
+
+.spineNumber {
+  color: var(--p-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.spineName {
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-medium);
+}
+
+.spineStage:last-child .spineName {
+  font-weight: var(--p-weight-semibold);
+}
+
+/*
+  Revealed once, in order, then done. `backwards` so the first frame is the
+  pre-animation state rather than a flash of the final one; the animation runs
+  a single time and never loops.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .spineStage {
+    animation: spine-enter 420ms var(--p-ease, ease-out) backwards;
+    animation-delay: calc(120ms * var(--stage-index, 0));
+  }
+}
+
+@keyframes spine-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

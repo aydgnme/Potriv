@@ -7,7 +7,7 @@ import {
   HERO,
   SIGN_IN_HREF,
 } from "../../landingContent";
-import { PlanSection, StageRail } from "../plan";
+import { PlanSection, StageSpine } from "../plan";
 import { MarketingShell } from "../MarketingShell";
 import styles from "../../styles/plan.module.css";
 import pageStyles from "../../styles/pages.module.css";
@@ -30,7 +30,8 @@ export function HomePage() {
   return (
     <MarketingShell>
       <section className={pageStyles.hero} aria-labelledby="hero-title">
-        <div className={styles.container}>
+        <div className={`${styles.container} ${pageStyles.heroInner}`}>
+          <div>
           <p className={pageStyles.heroEyebrow}>{HERO.eyebrow}</p>
           <h1 className={pageStyles.heroTitle} id="hero-title">
             {HERO.title}
@@ -44,6 +45,12 @@ export function HomePage() {
             <Link className={pageStyles.heroSecondary} href="/how-it-works">
               {HERO.secondaryCta}
             </Link>
+          </div>
+          </div>
+
+          {/* The model, demonstrated, before anyone is asked to create anything. */}
+          <div className={pageStyles.heroDemo}>
+            <StageSpine />
           </div>
         </div>
       </section>
@@ -66,11 +73,10 @@ export function HomePage() {
 
       <PlanSection
         index="00.2"
-        title={OPERATING_MODEL.title}
+        title="Proposed and accepted are not the same thing"
         titleId="home-model"
-        lead={OPERATING_MODEL.lead}
+        lead="The sequence is above. This is the rule that governs it, and the one distinction the whole product turns on."
       >
-        <StageRail stages={OPERATING_MODEL.stages} />
         <div className={pageStyles.grammar}>
           <p className={pageStyles.grammarLine}>
             <span className={pageStyles.markSolid} aria-hidden="true" />
