@@ -1,27 +1,27 @@
 import Link from "next/link";
 
+import { OPERATING_MODEL, OPERATING_PROBLEM, PLAN_CHAPTERS } from "../../businessPlan";
 import {
   CREATE_WORKSPACE_HREF,
   FINAL_CTA,
   HERO,
-  MARKETING_ROUTES,
   SIGN_IN_HREF,
 } from "../../landingContent";
-import { FinalCtaMotif } from "../FinalCtaMotif";
-import styles from "../../styles/landing.module.css";
+import { PlanSection, StageRail } from "../plan";
 import { MarketingShell } from "../MarketingShell";
+import styles from "../../styles/plan.module.css";
+import pageStyles from "../../styles/pages.module.css";
 
 /**
- * `/` — the landing page, and now only that.
+ * Chapter 00 — the executive overview.
  *
- * It used to carry the complete bodies of Product, How it works, For teams and
- * Security, with the header linking to them as `#fragment`s. Each of those is a
- * page now, so this is the proposition, a way in to the four, and the closing
- * call to action.
+ * A summary, not a hero with four title links. It states the proposition, the
+ * coordination gap the product exists for, the sequence it puts in its place,
+ * and then the four chapters with the question each one answers — so a reader
+ * can choose where to go rather than being told four nouns.
  *
- * The previews carry each page's own heading and nothing else. A preview that
- * repeated the bodies would leave two canonical copies of the same claims, which
- * is the thing the split was for.
+ * It deliberately holds none of the four bodies. Two canonical copies of the
+ * same claim is what splitting the pages was for.
  *
  * Genuinely public: no cookie read, no session lookup, no backend call. An
  * anonymous visitor and a signed-in one are served identical bytes.
@@ -29,106 +29,103 @@ import { MarketingShell } from "../MarketingShell";
 export function HomePage() {
   return (
     <MarketingShell>
-      <Hero />
-      <RouteOverview />
-      <FinalCta />
-    </MarketingShell>
-  );
-}
-
-function Hero() {
-  return (
-    <section className={styles.hero} aria-labelledby="hero-title">
-      <div className={`${styles.container} ${styles.heroInner}`}>
-        <div>
-          <p className={styles.eyebrow}>{HERO.eyebrow}</p>
-          <h1 className={styles.heroTitle} id="hero-title">
+      <section className={pageStyles.hero} aria-labelledby="hero-title">
+        <div className={styles.container}>
+          <p className={pageStyles.heroEyebrow}>{HERO.eyebrow}</p>
+          <h1 className={pageStyles.heroTitle} id="hero-title">
             {HERO.title}
           </h1>
-          <p className={styles.heroLead}>{HERO.lead}</p>
+          <p className={pageStyles.heroLead}>{HERO.lead}</p>
 
-          <div className={styles.heroActions}>
-            <Link className={styles.cta} href={CREATE_WORKSPACE_HREF}>
+          <div className={pageStyles.heroActions}>
+            <Link className={pageStyles.heroPrimary} href={CREATE_WORKSPACE_HREF}>
               {HERO.primaryCta}
             </Link>
-            {/* A route now, not a scroll to a section further down this page. */}
-            <Link className={styles.ctaSecondary} href="/how-it-works">
+            <Link className={pageStyles.heroSecondary} href="/how-it-works">
               {HERO.secondaryCta}
             </Link>
           </div>
-
-          <div className={styles.truthNote}>
-            <p className={styles.truthLine}>
-              <span className={styles.markSolid} aria-hidden="true" />
-              <span>{HERO.truths[0]}</span>
-            </p>
-            <p className={styles.truthLine}>
-              <span className={styles.markDashed} aria-hidden="true" />
-              <span>{HERO.truths[1]}</span>
-            </p>
-          </div>
         </div>
+      </section>
 
-        <FinalCtaMotif className={styles.heroMotif} />
-      </div>
-    </section>
-  );
-}
-
-/**
- * The four pages, named by the headings they carry.
- *
- * The section keeps `id="overview"` rather than four per-topic ids: the old
- * `/#product` style fragments cannot be server-redirected, and re-creating them
- * here would either point at stubs or duplicate the pages they replaced.
- */
-function RouteOverview() {
-  return (
-    <section className={styles.section} id="overview" aria-labelledby="overview-title">
-      <div className={styles.container}>
-        <p className={styles.eyebrow}>Overview</p>
-        <h2 className={styles.sectionTitle} id="overview-title">
-          Four pages, one workspace
-        </h2>
-
-        <ul className={styles.overview}>
-          {MARKETING_ROUTES.map((route) => (
-            <li className={styles.overviewItem} key={route.href}>
-              <h3 className={styles.overviewLabel}>{route.label}</h3>
-              <p className={styles.overviewTitle}>{route.title}</p>
-              <Link className={styles.overviewLink} href={route.href}>
-                {`Read ${route.label.toLowerCase()}`}
-              </Link>
+      <PlanSection
+        index="00.1"
+        title={OPERATING_PROBLEM.title}
+        titleId="home-problem"
+        lead={OPERATING_PROBLEM.lead}
+      >
+        <ul className={pageStyles.gaps}>
+          {OPERATING_PROBLEM.gaps.map((gap) => (
+            <li className={pageStyles.gap} key={gap.title}>
+              <h3 className={pageStyles.gapTitle}>{gap.title}</h3>
+              <p className={pageStyles.gapBody}>{gap.body}</p>
             </li>
           ))}
         </ul>
-      </div>
-    </section>
-  );
-}
+      </PlanSection>
 
-function FinalCta() {
-  return (
-    <section className={styles.section} aria-labelledby="final-cta-title">
-      <div className={`${styles.container} ${styles.finalInner}`}>
-        <div>
-          <h2 className={styles.finalTitle} id="final-cta-title">
+      <PlanSection
+        index="00.2"
+        title={OPERATING_MODEL.title}
+        titleId="home-model"
+        lead={OPERATING_MODEL.lead}
+      >
+        <StageRail stages={OPERATING_MODEL.stages} />
+        <div className={pageStyles.grammar}>
+          <p className={pageStyles.grammarLine}>
+            <span className={pageStyles.markSolid} aria-hidden="true" />
+            <span>{HERO.truths[0]}</span>
+          </p>
+          <p className={pageStyles.grammarLine}>
+            <span className={pageStyles.markDashed} aria-hidden="true" />
+            <span>{HERO.truths[1]}</span>
+          </p>
+        </div>
+      </PlanSection>
+
+      {/*
+        The chapter index. Each entry carries the question that chapter answers,
+        which is what makes this a table of contents rather than four nouns.
+      */}
+      <PlanSection
+        index="00.3"
+        title="The plan, in four chapters"
+        titleId="home-chapters"
+        lead="Each answers one question. They are meant to be read in order, but they do not have to be."
+      >
+        <ol className={pageStyles.chapters}>
+          {PLAN_CHAPTERS.map((chapter) => (
+            <li className={pageStyles.chapterEntry} key={chapter.href}>
+              <p className={pageStyles.chapterEntryMark}>
+                <span className={pageStyles.chapterEntryNumber}>{chapter.number}</span>
+                <span className={pageStyles.chapterEntryLabel}>{chapter.label}</span>
+              </p>
+              <h3 className={pageStyles.chapterEntryQuestion}>{chapter.question}</h3>
+              <p className={pageStyles.chapterEntrySummary}>{chapter.summary}</p>
+              <Link className={pageStyles.chapterEntryLink} href={chapter.href}>
+                {`Read chapter ${chapter.number}`}
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </PlanSection>
+
+      <section className={pageStyles.start} aria-labelledby="home-start">
+        <div className={pageStyles.container}>
+          <h2 className={pageStyles.startTitle} id="home-start">
             {FINAL_CTA.title}
           </h2>
-          <p className={styles.finalBody}>{FINAL_CTA.body}</p>
-
-          <div className={styles.heroActions}>
-            <Link className={styles.cta} href={CREATE_WORKSPACE_HREF}>
+          <p className={pageStyles.startBody}>{FINAL_CTA.body}</p>
+          <div className={pageStyles.startActions}>
+            <Link className={pageStyles.heroPrimary} href={CREATE_WORKSPACE_HREF}>
               Create your workspace
             </Link>
-            <Link className={styles.ctaSecondary} href={SIGN_IN_HREF}>
+            <Link className={pageStyles.heroSecondary} href={SIGN_IN_HREF}>
               Sign in
             </Link>
           </div>
         </div>
-
-        <FinalCtaMotif className={styles.finalMotif} />
-      </div>
-    </section>
+      </section>
+    </MarketingShell>
   );
 }

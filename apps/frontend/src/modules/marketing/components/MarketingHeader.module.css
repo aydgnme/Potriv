@@ -48,6 +48,7 @@
 .wordmark {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   color: var(--p-text);
   font-size: var(--p-text-lg);
   font-weight: var(--p-weight-bold);
@@ -125,7 +126,7 @@
 .signIn {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  min-height: 44px;
   padding-inline: var(--p-space-3);
   color: var(--p-text);
   font-size: var(--p-text-base);
@@ -146,7 +147,7 @@
   .create {
     display: inline-flex;
     align-items: center;
-    min-height: 40px;
+    min-height: 44px;
     padding-inline: var(--p-space-4);
     background: var(--p-primary);
     border-radius: var(--p-radius);

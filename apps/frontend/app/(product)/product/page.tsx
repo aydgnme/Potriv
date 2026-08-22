@@ -3,10 +3,9 @@ import type { Metadata } from "next";
 import { ProductPage } from "@/modules/marketing";
 
 export const metadata: Metadata = {
-  title: "Product — Four things Potriv keeps straight",
+  title: "Product — What Potriv keeps straight",
   description:
-    "People and their skills, project requirements, candidate evidence, and a " +
-    "staffing decision somebody is accountable for.",
+    "The objects a staffing decision needs — people, skills, departments, projects, requirements, proposals and allocations — and the boundary where a ranking stops being evidence and a person has to decide.",
 };
 
 export default function Page() {
