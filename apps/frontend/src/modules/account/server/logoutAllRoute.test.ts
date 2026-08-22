@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -38,8 +39,9 @@ function request(accessToken?: string) {
 
 async function post(accessToken?: string) {
   const { POST } = await import("../../../../app/api/auth/logout-all/route");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return POST(request(accessToken) as any);
+  // The stub carries only the cookie accessor this route reads; the cast is to
+  // `NextRequest` rather than `any`, so the shape stays checked at the boundary.
+  return POST(request(accessToken) as unknown as NextRequest);
 }
 
 beforeEach(() => {

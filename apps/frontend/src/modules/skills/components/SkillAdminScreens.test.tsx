@@ -446,3 +446,69 @@ describe("the admin panel on a skill", () => {
     expect(document.body.textContent).not.toMatch(/Delete Java/);
   });
 });
+
+/**
+ * Free text belongs in the accessible name, not the visible button label.
+ *
+ * A button cannot wrap its label, and category/department/skill names are
+ * organization-authored with no length limit. One long category name — "Retire
+ * Programming Languages And Runtime Platforms" — measured 367px inside a 248px
+ * row and pushed the whole document to 422px at every mobile width.
+ *
+ * These regressions fail for that exact reason: putting the name back into the
+ * visible label breaks the visible-text assertion, while the accessible name
+ * stays intact so nothing is lost to a screen reader.
+ */
+describe("long organization names do not ride in a button label", () => {
+  const longCategory = "Programming Languages And Runtime Platforms For Backend Services";
+  const longDepartment = "Platform Engineering And Developer Experience Department";
+
+  it("keeps the department link control's visible label short", () => {
+    const target = skill({ departments: [] });
+    render(
+      <SkillAdminPanel
+        skill={target}
+        capabilities={capabilitiesFor(target, BOB, { departmentId: PLATFORM, name: longDepartment })}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: `Link to ${longDepartment}` });
+    expect(button.textContent?.trim()).toBe("Link department");
+    expect(button.textContent).not.toContain(longDepartment);
+  });
+
+  it("keeps the department unlink control's visible label short", () => {
+    const target = skill({ departments: [{ departmentId: PLATFORM, name: longDepartment }] });
+    render(
+      <SkillAdminPanel
+        skill={target}
+        capabilities={capabilitiesFor(target, BOB, { departmentId: PLATFORM, name: longDepartment })}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: `Unlink from ${longDepartment}` });
+    expect(button.textContent?.trim()).toBe("Unlink department");
+    expect(button.textContent).not.toContain(longDepartment);
+  });
+
+  it("keeps the retire control's visible label short and its accessible name complete", () => {
+    render(<CategoryAdmin categories={[category(BACKEND, longCategory)]} includeInactive={false} />);
+
+    const button = screen.getByRole("button", { name: `Retire ${longCategory}` });
+
+    // Accessible name carries the category; the visible text does not.
+    expect(button).toHaveAccessibleName(`Retire ${longCategory}`);
+    expect(button.textContent?.trim()).toBe("Retire category");
+    expect(button.textContent).not.toContain(longCategory);
+  });
+
+  it("keeps the restore control's visible label short and its accessible name complete", () => {
+    render(<CategoryAdmin categories={[category(RETIRED, longCategory, false)]} includeInactive />);
+
+    const button = screen.getByRole("button", { name: `Restore ${longCategory}` });
+
+    expect(button).toHaveAccessibleName(`Restore ${longCategory}`);
+    expect(button.textContent?.trim()).toBe("Restore category");
+    expect(button.textContent).not.toContain(longCategory);
+  });
+});

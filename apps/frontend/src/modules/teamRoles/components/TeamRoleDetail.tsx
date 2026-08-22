@@ -126,13 +126,17 @@ function TeamRoleStatePanel({ teamRole }: { readonly teamRole: TeamRole }) {
           </p>
 
           <div>
+            {/* Same reason as the skill link controls: a team-role name is free
+                text, and a button label cannot wrap. The dialog heading below
+                still names the role in full, where it can wrap. */}
             <Button
               variant="secondary"
               size="sm"
               onClick={() => dialogRef.current?.showModal()}
               loading={isDeactivating}
+              aria-label={`Retire ${teamRole.name}`}
             >
-              {`Retire ${teamRole.name}`}
+              Retire team role
             </Button>
           </div>
 
@@ -170,8 +174,14 @@ function TeamRoleStatePanel({ teamRole }: { readonly teamRole: TeamRole }) {
       ) : (
         <form action={reactivateAction}>
           <input type="hidden" name="teamRoleId" value={teamRole.teamRoleId} />
-          <Button type="submit" variant="secondary" size="sm" loading={isReactivating}>
-            {`Restore ${teamRole.name}`}
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            loading={isReactivating}
+            aria-label={`Restore ${teamRole.name}`}
+          >
+            Restore team role
           </Button>
         </form>
       )}

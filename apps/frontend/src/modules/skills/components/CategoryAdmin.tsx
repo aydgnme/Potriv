@@ -180,13 +180,19 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
       <div>
         {category.active ? (
           <>
+            {/* The category name is organization-authored free text of unbounded
+                length, and a button label cannot wrap — one long name pushed the
+                whole page sideways at every mobile width. The accessible name
+                still says exactly which category this retires, and the dialog
+                heading below names it in full where it can wrap. */}
             <Button
               variant="secondary"
               size="sm"
               onClick={() => dialogRef.current?.showModal()}
               loading={isRetiring}
+              aria-label={`Retire ${category.name}`}
             >
-              {`Retire ${category.name}`}
+              Retire category
             </Button>
 
             <dialog ref={dialogRef} className={styles.dialog} aria-labelledby={titleId}>
@@ -224,8 +230,14 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
         ) : (
           <form action={restoreAction}>
             <input type="hidden" name="categoryId" value={category.categoryId} />
-            <Button type="submit" variant="secondary" size="sm" loading={isRestoring}>
-              {`Restore ${category.name}`}
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              loading={isRestoring}
+              aria-label={`Restore ${category.name}`}
+            >
+              Restore category
             </Button>
           </form>
         )}

@@ -214,15 +214,33 @@ function DepartmentLinkControls({
       {action === "unlink" ? (
         <form action={unlinkAction}>
           <input type="hidden" name="skillId" value={skill.skillId} />
-          <Button type="submit" variant="secondary" size="sm" loading={isUnlinking}>
-            {`Unlink from ${department.name}`}
+          {/*
+            The department name is organization-authored free text of unbounded
+            length, and a button label cannot wrap. Keeping it out of the visible
+            label stops one long department name from setting the page width,
+            while the accessible name still says exactly what this acts on.
+          */}
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            loading={isUnlinking}
+            aria-label={`Unlink from ${department.name}`}
+          >
+            Unlink department
           </Button>
         </form>
       ) : action === "link" ? (
         <form action={linkAction}>
           <input type="hidden" name="skillId" value={skill.skillId} />
-          <Button type="submit" variant="secondary" size="sm" loading={isLinking}>
-            {`Link to ${department.name}`}
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            loading={isLinking}
+            aria-label={`Link to ${department.name}`}
+          >
+            Link department
           </Button>
         </form>
       ) : (

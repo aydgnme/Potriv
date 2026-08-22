@@ -83,7 +83,16 @@
   color: var(--p-text-muted);
   font-size: var(--p-text-sm);
   font-weight: var(--p-weight-medium);
-  white-space: nowrap;
+  /**
+   * Headers hold on one line while there is room, and wrap when there is not.
+   *
+   * `nowrap` alone made the header row the table's min-content floor: the team
+   * page has seven columns, and between 768px and the point where these tables
+   * fold into stacked records the row could not fit, pushing the whole document
+   * four pixels wide. Wrapping "Review department" onto two lines costs nothing
+   * and removes the only reason the page scrolled sideways.
+   */
+  white-space: normal;
 }
 
 .table td {

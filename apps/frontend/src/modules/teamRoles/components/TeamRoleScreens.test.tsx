@@ -225,3 +225,43 @@ describe("the detail", () => {
     expect(screen.getByText(/do not grant application permissions/)).toBeInTheDocument();
   });
 });
+
+/**
+ * A team-role name is free text, so it cannot ride in a button label.
+ *
+ * The retire control measured 484px at a 320px viewport with a realistic long
+ * role name, pushing the page sideways. The name moved to the accessible name,
+ * where length costs nothing; the dialog heading still shows it in full, where
+ * it can wrap.
+ */
+describe("long team-role names do not ride in a button label", () => {
+  const longName = "Senior Backend Engineer With A Deliberately Long Team Role Name";
+
+  it("keeps the retire control's visible label short and its accessible name complete", () => {
+    render(<TeamRoleDetail teamRole={teamRole({ name: longName })} />);
+
+    const button = screen.getByRole("button", { name: `Retire ${longName}` });
+    expect(button).toHaveAccessibleName(`Retire ${longName}`);
+    expect(button.textContent?.trim()).toBe("Retire team role");
+    expect(button.textContent).not.toContain(longName);
+  });
+
+  it("keeps the restore control's visible label short and its accessible name complete", () => {
+    render(<TeamRoleDetail teamRole={teamRole({ name: longName, active: false })} />);
+
+    const button = screen.getByRole("button", { name: `Restore ${longName}` });
+    expect(button).toHaveAccessibleName(`Restore ${longName}`);
+    expect(button.textContent?.trim()).toBe("Restore team role");
+    expect(button.textContent).not.toContain(longName);
+  });
+
+  it("still names the role in full where the text can wrap", async () => {
+    const user = userEvent.setup();
+    render(<TeamRoleDetail teamRole={teamRole({ name: longName })} />);
+
+    await user.click(screen.getByRole("button", { name: `Retire ${longName}` }));
+
+    // The dialog heading is prose, not a control, so the full name belongs there.
+    expect(screen.getByRole("heading", { name: `Retire ${longName}?` })).toBeInTheDocument();
+  });
+});
