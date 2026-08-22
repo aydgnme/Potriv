@@ -2,6 +2,7 @@
 
 import { useActionState, useRef } from "react";
 
+import { ActionFeedback } from "@/shared/ui/ActionFeedback";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
 import { EmptyState } from "@/shared/ui/EmptyState";
@@ -161,7 +162,12 @@ function AddMemberButton({ person }: { readonly person: DepartmentUser }) {
 
   return (
     <div className={styles.rowAside}>
-      {state.error ? <span className={styles.fieldError}>{state.error}</span> : null}
+      <ActionFeedback
+        outcome={state}
+        revision={state}
+        as="span"
+        errorClassName={styles.fieldError}
+      />
       <form action={formAction}>
         <input type="hidden" name="userId" value={person.userId} />
         {/* "Add", not "Move": nobody is taken out of another department by this,
@@ -200,7 +206,12 @@ function RemoveMemberButton({
 
   return (
     <div className={styles.rowAside}>
-      {state.error ? <span className={styles.fieldError}>{state.error}</span> : null}
+      <ActionFeedback
+        outcome={state}
+        revision={state}
+        as="span"
+        errorClassName={styles.fieldError}
+      />
 
       <Button
         variant="secondary"

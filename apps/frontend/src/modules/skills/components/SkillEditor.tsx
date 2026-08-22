@@ -4,6 +4,7 @@ import { useActionState } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 
 import {
   activeCategories,
@@ -63,11 +64,14 @@ export function SkillEditor({ categories, skill }: SkillEditorProps) {
 
   return (
     <form action={formAction} className={styles.filters}>
-      {state.error ? (
-        <Alert tone="danger" title={skill ? "Not saved" : "Not created"}>
-          {state.error}
-        </Alert>
-      ) : null}
+      <FormErrorSummary
+        submission={state}
+        formError={state.error}
+        title={state.error ? (skill ? "Not saved" : "Not created") : undefined}
+        fieldErrors={state.fieldErrors}
+        labels={{ categoryId: "Category", name: "Name", description: "Description" }}
+        order={["categoryId", "name", "description"]}
+      />
       {state.done ? <Alert tone="success">{state.done}</Alert> : null}
 
       {skill ? <input type="hidden" name="skillId" value={skill.skillId} /> : null}

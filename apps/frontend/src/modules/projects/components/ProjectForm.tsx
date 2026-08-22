@@ -5,6 +5,7 @@ import { useActionState, useRef, useState } from "react";
 import { PROJECT_STATUSES, type ProjectStatus } from "@/shared/types/projectStatus";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import { Textarea } from "@/shared/ui/Textarea";
@@ -116,11 +117,29 @@ export function ProjectForm({
       {projectId ? <input type="hidden" name="projectId" value={projectId} /> : null}
 
       {blockedReason ? <Alert tone="warning">{blockedReason}</Alert> : null}
-      {state.formError ? (
-        <Alert tone="danger" title="This was not saved">
-          {state.formError}
-        </Alert>
-      ) : null}
+      {/* One alert for the whole submission. A validation result here can carry
+          a form-level message *and* field errors at once (projectActions.ts),
+          so both go into the same region rather than one hiding the other. */}
+      <FormErrorSummary
+        submission={state}
+        formError={state.formError}
+        title={state.formError ? "This was not saved" : undefined}
+        fieldErrors={errors}
+        labels={{
+          name: "Project name",
+          generalDescription: "Description",
+          period: "Period",
+          startDate: "Start date",
+          deadlineDate: "Deadline",
+          status: "Status",
+          technologyStack: "Technology stack",
+          teamRoles: "Team roles",
+        }}
+        order={[
+          "name", "generalDescription", "period", "startDate", "deadlineDate",
+          "status", "technologyStack", "teamRoles",
+        ]}
+      />
 
       <fieldset className={styles.fieldset} disabled={isPending || blocked}>
         <legend className={styles.legend}>Basics</legend>

@@ -2,8 +2,8 @@
 
 import { useActionState, useRef, useState } from "react";
 
-import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 
 import { EMPTY_REMOVAL_STATE } from "../model/reviewActionState";
 import { proposeDeallocationAction } from "../server/actions/removalActions";
@@ -73,11 +73,16 @@ export function ProposeRemovalAction({
           the request. If approved, the reason is stored permanently with the past allocation.
         </p>
 
-        {state.formError ? (
-          <Alert tone="danger" title="This was not sent">
-            {state.formError}
-          </Alert>
-        ) : null}
+        {/* The character counter below is a typing-time hint that changes on
+            every keystroke; it stays out of here so it cannot chatter. Only the
+            action's own field error is announced. */}
+        <FormErrorSummary
+        submission={state}
+          formError={state.formError}
+          title={state.formError ? "This was not sent" : undefined}
+          fieldErrors={state.fieldErrors}
+          labels={{ reason: "Reason" }}
+        />
 
         <form action={formAction} className={styles.removalForm}>
           <input type="hidden" name="projectId" value={projectId} />

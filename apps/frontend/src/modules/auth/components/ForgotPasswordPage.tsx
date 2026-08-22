@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 
 import { requestPasswordReset } from "../api/authClient";
@@ -27,10 +28,12 @@ export function ForgotPasswordPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
+    setAttempt((previous) => previous + 1);
 
     const nextEmailError = /.+@.+\..+/.test(email) ? null : "Enter a valid email address.";
     setEmailError(nextEmailError);
@@ -77,7 +80,15 @@ export function ForgotPasswordPage() {
         </>
       ) : (
         <>
-          {formError ? <Alert tone="danger">{formError}</Alert> : null}
+          <FormErrorSummary
+            submission={attempt}
+            formError={formError}
+            fieldErrors={{ email: emailError ?? undefined }}
+            /* Exactly the visible label. A summary that renames the field sends
+               a speech-input user looking for a "Work email" box that is not
+               on the page. */
+            labels={{ email: "Email" }}
+          />
 
           <form className={styles.form} onSubmit={handleSubmit} noValidate>
             <Input

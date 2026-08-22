@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 
+import { ActionFeedback } from "@/shared/ui/ActionFeedback";
 import { Button } from "@/shared/ui/Button";
 import { formatDateTime } from "@/shared/utils/formatDate";
 
@@ -91,8 +92,15 @@ function SessionRow({ session }: { readonly session: AccountSession }) {
             {`Ended ${formatDateTime(session.revokedAt) ?? "at an unrecorded time"}`}
           </span>
         ) : null}
-        {state.error ? <span className={styles.fieldError}>{state.error}</span> : null}
-        {state.done ? <span className={styles.sectionNote}>{state.done}</span> : null}
+        {/* `span`, because this sits inside a `<th>` beside inline marks — the
+            row's semantics are not disturbed, only the missing role added. */}
+        <ActionFeedback
+          outcome={state}
+          revision={state}
+          as="span"
+          errorClassName={styles.fieldError}
+          doneClassName={styles.sectionNote}
+        />
       </th>
 
       <td data-label="Created" className={styles.muted}>
@@ -128,7 +136,9 @@ function SessionRow({ session }: { readonly session: AccountSession }) {
               variant="secondary"
               size="sm"
               loading={isPending}
-              aria-label={`Revoke the session last seen ${
+              /* Begins with the visible label so the two agree (WCAG 2.5.3),
+                 then adds the detail that tells one session from another. */
+              aria-label={`Revoke session last seen ${
                 formatDateTime(session.lastSeenAt) ?? "at an unrecorded time"
               }`}
             >

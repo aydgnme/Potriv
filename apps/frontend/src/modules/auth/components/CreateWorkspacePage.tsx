@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
-import { Alert } from "@/shared/ui/Alert";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 
 import { createWorkspace } from "../api/authClient";
 import {
@@ -83,11 +83,13 @@ export function CreateWorkspacePage() {
   const [fieldErrors, setFieldErrors] = useState<WorkspaceFieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [createdEmail, setCreatedEmail] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError(null);
+    setAttempt((previous) => previous + 1);
 
     // The same pure validator the route handler runs, so the two cannot drift.
     const validated = validateWorkspaceRegistration(values);
@@ -151,7 +153,17 @@ export function CreateWorkspacePage() {
       }
     >
       {/* Alert announces the `danger` tone assertively on its own. */}
-      {formError ? <Alert tone="danger">{formError}</Alert> : null}
+      {/* Five fields can fail at once here, which is exactly why this is one
+          summary rather than five live field errors. Labels and order come from
+          the same FIELDS array the form renders from, so a summary line can
+          never name a field differently from its label. */}
+      <FormErrorSummary
+        submission={attempt}
+        formError={formError}
+        fieldErrors={fieldErrors}
+        labels={Object.fromEntries(FIELDS.map((field) => [field.name, field.label]))}
+        order={FIELDS.map((field) => field.name)}
+      />
 
       <form onSubmit={handleSubmit} noValidate>
         <div className={styles.fields}>

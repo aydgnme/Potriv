@@ -214,15 +214,33 @@ function DepartmentLinkControls({
       {action === "unlink" ? (
         <form action={unlinkAction}>
           <input type="hidden" name="skillId" value={skill.skillId} />
-          <Button type="submit" variant="secondary" size="sm" loading={isUnlinking}>
-            {`Unlink from ${department.name}`}
+          {/*
+            A department name is bounded at 160 characters — still wide enough to
+            set the page width from inside a button, which cannot wrap. The name
+            moves to the accessible name, which begins with the visible label so
+            the two agree (WCAG 2.5.3).
+          */}
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            loading={isUnlinking}
+            aria-label={`Unlink department: ${department.name}`}
+          >
+            Unlink department
           </Button>
         </form>
       ) : action === "link" ? (
         <form action={linkAction}>
           <input type="hidden" name="skillId" value={skill.skillId} />
-          <Button type="submit" variant="secondary" size="sm" loading={isLinking}>
-            {`Link to ${department.name}`}
+          <Button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            loading={isLinking}
+            aria-label={`Link department: ${department.name}`}
+          >
+            Link department
           </Button>
         </form>
       ) : (

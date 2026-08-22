@@ -133,7 +133,12 @@ describe("sessions", () => {
       session({ sessionId: "33333333-3333-4333-8333-333333333333" }),
     ]));
 
-    expect(screen.getByRole("button", { name: /Revoke the session last seen/ })).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /^Revoke session last seen/ });
+    expect(button).toBeInTheDocument();
+    // WCAG 2.5.3: the visible label must be contained in the accessible name,
+    // or a speech-input user saying what they see cannot reach the control.
+    expect(button.textContent?.trim()).toBe("Revoke session");
+    expect(button.getAttribute("aria-label")).toContain("Revoke session");
   });
 
   it("shows a revoked session as ended and read-only", () => {

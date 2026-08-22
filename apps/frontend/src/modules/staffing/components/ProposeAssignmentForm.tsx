@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 
 import { EMPTY_PROPOSAL_STATE } from "../model/proposalState";
 import type { Candidate } from "../model/teamFinderData";
@@ -106,11 +107,23 @@ export function ProposeAssignmentForm({
         A department manager reviews this before anyone joins the project.
       </p>
 
-      {state.formError ? (
-        <Alert tone="danger" title="This was not sent">
-          {state.formError}
-        </Alert>
-      ) : null}
+      {/* `teamRoleIds` is a checkbox group rather than a single control, so its
+          message has no one field to be described by — which is precisely the
+          case a summary handles well. The live character counter below is a
+          typing-time hint, not a submission error, and is deliberately left out
+          of here so it cannot chatter. */}
+      <FormErrorSummary
+        submission={state}
+        formError={state.formError}
+        title={state.formError ? "This was not sent" : undefined}
+        fieldErrors={state.fieldErrors}
+        labels={{
+          teamRoleIds: "Team roles",
+          workHoursPerDay: "Hours per day",
+          comments: "Comments",
+        }}
+        order={["teamRoleIds", "workHoursPerDay", "comments"]}
+      />
 
       {hasCapacity ? null : (
         <Alert tone="warning">

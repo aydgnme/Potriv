@@ -6,6 +6,7 @@ import styles from "./Field.module.css";
 export type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, "id"> & {
   readonly label: string;
   readonly hint?: ReactNode;
+  /** Marks the control invalid and links the message; see `Input` and `FormErrorSummary`. */
   readonly error?: string;
   readonly requirement?: "Required" | "Optional";
   readonly children: ReactNode;

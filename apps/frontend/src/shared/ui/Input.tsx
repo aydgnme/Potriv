@@ -6,7 +6,15 @@ import styles from "./Field.module.css";
 export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
   readonly label: string;
   readonly hint?: ReactNode;
-  /** Present means invalid: the message is announced and linked to the control. */
+  /**
+   * Present means invalid: the control is marked `aria-invalid` and the message
+   * is linked to it through `aria-describedby`.
+   *
+   * Linked is **not** announced. `aria-describedby` is read when focus reaches
+   * the control, so a message that appears after a submission the person is
+   * waiting on reaches nobody on its own. Announcing a failed submission is
+   * `FormErrorSummary`'s job, and it is the only live region in a form.
+   */
   readonly error?: string;
   readonly requirement?: "Required" | "Optional";
 };
@@ -15,6 +23,8 @@ export type InputProps = Omit<InputHTMLAttributes<HTMLInputElement>, "id"> & {
  * A labelled text input. The label is a real `<label>` — a placeholder is never
  * used as one — and any error is associated through `aria-describedby` rather
  * than merely sitting nearby.
+ *
+ * The error text here is deliberately not live. See `FormErrorSummary`.
  */
 export function Input({ label, hint, error, requirement, ...rest }: InputProps) {
   const id = useId();

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -82,7 +82,11 @@ describe("refusing to submit an invalid form", () => {
 
     // The obvious mistakes are answered without a round trip.
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(screen.getByText(/enter your name/i)).toBeInTheDocument();
+    // Twice by design: beside the field, and inside the alert that announces it.
+    expect(screen.getAllByText(/enter your name/i)).toHaveLength(2);
+    expect(
+      within(screen.getByRole("alert")).getByText(/your name: enter your name/i),
+    ).toBeInTheDocument();
   });
 
   it("attaches each message to the field it is about", async () => {
@@ -202,5 +206,73 @@ describe("when the backend refuses", () => {
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /workspace is ready/i })).toBeNull();
+  });
+});
+
+/**
+ * Five fields, one announcement.
+ *
+ * This is the form that decides the announcement model. Making each field error
+ * live would fire five assertive regions at once, in whatever order the DOM
+ * happened to settle. One summary says what went wrong, once — and the visible
+ * per-field messages stay exactly where they were.
+ */
+describe("a failed submission is announced once, not five times", () => {
+  it("puts every problem in a single alert, named by field", async () => {
+    const fetchSpy = mockFetchOnce({});
+    const user = userEvent.setup();
+    render(<CreateWorkspacePage />);
+
+    // Focus the submit control and press Enter — no pointer.
+    screen.getByRole("button", { name: /create workspace/i }).focus();
+    await user.keyboard("{Enter}");
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    const alerts = screen.getAllByRole("alert");
+    expect(alerts).toHaveLength(1);
+    const alert = within(alerts[0]);
+
+    // Named by the same labels the form shows, in the same order it shows them.
+    expect(alert.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Your name: Enter your name.",
+      "Work email: Enter your work email.",
+      "Password: Choose a password.",
+      "Organization name: Name your organization.",
+      "Headquarters address: Enter a headquarters address.",
+    ]);
+    expect(alerts[0]).toHaveTextContent("Check 5 fields");
+  });
+
+  it("does not make the messages beside the fields live as well", async () => {
+    mockFetchOnce({});
+    const user = userEvent.setup();
+    render(<CreateWorkspacePage />);
+
+    screen.getByRole("button", { name: /create workspace/i }).focus();
+    await user.keyboard("{Enter}");
+
+    // Exactly one live region on the page. Anything else would announce the same
+    // failure twice.
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(document.querySelectorAll("[aria-live]")).toHaveLength(0);
+  });
+
+  it("shrinks the announcement as fields are corrected", async () => {
+    mockFetchOnce({});
+    const user = userEvent.setup();
+    render(<CreateWorkspacePage />);
+
+    screen.getByRole("button", { name: /create workspace/i }).focus();
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("alert")).toHaveTextContent("Check 5 fields");
+
+    await user.type(screen.getByLabelText("Your name"), "Ada Lovelace");
+    screen.getByRole("button", { name: /create workspace/i }).focus();
+    await user.keyboard("{Enter}");
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Check 4 fields");
+    expect(within(alert).queryByText(/^Your name:/)).toBeNull();
   });
 });

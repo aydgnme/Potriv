@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useActionState, useRef } from "react";
 
+import { ActionFeedback, useLatestOutcome } from "@/shared/ui/ActionFeedback";
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
+import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { EmptyState } from "@/shared/ui/EmptyState";
 import { formatDate } from "@/shared/utils/formatDate";
 
@@ -75,11 +77,13 @@ function CreateCategoryForm() {
 
   return (
     <form action={formAction} className={styles.filters}>
-      {state.error ? (
-        <Alert tone="danger" title="Not created">
-          {state.error}
-        </Alert>
-      ) : null}
+      <FormErrorSummary
+        submission={state}
+        formError={state.error}
+        title={state.error ? "Not created" : undefined}
+        fieldErrors={state.fieldErrors}
+        labels={{ name: "Category name" }}
+      />
       {state.done ? <Alert tone="success">{state.done}</Alert> : null}
 
       <div className={styles.filterRow}>
@@ -128,8 +132,32 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
   const nameId = `category-name-${category.categoryId}`;
   const titleId = `retire-category-${category.categoryId}`;
 
-  // Only the message that agrees with the state as it is now.
-  const confirmation = category.active ? restoreState.done : retireState.done;
+  /*
+    Three actions, one row, and only the newest of them is feedback.
+
+    Rendering all three results side by side left a rename failure sitting beside
+    a later retire confirmation, and could put two assertive regions on one row at
+    once. `useLatestOutcome` picks the state whose object identity just changed —
+    `useActionState` hands back a new one per submission — so a later result
+    always replaces an earlier one, in either direction.
+
+    The retire/restore confirmation is still filtered against the row's current
+    state first: a "restored" message under a row that reads Retired would be
+    worse than none.
+  */
+  const latest = useLatestOutcome([renameState, retireState, restoreState]);
+
+  /*
+    The raw states go in, because `useLatestOutcome` compares by identity and a
+    freshly built wrapper object would look like a new result on every render.
+    The filtering happens here instead: a "retired" confirmation under a row that
+    still reads Available contradicts what is on screen, so the confirmation is
+    dropped while any failure from the same action is kept.
+  */
+  const contradicts =
+    (latest.outcome === retireState && category.active) ||
+    (latest.outcome === restoreState && !category.active);
+  const shown = contradicts ? { error: latest.outcome?.error } : latest.outcome;
 
   return (
     <div className={styles.assignment}>
@@ -145,11 +173,12 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
           </span>
         </span>
 
-        {renameState.error ? <p className={styles.fieldError}>{renameState.error}</p> : null}
-        {retireState.error ? <p className={styles.fieldError}>{retireState.error}</p> : null}
-        {restoreState.error ? <p className={styles.fieldError}>{restoreState.error}</p> : null}
-        {renameState.done ? <p className={styles.panelNote}>{renameState.done}</p> : null}
-        {confirmation ? <p className={styles.panelNote}>{confirmation}</p> : null}
+        <ActionFeedback
+          outcome={shown}
+          revision={latest.revision}
+          errorClassName={styles.fieldError}
+          doneClassName={styles.panelNote}
+        />
       </div>
 
       <form action={renameAction} className={styles.assignmentControls}>
@@ -180,13 +209,24 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
       <div>
         {category.active ? (
           <>
+            {/*
+              A category name is bounded at 120 characters, which is still far
+              wider than a mobile control — one long name pushed the whole page
+              sideways at every width below 768px. Keeping it out of the visible
+              label fixes that.
+
+              The accessible name **starts with the visible label** so the two
+              agree: WCAG 2.5.3 requires the visible text to be contained in the
+              accessible name, and speech-input users say what they can see.
+            */}
             <Button
               variant="secondary"
               size="sm"
               onClick={() => dialogRef.current?.showModal()}
               loading={isRetiring}
+              aria-label={`Retire category: ${category.name}`}
             >
-              {`Retire ${category.name}`}
+              Retire category
             </Button>
 
             <dialog ref={dialogRef} className={styles.dialog} aria-labelledby={titleId}>
@@ -224,8 +264,14 @@ function CategoryRow({ category }: { readonly category: SkillCategory }) {
         ) : (
           <form action={restoreAction}>
             <input type="hidden" name="categoryId" value={category.categoryId} />
-            <Button type="submit" variant="secondary" size="sm" loading={isRestoring}>
-              {`Restore ${category.name}`}
+            <Button
+              type="submit"
+              variant="secondary"
+              size="sm"
+              loading={isRestoring}
+              aria-label={`Restore category: ${category.name}`}
+            >
+              Restore category
             </Button>
           </form>
         )}

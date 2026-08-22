@@ -2,6 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { cssContract } from "@/test/cssContract";
+
 import type { ReviewActionState } from "../model/reviewActionState";
 import type { CapacityContext, ReviewProposal } from "../model/reviewQueue";
 
@@ -394,11 +396,32 @@ describe("free text at the contract's limit", () => {
     const shown = screen.getByText(UNBROKEN);
     // Present in full — never truncated, and never behind a hover.
     expect(shown.textContent).toHaveLength(5000);
-    // Pinned to the class that carries `overflow-wrap: anywhere`, not to "has
-    // some class": an unrelated class must not be able to keep this green while
-    // the wrapping is removed. The layout proof itself is a browser measurement
-    // — 41283px before, viewport width after — which jsdom cannot make.
+    // Pinned to the class that carries the wrapping, not to "has some class":
+    // an unrelated class must not be able to keep this green.
     expect(shown).toHaveClass(styles.longText);
+  });
+
+  /**
+   * The other half, which the assertion above cannot make.
+   *
+   * `toHaveClass` proves the element is wired to `.longText`. It says nothing
+   * about what `.longText` does — delete `overflow-wrap: anywhere` from the
+   * stylesheet and the test above stays green while the page widens to 41283px
+   * again. jsdom applies no layout, so the behaviour itself is a browser
+   * measurement; what is testable here is that the declaration carrying it is
+   * still in the rule the component points at.
+   */
+  it("wraps because the rule it points at says so", () => {
+    const longText = cssContract(
+      "src/modules/staffing/components/Staffing.module.css",
+    ).rule(".longText");
+
+    // `anywhere` rather than `break-word`: the latter still refuses to break a
+    // token that is alone on its line, which is exactly this case.
+    expect(longText).toMatch(/overflow-wrap:\s*anywhere/);
+    // And the text keeps its own line breaks — a reason typed across paragraphs
+    // is not silently reflowed into one.
+    expect(longText).toMatch(/white-space:\s*pre-wrap/);
   });
 });
 

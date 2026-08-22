@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -159,7 +159,7 @@ describe("the category screen", () => {
     const user = userEvent.setup();
     render(<CategoryAdmin categories={[category(BACKEND, "Backend")]} includeInactive={false} />);
 
-    await user.click(screen.getByRole("button", { name: "Retire Backend" }));
+    await user.click(screen.getByRole("button", { name: "Retire category: Backend" }));
 
     const dialog = within(document.querySelector("dialog")!);
     expect(dialog.getByText("Retire Backend?")).toBeInTheDocument();
@@ -174,16 +174,16 @@ describe("the category screen", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Restore Retired tooling" }),
+      screen.getByRole("button", { name: "Restore category: Retired tooling" }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Retire Retired/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Retire category: Retired/ })).toBeNull();
   });
 
   it("sends only the id when retiring", async () => {
     const user = userEvent.setup();
     render(<CategoryAdmin categories={[category(BACKEND, "Backend")]} includeInactive={false} />);
 
-    await user.click(screen.getByRole("button", { name: "Retire Backend" }));
+    await user.click(screen.getByRole("button", { name: "Retire category: Backend" }));
     const dialog = within(document.querySelector("dialog")!);
     await user.click(dialog.getByRole("button", { name: "Retire category" }));
 
@@ -318,7 +318,7 @@ describe("the admin panel on a skill", () => {
 
     expect(screen.getByText(/not assigned to manage a department/)).toBeInTheDocument();
     expect(screen.getByText(/still add skills and categories/)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Link department/ })).toBeNull();
   });
 
   it("does not claim an absent appointment when the lookup failed", () => {
@@ -338,8 +338,8 @@ describe("the admin panel on a skill", () => {
     expect(screen.queryByText(/not assigned to manage a department/)).toBeNull();
 
     // The relationship fails closed while everything else stays usable.
-    expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Unlink from/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Link department/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Unlink department/ })).toBeNull();
     expect(screen.getByRole("link", { name: "Edit skill" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retire skill" })).toBeInTheDocument();
   });
@@ -354,7 +354,7 @@ describe("the admin panel on a skill", () => {
     );
 
     // Bob wrote nothing here; link authority is the appointment, not authorship.
-    expect(screen.getByRole("button", { name: "Link to Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Link department: Platform" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Edit skill" })).toBeNull();
   });
 
@@ -367,7 +367,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Unlink from Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unlink department: Platform" })).toBeInTheDocument();
   });
 
   it("offers no new link on a retired skill, and says why", () => {
@@ -379,7 +379,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: /^Link to/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Link department/ })).toBeNull();
     expect(screen.getByText(/retired skill cannot be linked to Platform/)).toBeInTheDocument();
   });
 
@@ -396,7 +396,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Unlink from Platform" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Unlink department: Platform" })).toBeInTheDocument();
   });
 
   it("offers no department picker anywhere", () => {
@@ -424,7 +424,7 @@ describe("the admin panel on a skill", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Link to Platform" }));
+    await user.click(screen.getByRole("button", { name: "Link department: Platform" }));
 
     const formData = link.mock.calls[0]![1];
     expect([...formData.keys()]).toEqual(["skillId"]);
@@ -444,5 +444,241 @@ describe("the admin panel on a skill", () => {
     expect(dialog.getByText("Retire Java?")).toBeInTheDocument();
     expect(dialog.getByText(/People who already have it keep it/)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/Delete Java/);
+  });
+});
+
+/**
+ * Free text belongs in the accessible name, not the visible button label.
+ *
+ * A button cannot wrap its label, and category/department names are
+ * organization-authored and long: bounded at 120 and 160 characters
+ * respectively, which is far wider than any mobile control. The bound is not the
+ * point — a perfectly valid, contract-respecting name still does not fit. One
+ * such category name, "Programming Languages And Runtime Platforms", made a
+ * `Retire` button 367px wide inside a 248px row and pushed the whole document to
+ * 422px at every mobile width.
+ *
+ * These regressions fail for that exact reason: putting the name back into the
+ * visible label breaks the visible-text assertion, while the accessible name
+ * stays intact so nothing is lost to a screen reader.
+ */
+describe("long organization names stay out of the visible button label", () => {
+  const longCategory = "Programming Languages And Runtime Platforms For Backend Services";
+  const longDepartment = "Platform Engineering And Developer Experience Department";
+
+  /**
+   * Two halves, and both must hold.
+   *
+   * The label has to stay short, or a 120/160-character name sets the page
+   * width from inside a control that cannot wrap. And the accessible name has
+   * to *contain* that visible label, or WCAG 2.5.3 fails and a speech-input
+   * user saying what they can see does not reach the control.
+   *
+   * Fixing only the first is what the first attempt did.
+   */
+  const assertLabelInName = (button: HTMLElement, visible: string, value: string) => {
+    expect(button.textContent?.trim()).toBe(visible);
+    expect(button.textContent).not.toContain(value);
+
+    const accessible = button.getAttribute("aria-label") ?? "";
+    expect(accessible).toContain(visible);
+    expect(accessible).toContain(value);
+  };
+
+  it("keeps the retire control short and its accessible name label-consistent", () => {
+    render(<CategoryAdmin categories={[category(BACKEND, longCategory)]} includeInactive={false} />);
+
+    assertLabelInName(
+      screen.getByRole("button", { name: `Retire category: ${longCategory}` }),
+      "Retire category",
+      longCategory,
+    );
+  });
+
+  it("keeps the restore control short and its accessible name label-consistent", () => {
+    render(<CategoryAdmin categories={[category(RETIRED, longCategory, false)]} includeInactive />);
+
+    assertLabelInName(
+      screen.getByRole("button", { name: `Restore category: ${longCategory}` }),
+      "Restore category",
+      longCategory,
+    );
+  });
+
+  it("keeps the department link control short and label-consistent", () => {
+    const target = skill({ departments: [] });
+    render(
+      <SkillAdminPanel
+        skill={target}
+        capabilities={capabilitiesFor(target, BOB, { departmentId: PLATFORM, name: longDepartment })}
+      />,
+    );
+
+    assertLabelInName(
+      screen.getByRole("button", { name: `Link department: ${longDepartment}` }),
+      "Link department",
+      longDepartment,
+    );
+  });
+
+  it("keeps the department unlink control short and label-consistent", () => {
+    const target = skill({ departments: [{ departmentId: PLATFORM, name: longDepartment }] });
+    render(
+      <SkillAdminPanel
+        skill={target}
+        capabilities={capabilitiesFor(target, BOB, { departmentId: PLATFORM, name: longDepartment })}
+      />,
+    );
+
+    assertLabelInName(
+      screen.getByRole("button", { name: `Unlink department: ${longDepartment}` }),
+      "Unlink department",
+      longDepartment,
+    );
+  });
+});
+
+/**
+ * One row, three actions, and only the newest of them speaking.
+ *
+ * A category row owns rename, retire and restore, each with its own action
+ * state. Rendering all three results side by side left a rename failure sitting
+ * beside a later retire confirmation, and could put two assertive regions on one
+ * row at once. Worse, all three were plain `<p>` elements — visible and
+ * announced to nobody.
+ */
+describe("a category row reports only its latest action", () => {
+  const BACKEND_ROW = () => category(BACKEND, "Backend");
+
+  /** Submits the rename form from the keyboard. */
+  async function rename(user: ReturnType<typeof userEvent.setup>) {
+    const save = screen.getByRole("button", { name: /^Save Backend$/ });
+    save.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  /** Opens the retire dialog and confirms, from the keyboard. */
+  async function retire(user: ReturnType<typeof userEvent.setup>) {
+    const open = screen.getByRole("button", { name: "Retire category: Backend" });
+    open.focus();
+    await user.keyboard("{Enter}");
+    const confirm = within(document.querySelector("dialog")!).getByRole("button", {
+      name: /^Retire category$/,
+    });
+    confirm.focus();
+    await user.keyboard("{Enter}");
+  }
+
+  it("announces a rename failure assertively", async () => {
+    updateCategory.mockResolvedValue({ error: "That name is already used." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("That name is already used.");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("announces a rename success politely", async () => {
+    updateCategory.mockResolvedValue({ done: "Category renamed." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Category renamed.");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("announces a retire failure assertively", async () => {
+    deactivateCategory.mockResolvedValue({ error: "Backend could not be retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await retire(user);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Backend could not be retired.",
+    );
+  });
+
+  it("replaces a stale rename failure when a later retire fails", async () => {
+    updateCategory.mockResolvedValue({ error: "That name is already used." });
+    deactivateCategory.mockResolvedValue({ error: "Backend could not be retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("That name is already used.");
+
+    await retire(user);
+    await screen.findByText("Backend could not be retired.");
+
+    // The earlier failure is gone, and there is still exactly one region.
+    expect(screen.queryByText("That name is already used.")).toBeNull();
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+  });
+
+  it("clears a stale rename failure even when the later confirmation is suppressed", async () => {
+    updateCategory.mockResolvedValue({ error: "That name is already used." });
+    deactivateCategory.mockResolvedValue({ done: "Backend retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await rename(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("That name is already used.");
+
+    await retire(user);
+
+    /*
+      The retire succeeded, but this row still renders as Available — the server
+      data has not come back changed in this test — so its confirmation is
+      suppressed as contradicting what is on screen. What must *not* survive is
+      the earlier rename failure: it is no longer the latest thing that happened,
+      and leaving it there would attach it to the retire the user just did.
+    */
+    await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+    expect(screen.queryByText("That name is already used.")).toBeNull();
+    expect(screen.queryByText("Backend retired.")).toBeNull();
+  });
+
+  it("lets a later success replace an earlier failure", async () => {
+    deactivateCategory.mockResolvedValue({ error: "Backend could not be retired." });
+    updateCategory.mockResolvedValue({ done: "Category renamed." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await retire(user);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Backend could not be retired.");
+
+    // A rename confirmation carries no claim about Available/Retired, so it is
+    // never filtered — which makes it the clean case for proving that a success
+    // replaces a failure rather than stacking under it.
+    await rename(user);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Category renamed.");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByText("Backend could not be retired.")).toBeNull();
+  });
+
+  it("keeps a retire confirmation off a row that still reads Available", async () => {
+    // The row's own state has not changed in this render, so a "retired"
+    // confirmation under an Available row would contradict what is on screen.
+    deactivateCategory.mockResolvedValue({ done: "Backend retired." });
+    const user = userEvent.setup();
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    await retire(user);
+
+    expect(screen.queryByText("Backend retired.")).toBeNull();
+  });
+
+  it("says nothing before any of the three actions has run", () => {
+    render(<CategoryAdmin categories={[BACKEND_ROW()]} includeInactive={false} />);
+
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });
