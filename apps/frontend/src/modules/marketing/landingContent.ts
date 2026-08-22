@@ -237,10 +237,6 @@ export const SECURITY = {
   ],
 } as const;
 
-export const FOR_TEAMS_INTRO =
-  "A person holds the roles they have been granted. There is no role switcher, " +
-  "and no role can act outside what the backend allows it.";
-
 export const FINAL_CTA = {
   title: "Start with one department and one project.",
   body:
