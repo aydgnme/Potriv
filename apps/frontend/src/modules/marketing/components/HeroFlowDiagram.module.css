@@ -140,3 +140,27 @@
   stroke: var(--p-glass-border);
   stroke-width: 1;
 }
+
+/**
+ * The selected candidate, said with shape rather than hue.
+ *
+ * A bar on the row's leading edge. The row also uses the stronger text weight,
+ * so the selection survives both a monochrome rendering and a reader who cannot
+ * separate the teal from the charcoal.
+ */
+.rowMark {
+  fill: var(--p-brand);
+}
+
+/**
+ * Where the proposal leaves the card.
+ *
+ * A port rather than a bare line end: it says the dashed run belongs to this
+ * row, which is the thing the old path tried to say by starting at the selected
+ * person's own x — and which is why it then had to cross everyone below them.
+ */
+.port {
+  fill: var(--p-brand);
+  stroke: var(--p-surface);
+  stroke-width: 1;
+}

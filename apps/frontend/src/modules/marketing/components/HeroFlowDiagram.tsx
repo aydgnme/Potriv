@@ -17,6 +17,18 @@ import styles from "./HeroFlowDiagram.module.css";
  * Rendered as inline SVG with no script and no client boundary — it is part of
  * the server-rendered document, so it is present before hydration and survives
  * JavaScript being unavailable entirely.
+ *
+ * Three things were wrong with the ranked-candidates half and are fixed here:
+ *
+ * 1. The card ended exactly on the `viewBox` edge, so its right stroke and
+ *    rounded corner were clipped off. It now stops well short — see `RANKED`.
+ * 2. The proposal connector left from the selected person's own x-coordinate and
+ *    ran straight down through the two people below them, crossing glyphs and
+ *    row dividers on the way. It now leaves from a port on the card's edge and
+ *    is outside the card before it turns.
+ * 3. A native `<title>` gave the whole drawing a hover tooltip that covered the
+ *    thing it was describing. The accessible name and description now come from
+ *    a visually hidden caption instead, which no browser turns into a tooltip.
  */
 
 /** Demonstration content. Deliberately inert: no product behaviour reads this. */
@@ -26,15 +38,48 @@ const CANDIDATES = [
   { name: "Ioana Marin", score: "68", selected: false },
 ] as const;
 
-const TITLE_ID = "hero-flow-title";
+const CAPTION_ID = "hero-flow-caption";
 const DESC_ID = "hero-flow-desc";
 
 const TITLE = "How Potriv staffs a project";
 const DESC =
   "Project requirements produce evidence, evidence ranks candidates, a proposal " +
   "goes to the owning department for review, and only an accepted proposal " +
-  "becomes part of the active team. Proposals are drawn as dashed lines and " +
-  "accepted allocations as solid lines.";
+  "becomes part of the active team. Three candidates are ranked by score; the " +
+  "highest, Mert Aydogan at 80, is marked with a bar beside the row and is the " +
+  "one proposed. Proposals are drawn as dashed lines and accepted allocations " +
+  "as solid lines.";
+
+/**
+ * The desktop ranked-candidates geometry, in one place.
+ *
+ * These were literals scattered through the markup, which is how the card came
+ * to end on the `viewBox` edge and how the connector came to share the person
+ * column's x. Naming them makes both mistakes visible and both contracts
+ * testable.
+ */
+const RANKED = {
+  x: 440,
+  y: 22,
+  width: 258,
+  height: 118,
+  /** Right edge at 698, leaving 22 units of clear space before the 720 edge. */
+  get right() {
+    return this.x + this.width;
+  },
+  firstRowY: 44,
+  rowHeight: 32,
+  markX: 444,
+  personX: 462,
+  nameX: 478,
+  scoreEndX: 682,
+  dividerFromX: 456,
+  dividerToX: 682,
+  /** The dashed run leaves the card here and turns only once it is clear of it. */
+  portGutterX: 710,
+  reviewEntryY: 210,
+  reviewEntryX: 306,
+} as const;
 
 export function HeroFlowDiagram() {
   return (
@@ -42,11 +87,24 @@ export function HeroFlowDiagram() {
       {/*
         Both variants are in the DOM and CSS hides one. A `display: none` subtree
         is outside the accessibility tree, so exactly one labelled image is
-        exposed at any width — the reader never meets the same figure twice.
-        Their title/desc ids are suffixed apart so the two never collide.
+        exposed at any width — the reader never meets the same figure twice, and
+        both can safely point at the one caption below.
       */}
       <DesktopFlow />
       <MobileFlow />
+
+      {/*
+        Not an SVG `<title>`. That element is what browsers render as a hover
+        tooltip, and on a diagram this dense the tooltip lands on top of the
+        drawing it is meant to explain. A visually hidden caption carries the
+        same name to the accessibility tree and produces no tooltip at all.
+      */}
+      <figcaption className="p-visually-hidden" id={CAPTION_ID}>
+        {TITLE}
+      </figcaption>
+      <p className="p-visually-hidden" id={DESC_ID}>
+        {DESC}
+      </p>
     </figure>
   );
 }
@@ -57,12 +115,10 @@ function DesktopFlow() {
       className={styles.desktop}
       viewBox="0 0 720 400"
       role="img"
-      aria-labelledby={`${TITLE_ID} ${DESC_ID}`}
+      aria-labelledby={CAPTION_ID}
+      aria-describedby={DESC_ID}
       preserveAspectRatio="xMidYMid meet"
     >
-      <title id={TITLE_ID}>{TITLE}</title>
-      <desc id={DESC_ID}>{DESC}</desc>
-
       {/* ---------- 1. Requirements ---------- */}
       <text className={styles.stage} x="0" y="12">
         REQUIREMENTS
@@ -114,36 +170,90 @@ function DesktopFlow() {
       <path className={styles.structure} d="M433 76 l6 5 -6 5" />
 
       {/* ---------- 3. Ranked candidates ---------- */}
-      <text className={styles.stage} x="440" y="12">
+      <text className={styles.stage} x={RANKED.x} y="12">
         RANKED CANDIDATES
       </text>
-      <rect className={styles.node} x="440" y="22" width="280" height="118" rx="4" />
+      <rect
+        className={styles.node}
+        x={RANKED.x}
+        y={RANKED.y}
+        width={RANKED.width}
+        height={RANKED.height}
+        rx="4"
+      />
       {CANDIDATES.map((candidate, index) => {
-        const y = 44 + index * 32;
+        const y = RANKED.firstRowY + index * RANKED.rowHeight;
         return (
           <g key={candidate.name}>
+            {/*
+              Selection carried by a shape, not a hue: a bar on the row's leading
+              edge, plus the name in the stronger text weight. Somebody who cannot
+              separate the teal from the charcoal still sees which row is the one.
+            */}
+            {candidate.selected ? (
+              <rect
+                className={styles.rowMark}
+                x={RANKED.markX}
+                y={y - 11}
+                width="3"
+                height="22"
+                rx="1.5"
+              />
+            ) : null}
             <PersonMark
-              x={458}
+              x={RANKED.personX}
               y={y - 4}
               scale={1.15}
               className={candidate.selected ? styles.personSelected : styles.person}
             />
-            <text className={styles.labelMuted} x="474" y={y}>
+            <text
+              className={candidate.selected ? styles.label : styles.labelMuted}
+              x={RANKED.nameX}
+              y={y}
+            >
               {candidate.name}
             </text>
-            <text className={styles.score} x="690" y={y} textAnchor="end">
+            <text className={styles.score} x={RANKED.scoreEndX} y={y} textAnchor="end">
               {candidate.score}
             </text>
             {index < CANDIDATES.length - 1 ? (
-              <line className={styles.structure} x1="452" y1={y + 12} x2="700" y2={y + 12} />
+              <line
+                className={styles.structure}
+                x1={RANKED.dividerFromX}
+                y1={y + 12}
+                x2={RANKED.dividerToX}
+                y2={y + 12}
+              />
             ) : null}
           </g>
         );
       })}
 
-      {/* selected candidate drops into review — dashed, because it is a proposal */}
-      <path className={styles.proposed} d="M458 48 V210 H300" />
+      {/*
+        The proposal, dashed because it has not been accepted yet.
+
+        It leaves the selected row through a port on the card's right edge and is
+        outside the card before it turns down, so it crosses no glyph, no name,
+        no score and no row divider. The old path started at the selected
+        person's own x and ran straight down through the two people below them.
+      */}
+      <path
+        className={styles.proposed}
+        d={
+          `M${RANKED.right} ${RANKED.firstRowY} ` +
+          `H${RANKED.portGutterX} ` +
+          `V${RANKED.reviewEntryY} ` +
+          `H${RANKED.reviewEntryX}`
+        }
+      />
       <path className={styles.proposed} d="M306 205 l-6 5 6 5" />
+      {/* The port itself, drawn last so it reads as attached to the row. */}
+      <circle
+        className={styles.port}
+        cx={RANKED.right}
+        cy={RANKED.firstRowY}
+        r="2.5"
+      />
 
       {/* ---------- 4. Review (glass) ---------- */}
       <text className={styles.stage} x="150" y="188">
@@ -205,6 +315,10 @@ function DesktopFlow() {
  * all three people because the ranking is the point, but the requirement detail
  * collapses to the technologies and the open roles count — the two things that
  * still mean something at this width.
+ *
+ * Every card used to span the full 0–320 `viewBox`, which clipped both vertical
+ * strokes. They are inset by 10 now. The spine stays on x=160, which is still
+ * the centre of the inset card.
  */
 function MobileFlow() {
   return (
@@ -212,25 +326,23 @@ function MobileFlow() {
       className={styles.mobile}
       viewBox="0 0 320 470"
       role="img"
-      aria-labelledby={`${TITLE_ID}-m ${DESC_ID}-m`}
+      aria-labelledby={CAPTION_ID}
+      aria-describedby={DESC_ID}
       preserveAspectRatio="xMidYMid meet"
     >
-      <title id={`${TITLE_ID}-m`}>{TITLE}</title>
-      <desc id={`${DESC_ID}-m`}>{DESC}</desc>
-
       {/* 1. Requirements */}
-      <text className={styles.stage} x="0" y="10">
+      <text className={styles.stage} x="10" y="10">
         REQUIREMENTS
       </text>
-      <rect className={styles.node} x="0" y="18" width="320" height="72" rx="4" />
-      <text className={styles.label} x="12" y="40">
+      <rect className={styles.node} x="10" y="18" width="300" height="72" rx="4" />
+      <text className={styles.label} x="22" y="40">
         Project Orion
       </text>
-      <line className={styles.structure} x1="12" y1="50" x2="308" y2="50" />
-      <text className={styles.labelMono} x="12" y="66">
+      <line className={styles.structure} x1="22" y1="50" x2="298" y2="50" />
+      <text className={styles.labelMono} x="22" y="66">
         Java · PostgreSQL · React
       </text>
-      <text className={styles.labelMuted} x="12" y="82">
+      <text className={styles.labelMuted} x="22" y="82">
         4 open team roles
       </text>
 
@@ -238,14 +350,14 @@ function MobileFlow() {
       <path className={styles.structure} d="M155 107 l5 6 5 -6" />
 
       {/* 2. Evidence */}
-      <text className={styles.stage} x="0" y="126">
+      <text className={styles.stage} x="10" y="126">
         EVIDENCE
       </text>
-      <rect className={styles.glassPanel} x="0" y="134" width="320" height="46" rx="4" />
-      <text className={styles.labelMuted} x="12" y="154">
+      <rect className={styles.glassPanel} x="10" y="134" width="300" height="46" rx="4" />
+      <text className={styles.labelMuted} x="22" y="154">
         skills · past projects · capacity
       </text>
-      <text className={styles.labelMono} x="12" y="171">
+      <text className={styles.labelMono} x="22" y="171">
         deterministic
       </text>
 
@@ -253,45 +365,52 @@ function MobileFlow() {
       <path className={styles.structure} d="M155 197 l5 6 5 -6" />
 
       {/* 3. Ranked candidates */}
-      <text className={styles.stage} x="0" y="216">
+      <text className={styles.stage} x="10" y="216">
         RANKED CANDIDATES
       </text>
-      <rect className={styles.node} x="0" y="224" width="320" height="96" rx="4" />
+      <rect className={styles.node} x="10" y="224" width="300" height="96" rx="4" />
       {CANDIDATES.map((candidate, index) => {
         const y = 246 + index * 28;
         return (
           <g key={candidate.name}>
+            {candidate.selected ? (
+              <rect className={styles.rowMark} x="14" y={y - 10} width="3" height="20" rx="1.5" />
+            ) : null}
             <PersonMark
-              x={18}
+              x={28}
               y={y - 4}
               className={candidate.selected ? styles.personSelected : styles.person}
             />
-            <text className={styles.labelMuted} x="34" y={y}>
+            <text
+              className={candidate.selected ? styles.label : styles.labelMuted}
+              x="44"
+              y={y}
+            >
               {candidate.name}
             </text>
-            <text className={styles.score} x="308" y={y} textAnchor="end">
+            <text className={styles.score} x="298" y={y} textAnchor="end">
               {candidate.score}
             </text>
             {index < CANDIDATES.length - 1 ? (
-              <line className={styles.structure} x1="12" y1={y + 10} x2="308" y2={y + 10} />
+              <line className={styles.structure} x1="22" y1={y + 10} x2="298" y2={y + 10} />
             ) : null}
           </g>
         );
       })}
 
-      {/* proposal — dashed */}
+      {/* proposal — dashed. It leaves below the card, so it crosses no row. */}
       <path className={styles.proposed} d="M160 320 V342" />
       <path className={styles.proposed} d="M155 337 l5 6 5 -6" />
 
       {/* 4. Review */}
-      <text className={styles.stage} x="0" y="356">
+      <text className={styles.stage} x="10" y="356">
         REVIEW
       </text>
-      <rect className={styles.glassPanel} x="0" y="364" width="320" height="44" rx="4" />
-      <text className={styles.labelMuted} x="12" y="383">
+      <rect className={styles.glassPanel} x="10" y="364" width="300" height="44" rx="4" />
+      <text className={styles.labelMuted} x="22" y="383">
         Platform Engineering
       </text>
-      <text className={styles.labelMono} x="12" y="399">
+      <text className={styles.labelMono} x="22" y="399">
         proposal · pending
       </text>
 
@@ -300,12 +419,12 @@ function MobileFlow() {
       <path className={styles.accepted} d="M155 425 l5 6 5 -6" />
 
       {/* 5. Active team */}
-      <text className={styles.stage} x="0" y="444">
+      <text className={styles.stage} x="10" y="444">
         ACTIVE TEAM
       </text>
-      <rect className={styles.node} x="0" y="450" width="320" height="20" rx="4" />
-      <PersonMark x={16} y={460} scale={0.9} className={styles.personSelected} />
-      <text className={styles.labelMono} x="30" y="464">
+      <rect className={styles.node} x="10" y="450" width="300" height="20" rx="4" />
+      <PersonMark x={26} y={460} scale={0.9} className={styles.personSelected} />
+      <text className={styles.labelMono} x="40" y="464">
         Mert Aydogan · accepted · 6 / 8 h
       </text>
     </svg>
