@@ -14,7 +14,7 @@ import { Prober } from '../scenarios/probe.js';
 /** Public by SecurityConfig — audited from source, not assumed. */
 export const PUBLIC_OPERATIONS: ReadonlySet<string> = new Set([
   'POST /auth/register-admin',
-  'POST /auth/register-employee/{inviteToken}',
+  'POST /auth/register-employee',
   'POST /auth/login',
   'POST /auth/refresh',
   'POST /auth/password-reset/request',
@@ -249,8 +249,8 @@ export async function runProjectVisibilityOracleMatrix(
   const email = identity(ctx.runId, 'nodeptdm', 'A');
 
   const created = await client.post(
-    `/auth/register-employee/${await a.invite(email)}`, {
-      body: { name: 'QA No-Department DM', email, password: DEFAULT_PASSWORD },
+    '/auth/register-employee', {
+      body: { token: await a.invite(email), name: 'QA No-Department DM', email, password: DEFAULT_PASSWORD },
     });
   if (created.status !== 201) {
     throw new Error(`could not register the no-department manager: HTTP ${created.status}`);

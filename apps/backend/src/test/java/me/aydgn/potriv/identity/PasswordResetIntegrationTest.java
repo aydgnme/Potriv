@@ -86,7 +86,7 @@ class PasswordResetIntegrationTest extends AbstractMockMvcIntegrationTest {
         // this repository serves, and so it defended a broken link instead of a
         // working one.
         assertThat(Objects.requireNonNull(message.getText()))
-            .contains(frontendUrl + "/reset-password?token=");
+            .contains(frontendUrl + "/reset-password#token=");
     }
 
     @Test

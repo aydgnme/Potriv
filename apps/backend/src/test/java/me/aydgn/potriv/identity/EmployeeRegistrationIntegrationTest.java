@@ -120,9 +120,10 @@ class EmployeeRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest
 
     /** Attempts a registration and returns status and body as one comparable string. */
     private String attemptRegistration(String inviteToken, String email) throws Exception {
-        var result = mockMvc.perform(post("/auth/register-employee/" + inviteToken)
+        var result = mockMvc.perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
+                    "token", inviteToken,
                     "name", "Applicant",
                     "email", email,
                     "password", "Password123!"))))
@@ -130,18 +131,15 @@ class EmployeeRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest
             .andReturn().getResponse();
 
         /*
-          Two fields legitimately differ between two identical failures and are
-          normalised away.
+          Only the clock legitimately differs between two identical failures.
 
-          `timestamp` is the clock. `path` is the request's own URL, which
-          carries the token the caller just sent — echoing back what somebody
-          submitted tells them nothing they did not already know, and it is the
-          same field in every one of these cases. What must not differ is the
-          part describing the *outcome*: status, error and message.
+          The path used to differ too, because the token was in it — so the
+          comparison had to normalise it away. The route is fixed now, which
+          makes these four responses identical in every byte but the timestamp,
+          and makes this assertion strictly stronger than it was.
         */
         return result.getStatus() + " " + result.getContentAsString()
-            .replaceAll("\"timestamp\"\\s*:\\s*\"[^\"]*\"", "\"timestamp\":\"-\"")
-            .replaceAll("\"path\"\\s*:\\s*\"[^\"]*\"", "\"path\":\"-\"");
+            .replaceAll("\"timestamp\"\\s*:\\s*\"[^\"]*\"", "\"timestamp\":\"-\"");
     }
 
     @Test
@@ -159,12 +157,13 @@ class EmployeeRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest
         inviteTokenRepository.save(invite);
 
         String body = objectMapper.writeValueAsString(Map.of(
+            "token", inviteToken,
             "name", "Late Employee",
             "email", employeeEmail,
             "password", "Password123!"
         ));
 
-        mockMvc.perform(post("/auth/register-employee/" + inviteToken)
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest());
@@ -191,12 +190,13 @@ class EmployeeRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest
         ));
 
         String body = objectMapper.writeValueAsString(Map.of(
+            "token", expiredToken,
             "name", "Expired Employee",
             "email", invitedEmail,
             "password", "Password123!"
         ));
 
-        mockMvc.perform(post("/auth/register-employee/" + expiredToken)
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest());
@@ -218,12 +218,13 @@ class EmployeeRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest
         registerAdmin(uniqueName("Other Org"), email, "Password123!");
 
         String body = objectMapper.writeValueAsString(Map.of(
+            "token", inviteToken,
             "name", "Duplicate Employee",
             "email", email,
             "password", "Password123!"
         ));
 
-        mockMvc.perform(post("/auth/register-employee/" + inviteToken)
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest());

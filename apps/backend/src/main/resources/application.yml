@@ -12,7 +12,8 @@ server:
 
 app:
   # Where the product frontend is served, and therefore the base of every link
-  # this backend emails out: `/invite?token=…` and `/reset-password?token=…`.
+  # this backend emails out: `/invite#token=…` and `/reset-password#token=…`.
+  # The token is in the fragment, which browsers never send to a server.
   #
   # This was http://localhost:5173, an origin no application in this repository
   # serves — `apps/` contains only `backend` and the Next frontend, which runs

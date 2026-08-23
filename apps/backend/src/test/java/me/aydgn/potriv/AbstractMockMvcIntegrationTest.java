@@ -66,13 +66,14 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
         throws Exception {
 
         String body = objectMapper.writeValueAsString(Map.of(
+            "token", inviteToken,
             "name", "Employee " + email,
             "email", email,
             "password", password
         ));
 
         String response = mockMvc
-            .perform(post("/auth/register-employee/" + inviteToken)
+            .perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isCreated())

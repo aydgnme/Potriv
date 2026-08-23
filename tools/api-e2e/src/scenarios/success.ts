@@ -38,9 +38,10 @@ export async function runSuccessScenarios(
   const invitedEmail = identity(ctx.runId, 'invited', 'A');
   await prober.run({
     id: 'auth.register-employee.success', kind: 'success', method: 'POST',
-    template: '/auth/register-employee/{inviteToken}',
-    url: `/auth/register-employee/${await a.invite(invitedEmail)}`, expect: 201,
+    template: '/auth/register-employee',
+    url: '/auth/register-employee', expect: 201,
     options: { body: {
+      token: await a.invite(invitedEmail),
       name: 'QA Invited', email: invitedEmail, password: DEFAULT_PASSWORD,
     } },
   });
@@ -93,8 +94,8 @@ export async function runSuccessScenarios(
   // unauthenticate half the suite.
   const logoutEmail = identity(ctx.runId, 'logout', 'A');
   const disposable = await client.post(
-    `/auth/register-employee/${await a.invite(logoutEmail)}`, {
-      body: { name: 'QA Logout', email: logoutEmail, password: DEFAULT_PASSWORD },
+    '/auth/register-employee', {
+      body: { token: await a.invite(logoutEmail), name: 'QA Logout', email: logoutEmail, password: DEFAULT_PASSWORD },
     });
   void disposable;
   const logoutSession = await client.post('/auth/login',
@@ -202,8 +203,8 @@ export async function runSuccessScenarios(
   // Membership add/remove on the throwaway department keeps the main one stable.
   const moverEmail = identity(ctx.runId, 'mover', 'A');
   const invitee = await client.post(
-    `/auth/register-employee/${await a.invite(moverEmail)}`, {
-      body: { name: 'QA Mover', email: moverEmail, password: DEFAULT_PASSWORD },
+    '/auth/register-employee', {
+      body: { token: await a.invite(moverEmail), name: 'QA Mover', email: moverEmail, password: DEFAULT_PASSWORD },
     });
   const moverId = String((invitee.body as any).userId);
   await prober.run({
@@ -512,8 +513,8 @@ export async function runSuccessScenarios(
   });
   const statusEmail = identity(ctx.runId, 'status', 'A');
   const statusTarget = await client.post(
-    `/auth/register-employee/${await a.invite(statusEmail)}`, {
-      body: { name: 'QA Status', email: statusEmail, password: DEFAULT_PASSWORD },
+    '/auth/register-employee', {
+      body: { token: await a.invite(statusEmail), name: 'QA Status', email: statusEmail, password: DEFAULT_PASSWORD },
     });
   await prober.run({
     id: 'admin.user-status.success', kind: 'success', method: 'PATCH',

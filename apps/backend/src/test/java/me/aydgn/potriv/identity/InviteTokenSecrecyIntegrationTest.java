@@ -166,9 +166,10 @@ class InviteTokenSecrecyIntegrationTest extends AbstractMockMvcIntegrationTest {
         for (int i = 0; i < racers; i++) {
             attempts.add(() -> {
                 startTogether.await(10, TimeUnit.SECONDS);
-                return mockMvc.perform(post("/auth/register-employee/" + rawToken)
+                return mockMvc.perform(post("/auth/register-employee")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
+                            "token", rawToken,
                             "name", "Racer",
                             "email", employeeEmail,
                             "password", PASSWORD))))
@@ -215,9 +216,10 @@ class InviteTokenSecrecyIntegrationTest extends AbstractMockMvcIntegrationTest {
         String rawToken = inviteTokenFromMailTo(intendedEmail);
 
         String interloperEmail = uniqueEmail("interloper");
-        mockMvc.perform(post("/auth/register-employee/" + rawToken)
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
+                    "token", rawToken,
                     "name", "Interloper",
                     "email", interloperEmail,
                     "password", PASSWORD))))

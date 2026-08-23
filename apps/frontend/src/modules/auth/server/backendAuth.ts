@@ -304,7 +304,7 @@ export type BackendInviteRegistration = {
 /**
  * Registers an employee against an invite token.
  *
- * `POST /auth/register-employee/{token}` is `permitAll`, takes no credentials
+ * `POST /auth/register-employee` is `permitAll`, takes no credentials
  * and returns no token pair — so this sets no cookie and creates no session.
  * The token is path-encoded here and never returned to the caller.
  */
@@ -320,10 +320,17 @@ export async function registerWithInvite(
   try {
     response = await callBackend({
       method: "POST",
-      // Encoded so a token containing URL-significant characters cannot alter
-      // the path it is addressed to.
-      path: `/auth/register-employee/${encodeURIComponent(inviteToken)}`,
-      body: input,
+      /*
+        A fixed path. The token used to be a segment of it, which meant this
+        server's outbound URL — and every log, proxy and trace between here and
+        the backend — carried a live credential. Encoding it made the path safe
+        to *parse*; it did nothing about the path being recorded.
+
+        It travels in the body now, beside the password, which is the only part
+        of a request nothing here writes down.
+      */
+      path: "/auth/register-employee",
+      body: { token: inviteToken, ...input },
       userAgent,
     });
   } catch {

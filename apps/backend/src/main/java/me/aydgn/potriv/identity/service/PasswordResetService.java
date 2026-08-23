@@ -7,7 +7,6 @@ import java.util.Base64;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -40,7 +39,7 @@ public class PasswordResetService {
     private final SecurityAuditService securityAuditService;
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
-    private final String frontendUrl;
+    private final PasswordResetUrlFactory passwordResetUrlFactory;
     private final long resetTokenMinutes;
 
     public PasswordResetService(
@@ -51,7 +50,7 @@ public class PasswordResetService {
         SecurityAuditService securityAuditService,
         PasswordEncoder passwordEncoder,
         AuthProperties authProperties,
-        @Value("${app.frontend-url}") String frontendUrl
+        PasswordResetUrlFactory passwordResetUrlFactory
     ) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -59,7 +58,7 @@ public class PasswordResetService {
         this.userSessionService = userSessionService;
         this.securityAuditService = securityAuditService;
         this.passwordEncoder = passwordEncoder;
-        this.frontendUrl = frontendUrl;
+        this.passwordResetUrlFactory = passwordResetUrlFactory;
         this.resetTokenMinutes = authProperties.passwordResetTokenMinutes();
     }
 
@@ -131,7 +130,7 @@ public class PasswordResetService {
             passwordResetMailService.sendPasswordResetMail(
                 user.getEmail(),
                 user.getName(),
-                frontendUrl + "/reset-password?token=" + rawToken
+                passwordResetUrlFactory.build(rawToken)
             );
         } catch (MailException exception) {
             // Keep the response identical for all callers; the raw token is

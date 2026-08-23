@@ -115,12 +115,11 @@ public class AuthRegistrationService {
      * `claim` returns the number of rows it changed, so exactly one wins.
      */
     @Transactional
-    public RegisterEmployeeResponse registerEmployee(
-        String inviteTokenValue,
-        RegisterEmployeeRequest request
-    ) {
+    public RegisterEmployeeResponse registerEmployee(RegisterEmployeeRequest request) {
         String normalizedEmail = normalizeEmail(request.email());
-        String tokenHash = TokenDigest.sha256Base64Url(inviteTokenValue);
+        // Hashed immediately. The raw value is never assigned to a field, never
+        // logged, and never put back into a response.
+        String tokenHash = TokenDigest.sha256Base64Url(request.token());
 
         if (inviteTokenRepository.claim(tokenHash, normalizedEmail) != 1) {
             throw invalidInviteException();

@@ -148,9 +148,10 @@ class InviteLifecycleIntegrationTest extends AbstractMockMvcIntegrationTest {
         assertThat(inviteByRawToken(secondToken).isActive()).isTrue();
 
         // The superseded link is dead, and the current one still works.
-        mockMvc.perform(post("/auth/register-employee/" + firstToken)
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
+                    "token", firstToken,
                     "name", "Late", "email", employeeEmail, "password", PASSWORD))))
             .andExpect(status().isBadRequest());
 
@@ -174,9 +175,10 @@ class InviteLifecycleIntegrationTest extends AbstractMockMvcIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
             .andExpect(status().isNoContent());
 
-        mockMvc.perform(post("/auth/register-employee/" + rawToken)
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
+                    "token", rawToken,
                     "name", "Revoked", "email", employeeEmail, "password", PASSWORD))))
             .andExpect(status().isBadRequest());
     }

@@ -48,3 +48,37 @@ describe('redaction', () => {
     expect(summary).not.toContain('abc');
   });
 });
+
+describe('an invite or reset token in a request body', () => {
+  /*
+    This is where these tokens live now. It matters more than it looks: the
+    previous shape put the invite token in the request *path*, and the only
+    URL rule here matches `?token=` — a query string. A path segment was never
+    redacted, so every report written under the old contract recorded live
+    invite tokens in its `url` column.
+
+    Moving the token into the body did not just take it off the wire's most
+    logged surface; it moved it somewhere this redactor already covers.
+  */
+  it('is redacted by field name', () => {
+    const body = {
+      token: 'invite-token-value-abc123',
+      name: 'QA',
+      email: 'qa@potriv.test',
+      password: 'Password123!',
+    };
+
+    const summary = summarize(body);
+
+    expect(summary).not.toContain('invite-token-value-abc123');
+    expect(summary).not.toContain('Password123!');
+    // The parts that make a report useful survive.
+    expect(summary).toContain('qa@potriv.test');
+  });
+
+  it('is redacted whether it is an object or a JSON string', () => {
+    const json = JSON.stringify({ token: 'reset-token-value-abc123', newPassword: 'x'.repeat(12) });
+
+    expect(summarize(json)).not.toContain('reset-token-value-abc123');
+  });
+});

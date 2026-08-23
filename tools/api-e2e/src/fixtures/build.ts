@@ -113,8 +113,8 @@ async function registerEmployee(
 ): Promise<Person> {
   const email = identity(runId, role, org);
   const created = await expect(
-    client.post(`/auth/register-employee/${await invite(email)}`, {
-      body: { name: `QA ${role} ${org}`, email, password: DEFAULT_PASSWORD },
+    client.post('/auth/register-employee', {
+      body: { token: await invite(email), name: `QA ${role} ${org}`, email, password: DEFAULT_PASSWORD },
     }),
     201,
     `register ${role} in org ${org}`,

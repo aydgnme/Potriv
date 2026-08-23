@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
@@ -18,15 +18,44 @@ import styles from "./AuthPage.module.css";
 /**
  * Sets a new password from an emailed reset link.
  *
- * The token is read from the URL, sent once, and never written anywhere — not to
- * storage, not to a cookie, not to a log. A successful reset revokes every
- * session on the backend, so the user is sent to sign in rather than being
- * logged in from the token: auto-login would defeat the revocation that just
- * happened.
+ * The token arrives in the URL **fragment**, which browsers never send to a
+ * server. It used to be `?token=`, which every server, proxy and trace between
+ * the reader and this page recorded — and a reset token is the more dangerous
+ * of this application's two emailed credentials, because it takes over an
+ * account that already exists.
+ *
+ * On mount it is read once into a ref and removed from the address bar with
+ * `history.replaceState`. After that it exists in one variable, is sent once in
+ * a request body, and is never written to storage, a cookie, an analytics call
+ * or a log.
+ *
+ * A successful reset revokes every session on the backend, so the reader is
+ * sent to sign in rather than being logged in from the token: auto-login would
+ * defeat the revocation that just happened.
  */
+type TokenState = "reading" | "present" | "absent";
+
 export function ResetPasswordPage() {
   const router = useRouter();
-  const token = useSearchParams().get("token");
+
+  /* Not state: this value must never cause a render or appear in a snapshot. */
+  const tokenRef = useRef("");
+  const [tokenState, setTokenState] = useState<TokenState>("reading");
+
+  useEffect(() => {
+    const fragment = window.location.hash;
+    const body = fragment.startsWith("#") ? fragment.slice(1) : fragment;
+    tokenRef.current = new URLSearchParams(body).get("token") ?? "";
+    setTokenState(tokenRef.current ? "present" : "absent");
+
+    // Out of the address bar the moment it has been read — a screenshot, a
+    // screen share or a browser sync is how this one would escape, not the wire.
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+  }, []);
 
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -52,10 +81,10 @@ export function ResetPasswordPage() {
 
     setPasswordError(nextPasswordError);
     setConfirmationError(nextConfirmationError);
-    if (nextPasswordError || nextConfirmationError || !token) return;
+    if (nextPasswordError || nextConfirmationError || !tokenRef.current) return;
 
     setSubmitting(true);
-    const outcome = await confirmPasswordReset(token, password);
+    const outcome = await confirmPasswordReset(tokenRef.current, password);
     setSubmitting(false);
 
     if (!outcome.ok) {
@@ -65,7 +94,20 @@ export function ResetPasswordPage() {
     router.replace("/login?reset=success");
   }
 
-  if (!token) {
+  if (tokenState === "reading") {
+    return (
+      <PublicAuthShell
+        title="Set a new password"
+        contextTitle="Getting back into your account."
+        contextBody="A one-time link restores access. It does not change anything else about your account or your workspace."
+        topology="recover"
+      >
+        <p className={styles.intro}>Checking your link…</p>
+      </PublicAuthShell>
+    );
+  }
+
+  if (tokenState === "absent") {
     return (
       <PublicAuthShell
         title="This link is no longer valid"

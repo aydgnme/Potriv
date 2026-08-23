@@ -154,11 +154,12 @@ export async function runBootstrapScenarios(
 
   await prober.run({
     id: 'bootstrap.setup.second', kind: 'success', method: 'POST',
-    template: '/auth/register-employee/{inviteToken}',
-    url: `/auth/register-employee/${await inviteTokenFor(config, secondEmail)}`,
+    template: '/auth/register-employee',
+    url: '/auth/register-employee',
     expect: 201,
     options: {
       body: {
+        token: await inviteTokenFor(config, secondEmail),
         name: 'QA Solo Second',
         email: secondEmail,
         password: DEFAULT_PASSWORD,

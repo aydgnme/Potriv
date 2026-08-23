@@ -66,6 +66,12 @@ export default function nextConfig(phase: string): NextConfig {
         source: "/invite",
         headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       },
+      {
+        /* The reset link carries the same kind of credential, and a worse one:
+           it takes over an account that already exists. Same rule. */
+        source: "/reset-password",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
     ],
   };
 }

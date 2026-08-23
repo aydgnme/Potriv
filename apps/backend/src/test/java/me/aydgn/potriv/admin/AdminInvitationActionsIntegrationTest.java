@@ -164,9 +164,10 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         assertThat(reload(seed.invitationId()).isActive()).isFalse();
         assertThat(reload(seed.invitationId()).isUsable()).isFalse();
         // The revoked link can no longer be used to join the organization.
-        mockMvc.perform(post("/auth/register-employee/" + seed.rawToken())
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(java.util.Map.of(
+                    "token", seed.rawToken(),
                     "name", "Blocked Employee",
                     "email", uniqueEmail("blocked"),
                     "password", "Password123!"))))
@@ -225,9 +226,10 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
             .isEmpty();
 
         // The old link is dead, and says nothing about why.
-        mockMvc.perform(post("/auth/register-employee/" + seed.rawToken())
+        mockMvc.perform(post("/auth/register-employee")
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(java.util.Map.of(
+                    "token", seed.rawToken(),
                     "name", "Old Link",
                     "email", uniqueEmail("oldlink"),
                     "password", "Password123!"))))
