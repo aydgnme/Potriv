@@ -934,3 +934,114 @@
   color: var(--ground-text);
   text-decoration: underline;
 }
+
+/* ---------- the object map, on 01 · product ---------- */
+
+.objectMap {
+  margin: var(--p-space-7) 0 0;
+}
+
+/*
+  Wide by nature: two halves and the join between them. Below the point where
+  its labels stop being legible the list underneath carries every object and
+  every relationship it draws, so it goes rather than scrolls sideways.
+*/
+.objectMapDrawing {
+  display: none;
+  width: 100%;
+  max-width: 700px;
+  height: auto;
+  margin-inline: auto;
+}
+
+@media (min-width: 900px) {
+  .objectMapDrawing {
+    display: block;
+  }
+}
+
+.objectMapCaption {
+  display: none;
+  margin-top: var(--p-space-4);
+  color: var(--ground-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .objectMapCaption {
+    display: block;
+  }
+}
+
+/* ---------- the anatomy of a control, on 04 · security ---------- */
+
+/*
+  Drawn entirely from the ground variables, so one component reads correctly on
+  charcoal and would read correctly on white. That is the whole point of the
+  variables: a drawing should not have to know which section it landed in.
+*/
+.anatomy {
+  margin: var(--p-space-6) 0 var(--p-space-8);
+}
+
+.anatomyDrawing {
+  display: none;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+}
+
+@media (min-width: 768px) {
+  .anatomyDrawing {
+    display: block;
+  }
+}
+
+.anatomyStage {
+  fill: var(--ground-brand);
+  font-family: var(--p-font-sans);
+  font-size: 9.5px;
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.09em;
+}
+
+.anatomyNode {
+  fill: none;
+  stroke: var(--ground-line);
+  stroke-width: 1;
+}
+
+/* Dashed: the edge of a claim, not another claim. */
+.anatomyNodeBounded {
+  fill: none;
+  stroke: var(--ground-muted);
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+}
+
+.anatomyLine {
+  fill: none;
+  stroke: var(--ground-muted);
+  stroke-width: 1;
+}
+
+.anatomyTitle {
+  fill: var(--ground-text);
+  font-family: var(--p-font-sans);
+  font-size: 13px;
+  font-weight: var(--p-weight-semibold);
+}
+
+.anatomyDetail {
+  fill: var(--ground-muted);
+  font-family: var(--p-font-mono);
+  font-size: 10.5px;
+}
+
+.anatomyCaption {
+  margin-top: var(--p-space-4);
+  color: var(--ground-muted);
+  font-size: var(--p-text-base);
+}

@@ -6,7 +6,7 @@ import {
   PRODUCT_BRIEF,
 } from "../../businessPlan";
 import { PILLARS } from "../../landingContent";
-import { ChapterHeader, Continuation, Ledger, PlanSection } from "../plan";
+import { ChapterHeader, Continuation, Ledger, ObjectMap, PlanSection } from "../plan";
 import { MarketingShell } from "../MarketingShell";
 import styles from "../../styles/plan.module.css";
 import pageStyles from "../../styles/pages.module.css";
@@ -45,6 +45,8 @@ export function ProductPage() {
         titleId="product-objects"
         lead="Each one becomes the next. Nothing skips a step."
       >
+        <ObjectMap />
+
         <ol className={pageStyles.chain}>
           {OPERATING_OBJECTS.map((object, index) => (
             <li className={pageStyles.chainItem} key={object.name}>

@@ -5,3 +5,5 @@ export { PlanSection } from "./PlanSection";
 export { ResponsibilityMatrix } from "./ResponsibilityMatrix";
 export { StageRail } from "./StageRail";
 export { StageSpine } from "./StageSpine";
+export { ObjectMap } from "./ObjectMap";
+export { ControlAnatomy } from "./ControlAnatomy";

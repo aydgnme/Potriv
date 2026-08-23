@@ -12,7 +12,7 @@ import {
   SECURITY,
   SIGN_IN_HREF,
 } from "../../landingContent";
-import { ChapterHeader, PlanSection } from "../plan";
+import { ChapterHeader, ControlAnatomy, PlanSection } from "../plan";
 import { MarketingShell } from "../MarketingShell";
 import pageStyles from "../../styles/pages.module.css";
 
@@ -47,6 +47,8 @@ export function SecurityPage() {
         lead="Each area names the claims it covers, what stands behind them, and what it does not extend to."
         tone="dark"
       >
+        <ControlAnatomy />
+
         <div className={pageStyles.controls}>
           {CONTROL_AREAS.map((area) => (
             <article className={pageStyles.control} key={area.area}>

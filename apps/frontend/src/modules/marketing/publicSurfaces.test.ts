@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { cssContract } from "@/test/cssContract";
@@ -126,5 +128,42 @@ describe("a chapter introduces itself, then its sections do", () => {
     const block = scrolled.slice(0, scrolled.indexOf("\n  }\n"));
     expect(block).toMatch(/\.sectionHead/);
     expect(block).not.toMatch(/\.section\s*[,{]/);
+  });
+});
+
+describe("every chapter page draws something", () => {
+  /*
+    Product and Security carried no drawing at all while the homepage carried
+    eight — a chapter that only sets type is a document, not a product page.
+    Product gets the object map, Security the anatomy of a control claim.
+  */
+  it("gives the object map the site's own stroke language", () => {
+    // Dashed is a proposal, solid is an allocation. This page is where a reader
+    // first meets both objects, so it is where the convention has to be visible.
+    const map = readFileSync("src/modules/marketing/components/plan/ObjectMap.tsx", "utf8");
+    expect(map).toMatch(/styles\.proposed/);
+    expect(map).toMatch(/styles\.accepted/);
+    expect(map).toMatch(/aria-hidden="true"/);
+  });
+
+  it("draws the control anatomy from the ground variables only", () => {
+    /*
+      Security is charcoal throughout. Drawing it with palette entries would tie
+      the component to that one ground; asking the ground what its colours are
+      lets the same component read correctly on white.
+    */
+    for (const cls of [".anatomyStage", ".anatomyTitle", ".anatomyDetail", ".anatomyNode"]) {
+      const rule = pages.rule(cls);
+      expect(rule, `${cls} is missing`).toBeTruthy();
+      expect(rule, `${cls} names a palette entry instead of the ground`)
+        .not.toMatch(/var\(--p-(?:text|inverse-text|brand)/);
+    }
+    expect(pages.rule(".anatomyStage")).toMatch(/var\(--ground-brand\)/);
+    expect(pages.rule(".anatomyTitle")).toMatch(/var\(--ground-text\)/);
+  });
+
+  it("marks the limitation as an edge rather than another claim", () => {
+    // Dashed, like everything else on this site that is not yet a fact.
+    expect(pages.rule(".anatomyNodeBounded")).toMatch(/stroke-dasharray/);
   });
 });
