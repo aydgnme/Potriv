@@ -89,9 +89,26 @@ public class OrganizationInviteService {
 
         String normalizedEmail = InviteTokenService.normalizeEmail(email);
 
-        if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new BadRequestException("This address already has an account.");
-        }
+        /*
+          Deliberately no "this address already has an account" branch.
+
+          It answered 400 for an address registered anywhere in the system and
+          201 for one that was not, which turned an organization-admin endpoint
+          into a global account oracle: any administrator of any tenant could
+          test whether a person had a Potriv account at all, one address at a
+          time, and the answer was authoritative.
+
+          Every address now gets the same treatment — an invitation is created,
+          listed, and mailed — and an address that already has an account fails
+          at redemption instead, with the one generic error every other dead
+          invitation produces. Nothing about the outcome differs before that
+          point: not the status, not the body, not the admin list, not whether
+          mail was sent.
+
+          The audit record below keeps the real state internally, because an
+          administrator investigating an incident does need to know.
+        */
+        boolean addressAlreadyRegistered = userRepository.existsByEmail(normalizedEmail);
 
         // Outstanding only. Sweeping every `active` row would reach a spent
         // invitation and stamp `revokedAt` onto somebody's completed
@@ -110,8 +127,11 @@ public class OrganizationInviteService {
                 .organizationId(organization.getId())
                 .actorUserId(currentUser.userId())
                 .normalizedEmail(normalizedEmail)
-                // The invite's id, never its value.
-                .details("Employee invited. Invite ID: " + issued.invite().getId() + ".")
+                // The invite's id, never its value. The account-exists flag is
+                // recorded here and nowhere the caller can see, which is the
+                // whole point of moving it out of the response.
+                .details("Employee invited. Invite ID: " + issued.invite().getId()
+                    + ". Address already registered: " + addressAlreadyRegistered + ".")
                 .build()
         );
 

@@ -108,12 +108,12 @@ class InviteStateIntegrationTest extends AbstractMockMvcIntegrationTest {
         OffsetDateTime consumedAt = beforeReinvite.getConsumedAt();
 
         /*
-          The address now belongs to a real account, so the invite endpoint
-          refuses it — which is the point: the refusal must not have reached
-          into the accepted row on its way out. The sweep runs before that
-          check in the old code path, so this is the case that caught it.
+          Re-inviting an address that now has an account succeeds, deliberately:
+          refusing it would tell any administrator whether a person had a Potriv
+          account. What must not happen is the sweep reaching the accepted row
+          on its way through.
         */
-        inviteEmployeeExpecting(fixture.adminToken(), fixture.email(), 400);
+        inviteEmployee(fixture.adminToken(), fixture.email());
 
         InviteToken after = reload(fixture.rawToken());
         assertThat(after.getRevokedAt()).isNull();
