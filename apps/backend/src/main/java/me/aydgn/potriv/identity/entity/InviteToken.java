@@ -10,6 +10,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.audit.BaseEntity;
 import me.aydgn.potriv.organization.entity.Organization;
 
@@ -50,7 +51,7 @@ public class InviteToken extends BaseEntity {
      * makes an invite one person's rather than the organization's: a link that
      * reaches the wrong inbox cannot be used there.
      */
-    @Column(name = "invited_email", nullable = false, length = 320)
+    @Column(name = "invited_email", nullable = false, length = EmailAddresses.MAX_LENGTH)
     private String invitedEmail;
 
     /** Mandatory. A token that never lapses is a permanent credential. */

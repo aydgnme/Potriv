@@ -4,6 +4,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.dto.RegisterAdminRequest;
@@ -182,7 +183,14 @@ public class AuthRegistrationService {
         }
     }
 
+    /**
+     * Delegates, and must keep delegating. This used to lower-case with the
+     * JVM's default locale while the invite path used {@code Locale.ROOT}, so
+     * the two disagreed about any address containing an {@code I} on a
+     * Turkish-locale JVM — and an invitation that cannot be matched cannot be
+     * redeemed.
+     */
     private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+        return EmailAddresses.normalize(email);
     }
 }

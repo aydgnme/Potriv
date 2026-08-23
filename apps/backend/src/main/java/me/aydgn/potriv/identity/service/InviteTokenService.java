@@ -7,6 +7,7 @@ import java.util.Base64;
 
 import org.springframework.stereotype.Service;
 
+import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.config.AuthProperties;
 import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.entity.InviteToken;
@@ -74,7 +75,7 @@ public class InviteTokenService {
 
     /** The one place an invited address is normalised. */
     public static String normalizeEmail(String email) {
-        return email.trim().toLowerCase(java.util.Locale.ROOT);
+        return EmailAddresses.normalize(email);
     }
 
     private String generateToken() {

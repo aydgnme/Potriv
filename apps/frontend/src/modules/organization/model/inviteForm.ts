@@ -2,8 +2,12 @@
  * Validation for the address an administrator is inviting.
  *
  * Bounds copied from the backend's `InviteEmployeeRequest` (a valid email,
- * ≤320 characters — the RFC's maximum address length, which is also the
- * column's). A courtesy check so the form can answer an obvious typo without a
+ * ≤180 characters).
+ *
+ * 180 rather than the RFC's 320: `users.email`, the registration request and
+ * the audit record all stop there, so an address between the two was accepted
+ * here, issued a token and mailed, and then failed at redemption when it could
+ * not be stored. A courtesy check so the form can answer an obvious typo without a
  * round trip; the backend re-validates and stays the authority.
  *
  * Deliberately permissive about shape: the mail server is the only real
@@ -11,7 +15,7 @@
  * reject valid addresses while catching nothing an attacker cares about.
  */
 
-export const INVITE_EMAIL_MAX = 320;
+export const INVITE_EMAIL_MAX = 180;
 
 export type InviteEmailValidation =
   | { readonly ok: true; readonly email: string }

@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.config.AuthProperties;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.security.TokenDigest;
@@ -64,7 +65,7 @@ public class PasswordResetService {
 
     @Transactional
     public void requestReset(PasswordResetRequest request) {
-        String normalizedEmail = request.email().trim().toLowerCase();
+        String normalizedEmail = EmailAddresses.normalize(request.email());
 
         userRepository.findByEmail(normalizedEmail).ifPresent(this::createAndSendResetToken);
     }

@@ -22,7 +22,7 @@
 
 ALTER TABLE invite_tokens
     ADD COLUMN token_hash    character varying(64),
-    ADD COLUMN invited_email character varying(320),
+    ADD COLUMN invited_email character varying(180),
     ADD COLUMN consumed_at   timestamp(6) with time zone,
     ADD COLUMN revoked_at    timestamp(6) with time zone;
 

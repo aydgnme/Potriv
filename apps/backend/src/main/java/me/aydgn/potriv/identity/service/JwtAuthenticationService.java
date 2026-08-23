@@ -2,6 +2,7 @@ package me.aydgn.potriv.identity.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
+import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.config.AuthProperties;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.exception.UnauthorizedException;
@@ -72,7 +73,7 @@ public class JwtAuthenticationService {
     // request itself is rejected with an exception.
     @Transactional(noRollbackFor = BadRequestException.class)
     public TokenPairResponse login(LoginRequest request, String userAgent, String ipAddress) {
-        String normalizedEmail = request.email().trim().toLowerCase();
+        String normalizedEmail = EmailAddresses.normalize(request.email());
 
         User user = userRepository.findByEmailForUpdate(normalizedEmail)
             .orElseThrow(() -> {

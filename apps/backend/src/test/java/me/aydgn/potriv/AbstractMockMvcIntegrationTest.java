@@ -67,7 +67,10 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
 
         String body = objectMapper.writeValueAsString(Map.of(
             "token", inviteToken,
-            "name", "Employee " + email,
+            // Bounded: the name field stops at 120, and an address can be 180,
+            // so deriving one from the other has to be trimmed or the helper
+            // fails validation instead of exercising the path under test.
+            "name", ("Employee " + email).substring(0, Math.min(120, 9 + email.length())),
             "email", email,
             "password", password
         ));
