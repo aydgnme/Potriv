@@ -14,6 +14,35 @@
   /* Belt and braces against a wide child (the diagram, a long token) turning
      into a horizontally scrolling page on a 320px screen. */
   overflow-x: hidden;
+
+  /*
+    The marketing surface reads at its own size.
+
+    `--p-text-base` is 14px globally, and `body` inherits it. That is a sensible
+    density for the product — tables, rows, forms, a lot of data in view at once
+    — and it is too small for public prose, where the browser's own default is
+    16px. Set at 14px the whole scale compressed: body 14, lead 16, and every
+    subheading also 16, so a paragraph and a heading were the same size.
+
+    Redefined here rather than in `tokens.css`, because that file is read by six
+    non-marketing stylesheets and every protected surface. These properties
+    cascade only into this subtree, so nothing outside the public pages moves.
+
+    In `rem`, not `px`. Nothing sets a `font-size` on `html`, so `1rem` *is* the
+    reader's own browser default. The headings already scale with it — the
+    display tokens are `clamp()`s in `rem` — while these were px, so a reader who
+    raises their default got larger headings above body copy that never moved.
+    At the default 16px this renders identically to the px values it replaces.
+
+    The flow diagram is deliberately unaffected: its labels are fixed px chosen
+    against a `viewBox`, not tokens.
+  */
+  --p-text-sm: 0.875rem;
+  --p-text-base: 1rem;
+  --p-text-lg: 1.125rem;
+  --p-text-xl: 1.375rem;
+  --p-text-2xl: 1.75rem;
+  font-size: var(--p-text-base);
 }
 
 .container {

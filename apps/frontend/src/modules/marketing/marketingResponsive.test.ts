@@ -181,3 +181,84 @@ describe("the hero motion says something and then stops", () => {
     expect(plan.rule(".spineName")).not.toMatch(/visibility:\s*hidden/);
   });
 });
+
+/**
+ * Heading hierarchy across widths.
+ *
+ * The chapter title uses a fluid `clamp()`; the part heading was a fixed size.
+ * In a narrow column the two crossed over and an `h2` rendered larger than the
+ * `h1`, which inverts the hierarchy exactly where a reader has least context.
+ */
+describe("a part heading never out-sizes the page title", () => {
+  /** `clamp(<min>rem, <a>rem + <b>vw, <max>rem)` evaluated at a viewport width. */
+  const evaluate = (clamp: string, viewport: number) => {
+    const m = clamp.match(
+      /clamp\(\s*([\d.]+)rem\s*,\s*([\d.]+)rem\s*\+\s*([\d.]+)vw\s*,\s*([\d.]+)rem\s*\)/,
+    );
+    if (!m) throw new Error(`not a two-part clamp: ${clamp}`);
+    const [, min, base, vw, max] = m.map(Number) as unknown as number[];
+    const preferred = base * 16 + (vw / 100) * viewport;
+    return Math.min(Math.max(preferred, min * 16), max * 16);
+  };
+
+  const chapter = "clamp(1.5rem, 1.15rem + 1.5vw, 2.25rem)"; // --p-display-2
+  const section = plan.rule(".sectionTitle").match(/font-size:\s*(clamp\([^;]*\))/)?.[1] ?? "";
+
+  it("uses a fluid size, like the chapter title above it", () => {
+    expect(section).toMatch(/^clamp\(/);
+  });
+
+  /*
+    The bug this exists for: the section title was a fixed 28px while the chapter
+    title shrinks with the viewport. In a 500px column the h2 rendered larger
+    than the h1 — the hierarchy inverted exactly where a reader has the least
+    context. Comparing the two ceilings is the wrong check, because the h1 grows
+    past the h2 at wide widths; the invariant is that the h2 is smaller at *every*
+    width, so both are evaluated.
+  */
+  it.each([320, 375, 500, 768, 1024, 1440])(
+    "stays smaller than the chapter title at %ipx",
+    (width) => {
+      expect(evaluate(section, width)).toBeLessThan(evaluate(chapter, width));
+    },
+  );
+});
+
+/**
+ * The marketing surface sets its own type scale.
+ *
+ * `--p-text-base` is 14px globally, which suits the product's density and is too
+ * small for public prose — at that size body, lead and every subheading landed
+ * within 2px of each other. Redefined on the marketing root only, so the six
+ * non-marketing stylesheets that read the same token are untouched.
+ */
+describe("marketing prose reads at its own size", () => {
+  it("scopes the scale to the marketing root", () => {
+    const page = landing.rule(".page");
+    expect(page).toMatch(/--p-text-base:\s*1rem/);
+    expect(page).toMatch(/--p-text-lg:\s*1\.125rem/);
+    expect(page).toMatch(/font-size:\s*var\(--p-text-base\)/);
+  });
+
+  it("expresses every step relative to the reader's own default", () => {
+    /*
+      Nothing sets a `font-size` on `html`, so `1rem` is whatever the reader set
+      in their browser. The heading tokens are already `rem`-based `clamp()`s.
+      While these steps were `px`, raising that default grew the headings and
+      left the body copy behind — the reader asked for larger text and got a
+      wider gap instead.
+    */
+    const page = landing.rule(".page");
+    const steps = [...page.matchAll(/--p-text-[\w-]+:\s*([^;]+);/g)].map((m) => m[1].trim());
+
+    expect(steps.length).toBeGreaterThanOrEqual(5);
+    for (const step of steps) {
+      expect(step, `type step "${step}" is not reader-relative`).toMatch(/rem$/);
+    }
+  });
+
+  it("leaves the global tokens alone", () => {
+    // Redefining these in tokens.css would move every protected surface too.
+    expect(landing.source).not.toMatch(/:root\s*\{/);
+  });
+});

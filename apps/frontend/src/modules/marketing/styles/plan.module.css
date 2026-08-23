@@ -138,7 +138,16 @@
 .sectionTitle {
   margin: 0;
   max-width: 28ch;
-  font-size: var(--p-text-2xl, var(--p-display-2));
+  /*
+    Fluid, and deliberately below the chapter title at every width.
+
+    It was a fixed size while the `h1` uses a `clamp()` that shrinks with the
+    viewport. In a narrow column the two crossed over — a part heading rendered
+    larger than the page's own title, which inverts the hierarchy exactly where
+    a reader has the least context. This tops out under `--p-display-2`'s
+    minimum, so the crossover cannot happen again.
+  */
+  font-size: clamp(1.25rem, 1.05rem + 0.9vw, 1.75rem);
   font-weight: var(--p-weight-semibold);
   line-height: var(--p-leading-heading, 1.2);
   letter-spacing: -0.01em;
