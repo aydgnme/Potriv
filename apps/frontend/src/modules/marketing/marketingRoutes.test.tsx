@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CHAPTERS, CONTINUATION, PLAN_CHAPTERS, RESPONSIBILITY_MATRIX } from "./businessPlan";
+import { CHAPTERS, CONTINUATION, OPERATING_PROBLEM, PLAN_CHAPTERS, RESPONSIBILITY_MATRIX } from "./businessPlan";
 import { MARKETING_ROUTES, ROLES, SECURITY, WORKFLOW_STEPS } from "./landingContent";
 import { ForTeamsPage } from "./components/pages/ForTeamsPage";
 import { HomePage } from "./components/pages/HomePage";
@@ -183,9 +183,24 @@ describe("00 · the overview is an executive summary", () => {
     expect(
       within(main).getByRole("heading", { name: /staffing decisions need evidence, an owner, and a record/i }),
     ).toBeInTheDocument();
-    // Named conditions, each one something the product has an object for.
-    expect(within(main).getByRole("heading", { name: /a shared vocabulary for skills/i })).toBeInTheDocument();
-    expect(within(main).getByRole("heading", { name: /availability from the people who own it/i })).toBeInTheDocument();
+
+    /*
+      The four conditions, each paired with the object that answers it. They are
+      a ledger rather than four headings now, so this checks the pairing itself:
+      every `dt` is the condition and the `dd` after it names the object. The
+      association is what the section argues, and it has to survive in the
+      markup rather than in the layout.
+    */
+    const terms = within(main).getAllByRole("term");
+    const definitions = within(main).getAllByRole("definition");
+
+    expect(terms).toHaveLength(OPERATING_PROBLEM.gaps.length);
+    expect(definitions).toHaveLength(OPERATING_PROBLEM.gaps.length);
+
+    OPERATING_PROBLEM.gaps.forEach((gap, index) => {
+      expect(terms[index]).toHaveTextContent(gap.body);
+      expect(definitions[index]).toHaveTextContent(gap.title);
+    });
   });
 
   /*
@@ -229,21 +244,75 @@ describe("00 · the overview is an executive summary", () => {
 
     expect(main).toHaveTextContent(/accepted allocation is the only thing drawn as a solid line/i);
     expect(main).toHaveTextContent(/proposal stays dashed until the owning department accepts it/i);
-    // One rendering of the stages, not two.
-    expect(within(main).getAllByText("Ranked candidates")).toHaveLength(1);
+
+    /*
+      One rendering of the stages in the accessibility tree, not two. The page
+      draws the sequence more than once — the hero graph, and the How it works
+      chapter preview — but every drawing is `aria-hidden`, so exactly one
+      sequence is announced. Counting text nodes would count the drawings too,
+      which is not what this is protecting.
+    */
+    expect(
+      within(main).getAllByRole("list", { name: /how a requirement becomes an allocation/i }),
+    ).toHaveLength(1);
   });
 
   it("indexes the four chapters by their decision question", () => {
     render(<HomePage />);
     const main = screen.getByRole("main");
 
+    /*
+      The whole row is the link now rather than a "Read chapter NN" tail, so the
+      question travels inside the link's own accessible name — which is what a
+      reader tabbing through the index actually hears. A separate link labelled
+      by its number told them nothing about where it went.
+    */
     for (const chapter of PLAN_CHAPTERS) {
-      expect(within(main).getByRole("heading", { name: chapter.question })).toBeInTheDocument();
-      expect(main).toHaveTextContent(chapter.summary);
-      expect(
-        within(main).getByRole("link", { name: `Read chapter ${chapter.number}` }),
-      ).toHaveAttribute("href", chapter.href);
+      const row = within(main).getByRole("link", {
+        name: new RegExp(chapter.question.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+      });
+
+      expect(row).toHaveAttribute("href", chapter.href);
+      expect(row).toHaveTextContent(chapter.label);
     }
+  });
+
+  /**
+   * The drawings are decorative, so the page has to say the same things without
+   * them.
+   *
+   * Every `svg` on this page is `aria-hidden`: a screen reader gets the five
+   * stages as an ordered list, the four conditions as a definition list, and
+   * the two request states as written text. Nothing is carried by a picture
+   * alone, and nothing is carried by colour alone either.
+   */
+  it("says everything its drawings say, without the drawings", () => {
+    const { container } = render(<HomePage />);
+    const main = screen.getByRole("main");
+
+    const drawings = container.querySelectorAll("svg");
+    expect(drawings.length).toBeGreaterThan(0);
+    for (const svg of drawings) {
+      expect(svg.getAttribute("aria-hidden")).toBe("true");
+    }
+
+    // The sequence, as a sequence.
+    const stages = within(main).getByRole("list", {
+      name: /how a requirement becomes an allocation/i,
+    });
+    expect(within(stages).getAllByRole("listitem")).toHaveLength(5);
+
+    // The two states, in words rather than in dash pattern.
+    expect(main).toHaveTextContent(/pending department review/i);
+    expect(main).toHaveTextContent(/accepted by platform engineering/i);
+    expect(main).toHaveTextContent(/nobody is on a team yet/i);
+  });
+
+  it("keeps the worked example labelled as one", () => {
+    // It is a drawing of the model, not a screenshot of the product, and the
+    // page has to be the thing that says so.
+    render(<HomePage />);
+    expect(screen.getByRole("main")).toHaveTextContent(/a worked example, not a screenshot/i);
   });
 
   it("still does not hold the four canonical bodies", () => {

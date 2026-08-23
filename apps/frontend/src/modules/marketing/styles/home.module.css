@@ -1,0 +1,1132 @@
+/**
+ * The homepage.
+ *
+ * The page had one surface and five sections separated by rules, which is how a
+ * long document is set rather than how a product is shown. This gives it a
+ * surface rhythm — warm off-white, white, charcoal, grey, deep teal — so that
+ * scrolling past a boundary changes the ground under the reader and not just
+ * the heading.
+ *
+ * Three grounds do the work: white, a light neutral, and charcoal. Teal is not
+ * one of them. It appears where it means something — an accepted allocation, a
+ * current page, the closing call to action — and nowhere as filling.
+ *
+ * Every colour here is an existing token. The palette this page needed turned
+ * out to be the palette the product already had.
+ */
+
+.section {
+  padding-block: var(--p-space-10);
+}
+
+.container {
+  width: 100%;
+  max-width: var(--p-container);
+  margin-inline: auto;
+  padding-inline: var(--p-container-pad);
+}
+
+/* ---------- 01 the hero, on warm off-white ---------- */
+
+.hero {
+  background: var(--p-surface-warm);
+  border-bottom: 1px solid var(--p-border);
+  padding-block: var(--p-space-9) var(--p-space-10);
+}
+
+.heroInner {
+  display: grid;
+  gap: var(--p-space-8);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .heroInner {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: var(--p-space-10);
+  }
+}
+
+.heroEyebrow {
+  margin: 0;
+  color: var(--p-brand);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.heroTitle {
+  margin: var(--p-space-5) 0 0;
+  max-width: 15ch;
+  /*
+    The strongest text on the site. `--p-display-1` tops out at 56px, which is
+    the bottom of the range this page wants, so it is set here: 34px on a phone
+    to 64px on a wide screen, with the tight leading a display size needs.
+  */
+  font-size: clamp(2.125rem, 1.4rem + 3.1vw, 4rem);
+  font-weight: var(--p-weight-bold);
+  line-height: 1.04;
+  letter-spacing: -0.025em;
+}
+
+.heroLead {
+  margin: var(--p-space-5) 0 0;
+  max-width: 52ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-3);
+  margin-top: var(--p-space-7);
+}
+
+.heroPrimary,
+.heroSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding-inline: var(--p-space-5);
+  border-radius: var(--p-radius);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.heroPrimary {
+  background: var(--p-primary);
+  color: var(--p-primary-text);
+  border: 1px solid var(--p-primary);
+}
+
+.heroPrimary:hover {
+  background: var(--p-primary-hover);
+  text-decoration: none;
+}
+
+.heroSecondary {
+  background: var(--p-surface);
+  color: var(--p-text);
+  border: 1px solid var(--p-border-strong);
+}
+
+.heroSecondary:hover {
+  background: var(--p-surface-hover);
+  text-decoration: none;
+}
+
+/*
+  The line under the actions. Both halves restate what the closing section
+  already promises; a third clause about payment was left out because nothing in
+  this repository can support a claim about commercial terms.
+*/
+.heroAssurance {
+  margin: var(--p-space-4) 0 0;
+  color: var(--p-text-subtle);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+/* ---------- the decision graph ---------- */
+
+.graph {
+  margin: 0;
+}
+
+.graphWide {
+  display: none;
+}
+
+.graphNarrow {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .graphWide {
+    display: block;
+    width: 100%;
+    max-width: 460px;
+    height: auto;
+    margin-inline: auto;
+  }
+
+  .graphNarrow {
+    display: none;
+  }
+}
+
+.graphCaption {
+  margin-top: var(--p-space-4);
+  color: var(--p-text-subtle);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+  text-align: center;
+}
+
+/* The drawings' text equivalents. Available to a screen reader, not painted. */
+.graphStages,
+.graphDescription,
+.gateDescription {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- 02 the evidence ledger, on white ---------- */
+
+.evidence {
+  background: var(--p-surface);
+}
+
+.evidenceInner {
+  display: grid;
+  gap: var(--p-space-8);
+}
+
+@media (min-width: 1024px) {
+  .evidenceInner {
+    grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+    gap: var(--p-space-10);
+    align-items: start;
+  }
+}
+
+.sectionMark {
+  margin: 0;
+  color: var(--p-text-subtle);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+  letter-spacing: 0.08em;
+}
+
+.sectionTitle {
+  margin: var(--p-space-3) 0 0;
+  max-width: 20ch;
+  font-size: clamp(1.75rem, 1.3rem + 1.9vw, 2.5rem);
+  font-weight: var(--p-weight-bold);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.sectionLead {
+  margin: var(--p-space-5) 0 0;
+  max-width: 46ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+.ledger {
+  margin: 0;
+  border-top: 1px solid var(--p-border);
+}
+
+/*
+  Placed explicitly, at both widths.
+
+  Auto-placement put the answer in the number's column — `auto`-sized, a couple
+  of characters wide — so every row wrapped its answer down a 24px-wide channel
+  and the four of them ran to 2569px on a phone.
+
+  Stacked: the number beside the condition, the answer under it.
+  Side by side: condition, rule, answer, reading straight across.
+*/
+.ledgerRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--p-space-2) var(--p-space-4);
+  padding-block: var(--p-space-5);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.ledgerNumber {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.ledgerProblem {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.ledgerAnswer {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+@media (min-width: 768px) {
+  .ledgerRow {
+    /* number · condition · rule · answer */
+    grid-template-columns: auto minmax(0, 1fr) 56px minmax(0, 1fr);
+    align-items: center;
+    gap: var(--p-space-4);
+  }
+
+  .ledgerJoin {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .ledgerAnswer {
+    grid-column: 4;
+    grid-row: 1;
+  }
+}
+
+.ledgerNumber {
+  color: var(--p-text-subtle);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.ledgerProblem {
+  margin: 0;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+}
+
+/*
+  The join between a condition and the object that answers it. Decorative — the
+  pairing is a `dt`/`dd` in the markup, so this only draws what is already said.
+*/
+.ledgerJoin {
+  display: none;
+  height: 1px;
+  background: var(--p-border-strong);
+}
+
+@media (min-width: 768px) {
+  .ledgerJoin {
+    display: block;
+  }
+}
+
+.ledgerAnswer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--p-space-3);
+  margin: 0;
+  color: var(--p-text);
+  font-size: var(--p-text-base);
+}
+
+.ledgerAnswerTitle {
+  font-weight: var(--p-weight-semibold);
+}
+
+.ledgerState {
+  padding: 2px var(--p-space-2);
+  border: 1px solid var(--p-border);
+  border-radius: var(--p-radius-sm);
+  background: var(--p-surface-sunken);
+  color: var(--p-text-subtle);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-normal);
+}
+
+/*
+  Hover marks the pair, not the row: the join and the state tag take the brand,
+  which is the same thing the drawing says about a settled relationship.
+*/
+.ledgerRow:hover .ledgerJoin {
+  background: var(--p-brand);
+}
+
+.ledgerRow:hover .ledgerState {
+  border-color: var(--p-brand);
+  background: var(--p-brand-soft);
+  color: var(--p-brand-strong);
+}
+
+/* ---------- 03 proposed against accepted, on charcoal ---------- */
+
+.gateSection {
+  background: var(--p-inverse-bg);
+  color: var(--p-inverse-text);
+}
+
+.gateHead {
+  max-width: 34ch;
+}
+
+.gateSection .sectionMark {
+  color: var(--p-inverse-text-muted);
+}
+
+.gateSection .sectionTitle {
+  color: var(--p-inverse-text);
+  max-width: 24ch;
+}
+
+.gateSection .sectionLead {
+  color: var(--p-inverse-text-muted);
+}
+
+.gate {
+  margin: var(--p-space-9) 0 0;
+}
+
+.gateDrawing {
+  display: block;
+  width: 100%;
+  height: auto;
+  /*
+    Wide by nature — two states and a gate between them. Below the point where
+    it stops being legible the states are read from the written pair instead,
+    so this is hidden rather than scrolled sideways.
+  */
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+/*
+  Below this the drawing goes, and its caption goes with it: "before and after"
+  captions nothing when there is nothing to see. The written pair underneath
+  carries both states, which is why the drawing can be dropped at all.
+*/
+@media (max-width: 767px) {
+  .gateDrawing,
+  .gateCaption {
+    display: none;
+  }
+
+  .gate {
+    margin-top: var(--p-space-6);
+  }
+}
+
+.gateStage {
+  fill: var(--p-inverse-text-muted);
+  font-family: var(--p-font-sans);
+  font-size: 9.5px;
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.08em;
+}
+
+.gateNode {
+  fill: var(--p-inverse-surface);
+  stroke: var(--p-inverse-border);
+  stroke-width: 1;
+}
+
+.gateNodeStrong {
+  fill: var(--p-inverse-surface);
+  stroke: var(--p-inverse-brand);
+  stroke-width: 1.5;
+}
+
+.gateReview {
+  fill: none;
+  stroke: var(--p-inverse-text-muted);
+  stroke-width: 1;
+}
+
+.gateMarkHollow {
+  fill: none;
+  stroke: var(--p-inverse-text-muted);
+  stroke-width: 1.5;
+}
+
+.gateMarkFilled {
+  fill: var(--p-inverse-brand);
+  stroke: none;
+}
+
+.gateLabel {
+  fill: var(--p-inverse-text-muted);
+  font-family: var(--p-font-sans);
+  font-size: 12px;
+}
+
+.gateLabelStrong {
+  fill: var(--p-inverse-text);
+  font-family: var(--p-font-sans);
+  font-size: 12px;
+  font-weight: var(--p-weight-semibold);
+}
+
+.gateMono {
+  fill: var(--p-inverse-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: 10px;
+}
+
+.gateStatus {
+  fill: var(--p-inverse-text-muted);
+  font-family: var(--p-font-sans);
+  font-size: 10.5px;
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+.gateStatusStrong {
+  fill: var(--p-inverse-brand);
+  font-family: var(--p-font-sans);
+  font-size: 10.5px;
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.04em;
+}
+
+/*
+  The two line states, on this ground.
+
+  `--p-brand-line` is measured against white and reads at 8.92:1 the wrong way
+  here, so the inverse brand carries the accepted run instead. The dashed one
+  stays neutral: a proposal is not a weaker version of an allocation, it is a
+  different thing, and giving it a faded brand would say otherwise.
+*/
+.gateProposed {
+  fill: none;
+  stroke: var(--p-inverse-text-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.gateAccepted {
+  fill: none;
+  stroke: var(--p-inverse-brand);
+  stroke-width: 2;
+}
+
+.gateCaption {
+  margin-top: var(--p-space-5);
+  color: var(--p-inverse-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+  text-align: center;
+}
+
+/*
+  The drawing convention, written out. Solid against dashed is a rule this
+  product enforces, so it is stated in words on the same ground that draws it.
+*/
+.gateLegend {
+  list-style: none;
+  display: grid;
+  gap: var(--p-space-2);
+  margin: var(--p-space-7) 0 0;
+  padding: 0;
+}
+
+.gateLegendLine {
+  color: var(--p-inverse-text-muted);
+  font-size: var(--p-text-base);
+  line-height: var(--p-leading);
+}
+
+.gateStates {
+  list-style: none;
+  display: grid;
+  gap: var(--p-space-5);
+  margin: var(--p-space-8) 0 0;
+  padding: 0;
+}
+
+@media (min-width: 768px) {
+  .gateStates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--p-space-7);
+  }
+}
+
+.gateState,
+.gateStateAccepted {
+  display: grid;
+  gap: var(--p-space-2);
+  padding-top: var(--p-space-4);
+  border-top: 2px dashed var(--p-inverse-text-muted);
+}
+
+/* Solid against dashed, here too: the border repeats what the drawing says. */
+.gateStateAccepted {
+  border-top: 2px solid var(--p-inverse-brand);
+}
+
+.gateStateLabel {
+  color: var(--p-inverse-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.gateStateAccepted .gateStateLabel {
+  color: var(--p-inverse-brand);
+}
+
+.gateStateStatus {
+  color: var(--p-inverse-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.gateStateNote {
+  color: var(--p-inverse-text-muted);
+  font-size: var(--p-text-base);
+  line-height: var(--p-leading);
+}
+
+/* ---------- 04 the chapter index, on light neutral ---------- */
+
+.chaptersSection {
+  background: var(--p-surface-sunken);
+}
+
+.chapters {
+  display: grid;
+  gap: var(--p-space-8);
+  margin-top: var(--p-space-9);
+}
+
+@media (min-width: 900px) {
+  .chapters {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: var(--p-space-10);
+    align-items: start;
+  }
+}
+
+.chapterList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--p-border);
+}
+
+.chapterItem {
+  border-bottom: 1px solid var(--p-border);
+}
+
+.chapterRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--p-space-4);
+  /* Comfortably past 44px, and the whole row is the target. */
+  min-height: 76px;
+  padding-block: var(--p-space-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+.chapterRow:hover {
+  text-decoration: none;
+}
+
+.chapterNumber {
+  color: var(--p-text-subtle);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.chapterBody {
+  display: grid;
+  gap: 2px;
+}
+
+.chapterLabel {
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.chapterQuestion {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: var(--p-leading);
+}
+
+.chapterArrow {
+  color: var(--p-text-subtle);
+  font-size: var(--p-text-lg);
+}
+
+.chapterRow:hover .chapterLabel,
+.chapterRow:focus-visible .chapterLabel {
+  color: var(--p-brand-strong);
+}
+
+.chapterRow:hover .chapterArrow,
+.chapterRow:focus-visible .chapterArrow {
+  color: var(--p-brand);
+}
+
+/*
+  The preview panel.
+
+  Every panel occupies the same grid cell, so switching between them cannot move
+  anything on the page — the height is the tallest of the four, reserved before
+  any of them is shown.
+*/
+.chapterPreviews {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .chapterPreviews {
+    display: grid;
+    position: sticky;
+    top: var(--p-space-8);
+    padding: var(--p-space-6);
+    border: 1px solid var(--p-border);
+    border-radius: var(--p-radius);
+    background: var(--p-surface);
+  }
+
+  .chapterPreview {
+    grid-area: 1 / 1;
+    opacity: 0;
+  }
+
+  /* The first chapter's panel is what the section rests on. */
+  .chapterPreview:first-child {
+    opacity: 1;
+  }
+
+  /*
+    Which panel shows is a CSS state, driven by the row the reader is on —
+    pointer and keyboard through the same rule, so the two cannot drift.
+  */
+  .chapters:has(.chapterRow:is(:hover, :focus-visible)) .chapterPreview:first-child {
+    opacity: 0;
+  }
+
+  .chapters:has(.chapterItem:nth-child(1) .chapterRow:is(:hover, :focus-visible))
+    .chapterPreview:nth-child(1),
+  .chapters:has(.chapterItem:nth-child(2) .chapterRow:is(:hover, :focus-visible))
+    .chapterPreview:nth-child(2),
+  .chapters:has(.chapterItem:nth-child(3) .chapterRow:is(:hover, :focus-visible))
+    .chapterPreview:nth-child(3),
+  .chapters:has(.chapterItem:nth-child(4) .chapterRow:is(:hover, :focus-visible))
+    .chapterPreview:nth-child(4) {
+    opacity: 1;
+  }
+}
+
+.chapterPreviewCaption {
+  margin: 0 0 var(--p-space-4);
+  color: var(--p-text-subtle);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.previewDrawing {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.previewNode {
+  fill: var(--p-surface-sunken);
+  stroke: var(--p-border);
+  stroke-width: 1;
+}
+
+.previewNodeStrong {
+  fill: var(--p-brand-selection);
+  stroke: var(--p-brand);
+  stroke-width: 1;
+}
+
+.previewLine {
+  stroke: var(--p-border-strong);
+  stroke-width: 1;
+  fill: none;
+}
+
+.previewAccepted {
+  stroke: var(--p-brand);
+  stroke-width: 2;
+  fill: none;
+}
+
+.previewDot {
+  fill: var(--p-surface);
+  stroke: var(--p-border-strong);
+  stroke-width: 1.5;
+}
+
+.previewDotFilled {
+  fill: var(--p-brand);
+  stroke: none;
+}
+
+.previewLabel {
+  fill: var(--p-text-muted);
+  font-family: var(--p-font-sans);
+  font-size: 11px;
+}
+
+/* ---------- 05 the closing scene, on deep teal ---------- */
+
+.final {
+  background: var(--p-brand-strong);
+  color: var(--p-text-inverse);
+  padding-block: var(--p-space-10);
+}
+
+.finalInner {
+  width: 100%;
+  max-width: var(--p-container);
+  margin-inline: auto;
+  padding-inline: var(--p-container-pad);
+  display: grid;
+  gap: var(--p-space-8);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .finalInner {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
+    gap: var(--p-space-10);
+  }
+}
+
+.finalTitle {
+  margin: 0;
+  max-width: 18ch;
+  font-size: clamp(1.75rem, 1.3rem + 1.9vw, 2.5rem);
+  font-weight: var(--p-weight-bold);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.finalBody {
+  margin: var(--p-space-5) 0 0;
+  max-width: 48ch;
+  /* 8.1:1 on --p-brand-strong. */
+  color: #cfe3df;
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+.finalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--p-space-3);
+  margin-top: var(--p-space-7);
+}
+
+.finalPrimary,
+.finalSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding-inline: var(--p-space-5);
+  border-radius: var(--p-radius);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.finalPrimary {
+  background: var(--p-surface);
+  color: var(--p-brand-strong);
+  border: 1px solid var(--p-surface);
+}
+
+.finalPrimary:hover {
+  background: #eef7f5;
+  text-decoration: none;
+}
+
+.finalSecondary {
+  background: transparent;
+  color: var(--p-text-inverse);
+  border: 1px solid rgb(255 255 255 / 45%);
+}
+
+.finalSecondary:hover {
+  background: rgb(255 255 255 / 10%);
+  text-decoration: none;
+}
+
+.finalFigure {
+  margin: 0;
+}
+
+.finalDrawing {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+}
+
+.finalNode {
+  fill: rgb(255 255 255 / 6%);
+  stroke: rgb(255 255 255 / 28%);
+  stroke-width: 1;
+}
+
+.finalNodeAccepted {
+  fill: rgb(255 255 255 / 12%);
+  stroke: var(--p-surface);
+  stroke-width: 1.5;
+}
+
+.finalStage {
+  fill: #a8cec8;
+  font-family: var(--p-font-sans);
+  font-size: 9px;
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.09em;
+}
+
+.finalNodeLabel {
+  fill: var(--p-text-inverse);
+  font-family: var(--p-font-sans);
+  font-size: 12px;
+}
+
+.finalNodeLabelAccepted {
+  fill: var(--p-text-inverse);
+  font-family: var(--p-font-sans);
+  font-size: 12px;
+  font-weight: var(--p-weight-semibold);
+}
+
+.finalLine {
+  fill: none;
+  stroke: rgb(255 255 255 / 34%);
+  stroke-width: 1;
+}
+
+.finalLineAccepted {
+  fill: none;
+  stroke: var(--p-surface);
+  stroke-width: 2;
+}
+
+.finalMark {
+  fill: var(--p-surface);
+}
+
+.finalCaption {
+  margin-top: var(--p-space-4);
+  color: #a8cec8;
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+/* ---------- responsive: the phone composition ---------- */
+
+@media (max-width: 767px) {
+  .section,
+  .final {
+    padding-block: var(--p-space-8);
+  }
+
+  .hero {
+    padding-block: var(--p-space-7) var(--p-space-8);
+  }
+
+  /* The rail is the second half of the hero's argument, not a section after it. */
+  .heroInner {
+    gap: var(--p-space-6);
+  }
+
+  .heroActions,
+  .finalActions {
+    margin-top: var(--p-space-6);
+  }
+}
+
+/* ---------- motion ---------- */
+
+/**
+ * The page introduces itself once, then stops.
+ *
+ * Three jobs only: say that the hero's halves belong together, say that the
+ * decision happens in an order, and — in the dark section — teach the one
+ * distinction the product turns on by drawing it happening.
+ *
+ * Everything is inside the reduced-motion query with `backwards` fill, so the
+ * elements' own styles remain the finished state. Nothing waits on JavaScript,
+ * nothing is hidden if animation never runs, and no keyframe touches a property
+ * that could move the page.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .hero .heroEyebrow,
+  .hero .heroTitle,
+  .hero .heroLead,
+  .hero .heroActions,
+  .hero .heroAssurance {
+    animation: home-rise 360ms var(--p-ease) backwards;
+  }
+
+  .hero .heroEyebrow {
+    animation-delay: 0ms;
+  }
+
+  .hero .heroTitle {
+    animation-delay: 60ms;
+  }
+
+  .hero .heroLead {
+    animation-duration: 320ms;
+    animation-delay: 160ms;
+  }
+
+  .hero .heroActions {
+    animation-duration: 300ms;
+    animation-delay: 240ms;
+  }
+
+  .hero .heroAssurance {
+    animation-duration: 280ms;
+    animation-delay: 320ms;
+  }
+
+  /*
+    The graph assembles in the order the decision happens: requirement, the
+    evidence behind it, the ranking, the gate. `--stage` is set per group in the
+    markup, so adding a stage needs no new CSS here.
+  */
+  .graphStage {
+    animation: home-rise 300ms var(--p-ease) backwards;
+    animation-delay: calc(420ms + 140ms * var(--stage, 0));
+  }
+
+  /* Each candidate row lands after the one above it. */
+  .graphRow {
+    animation: home-rise 240ms var(--p-ease) backwards;
+    animation-delay: calc(700ms + 90ms * var(--row, 0));
+  }
+
+  /*
+    The proposal appears; the acceptance is drawn.
+
+    A dashed line cannot be "drawn" with `stroke-dashoffset` — the offset moves
+    the dashes along the path instead of extending it — so the proposal fades in
+    and the run into the accepted node, which is solid, is the one that draws.
+    That reads correctly anyway: a proposal is made at once, and the acceptance
+    is the thing that takes time.
+  */
+  .graphProposal {
+    animation: home-rise 280ms var(--p-ease) 1020ms backwards;
+  }
+
+  .graphAccepted {
+    --draw: 40;
+    stroke-dasharray: 40;
+    animation: home-draw 300ms var(--p-ease) 1180ms backwards;
+  }
+
+  .graphAcceptedNode {
+    /*
+      Without a fill box an SVG group scales about the user-space origin, which
+      would throw the node across the drawing rather than mark it in place.
+    */
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: home-accept 360ms var(--p-ease) 1240ms backwards;
+  }
+
+  /*
+    The dark section teaches rather than greets, so it runs when the reader
+    reaches it rather than on load — otherwise it would have finished 2000px
+    before anyone saw it.
+
+    Scroll-driven, which needs no observer and no client component. Where the
+    browser does not support it the section is simply in its finished state,
+    which is the same thing a reduced-motion reader gets.
+  */
+  @supports (animation-timeline: view()) {
+    .gateProposed,
+    .gateAccepted,
+    .gateMarkFilled,
+    .gateNodeStrong {
+      animation-timing-function: var(--p-ease);
+      animation-fill-mode: both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 40%;
+    }
+
+    .gateProposed {
+      animation-name: home-fade;
+    }
+
+    .gateAccepted {
+      --draw: 90;
+      stroke-dasharray: 90;
+      animation-name: home-draw;
+    }
+
+    .gateMarkFilled,
+    .gateNodeStrong {
+      animation-name: home-settle;
+    }
+  }
+}
+
+@keyframes home-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes home-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The length is the path's own; `--draw` is set beside each `stroke-dasharray`. */
+@keyframes home-draw {
+  from {
+    stroke-dashoffset: var(--draw, 40);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes home-settle {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* The accepted node arrives, then marks itself once. */
+@keyframes home-accept {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  55% {
+    opacity: 1;
+    transform: none;
+  }
+  74% {
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}

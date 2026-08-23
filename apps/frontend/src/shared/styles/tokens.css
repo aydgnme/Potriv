@@ -18,6 +18,10 @@
   --p-surface: #ffffff;
   --p-surface-raised: #ffffff;
   --p-surface-sunken: #f1f2f4;
+  /* A warm off-white, for public pages that need a surface which is not white
+     and not the cool grey above. Used to separate the hero from the section
+     under it without a rule between them. */
+  --p-surface-warm: #faf9f7;
   --p-surface-hover: #f1f2f4;
   --p-surface-active: #e7e9ec;
 
@@ -149,6 +153,10 @@
     both ends, and two grids lost their gap.
   */
   --p-space-8: 64px;
+  /* The two section-scale steps. Public pages breathe at a different rate from
+     the product's dense screens, and 48px was the largest thing they had. */
+  --p-space-9: 72px;
+  --p-space-10: 96px;
 
   /* ---- radius: modest, flat surfaces ---- */
   --p-radius-sm: 3px;

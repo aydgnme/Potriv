@@ -1,137 +1,129 @@
 import Link from "next/link";
 
-import { OPERATING_MODEL, OPERATING_PROBLEM, PLAN_CHAPTERS } from "../../businessPlan";
-import {
-  CREATE_WORKSPACE_HREF,
-  FINAL_CTA,
-  HERO,
-  SIGN_IN_HREF,
-} from "../../landingContent";
-import { PlanSection, StageSpine } from "../plan";
+import { OPERATING_PROBLEM } from "../../businessPlan";
+import { HERO_ASSURANCE } from "../../homeModel";
+import { CREATE_WORKSPACE_HREF, HERO } from "../../landingContent";
 import { MarketingShell } from "../MarketingShell";
-import styles from "../../styles/plan.module.css";
-import pageStyles from "../../styles/pages.module.css";
+import { ChapterIndex } from "../home/ChapterIndex";
+import { DecisionGraph } from "../home/DecisionGraph";
+import { EvidenceLedger } from "../home/EvidenceLedger";
+import { FinalScene } from "../home/FinalScene";
+import { ProposalGate } from "../home/ProposalGate";
+import home from "../../styles/home.module.css";
 
 /**
  * Chapter 00 — the executive overview.
  *
- * A summary, not a hero with four title links. It states the proposition, the
- * coordination gap the product exists for, the sequence it puts in its place,
- * and then the four chapters with the question each one answers — so a reader
- * can choose where to go rather than being told four nouns.
+ * The page makes one argument and shows one decision the whole way down: a
+ * requirement for Project Orion, the evidence behind it, three ranked
+ * candidates, the department that owns the answer, and the allocation that
+ * results. The hero draws it in full, the ledger states what such a decision
+ * needs, the dark section isolates the distinction it turns on, and the closing
+ * scene draws the same shape reduced to three nodes.
  *
- * It deliberately holds none of the four bodies. Two canonical copies of the
- * same claim is what splitting the pages was for.
+ * Five sections on five grounds rather than one white document with rules
+ * between the parts: warm off-white, white, charcoal, light neutral, deep teal.
+ * Crossing a boundary changes the surface under the reader, which is what says
+ * a new subject has started.
+ *
+ * It holds none of the four chapter bodies. Two canonical copies of the same
+ * claim is what splitting the pages was for; the index links to them instead.
  *
  * Genuinely public: no cookie read, no session lookup, no backend call. An
- * anonymous visitor and a signed-in one are served identical bytes.
+ * anonymous visitor and a signed-in one are served identical bytes, which is
+ * what lets this route prerender as static.
  */
 export function HomePage() {
   return (
     <MarketingShell>
-      <section className={pageStyles.hero} aria-labelledby="hero-title">
-        <div className={`${styles.container} ${pageStyles.heroInner}`}>
+      {/* 01 — the proposition, and the model it rests on, side by side. */}
+      <section className={home.hero} aria-labelledby="hero-title">
+        <div className={`${home.container} ${home.heroInner}`}>
           <div>
-          <p className={pageStyles.heroEyebrow}>{HERO.eyebrow}</p>
-          <h1 className={pageStyles.heroTitle} id="hero-title">
-            {HERO.title}
-          </h1>
-          <p className={pageStyles.heroLead}>{HERO.lead}</p>
+            <p className={home.heroEyebrow}>{HERO.eyebrow}</p>
+            <h1 className={home.heroTitle} id="hero-title">
+              {HERO.title}
+            </h1>
+            <p className={home.heroLead}>{HERO.lead}</p>
 
-          <div className={pageStyles.heroActions}>
-            <Link className={pageStyles.heroPrimary} href={CREATE_WORKSPACE_HREF}>
-              {HERO.primaryCta}
-            </Link>
-            <Link className={pageStyles.heroSecondary} href="/how-it-works">
-              {HERO.secondaryCta}
-            </Link>
-          </div>
+            <div className={home.heroActions}>
+              <Link className={home.heroPrimary} href={CREATE_WORKSPACE_HREF}>
+                {HERO.primaryCta}
+              </Link>
+              <Link className={home.heroSecondary} href="/how-it-works">
+                {HERO.secondaryCta}
+              </Link>
+            </div>
+
+            <p className={home.heroAssurance}>{HERO_ASSURANCE}</p>
           </div>
 
           {/* The model, demonstrated, before anyone is asked to create anything. */}
-          <div className={pageStyles.heroDemo}>
-            <StageSpine />
-          </div>
+          <DecisionGraph />
         </div>
       </section>
 
-      <PlanSection
-        index="00.1"
-        title={OPERATING_PROBLEM.title}
-        titleId="home-problem"
-        lead={OPERATING_PROBLEM.lead}
+      {/* 02 — what a decision like that needs in order to be made well. */}
+      <section
+        className={`${home.section} ${home.evidence}`}
+        aria-labelledby="home-problem"
       >
-        <ul className={pageStyles.gaps}>
-          {OPERATING_PROBLEM.gaps.map((gap) => (
-            <li className={pageStyles.gap} key={gap.title}>
-              <h3 className={pageStyles.gapTitle}>{gap.title}</h3>
-              <p className={pageStyles.gapBody}>{gap.body}</p>
-            </li>
-          ))}
-        </ul>
-      </PlanSection>
-
-      <PlanSection
-        index="00.2"
-        title="Proposed and accepted are not the same thing"
-        titleId="home-model"
-        lead="The sequence is above. This is the rule that governs it, and the one distinction the whole product turns on."
-      >
-        <div className={pageStyles.grammar}>
-          <p className={pageStyles.grammarLine}>
-            <span className={pageStyles.markSolid} aria-hidden="true" />
-            <span>{HERO.truths[0]}</span>
-          </p>
-          <p className={pageStyles.grammarLine}>
-            <span className={pageStyles.markDashed} aria-hidden="true" />
-            <span>{HERO.truths[1]}</span>
-          </p>
-        </div>
-      </PlanSection>
-
-      {/*
-        The chapter index. Each entry carries the question that chapter answers,
-        which is what makes this a table of contents rather than four nouns.
-      */}
-      <PlanSection
-        index="00.3"
-        title="The plan, in four chapters"
-        titleId="home-chapters"
-        lead="Each answers one question. They are meant to be read in order, but they do not have to be."
-      >
-        <ol className={pageStyles.chapters}>
-          {PLAN_CHAPTERS.map((chapter) => (
-            <li className={pageStyles.chapterEntry} key={chapter.href}>
-              <p className={pageStyles.chapterEntryMark}>
-                <span className={pageStyles.chapterEntryNumber}>{chapter.number}</span>
-                <span className={pageStyles.chapterEntryLabel}>{chapter.label}</span>
-              </p>
-              <h3 className={pageStyles.chapterEntryQuestion}>{chapter.question}</h3>
-              <p className={pageStyles.chapterEntrySummary}>{chapter.summary}</p>
-              <Link className={pageStyles.chapterEntryLink} href={chapter.href}>
-                {`Read chapter ${chapter.number}`}
-              </Link>
-            </li>
-          ))}
-        </ol>
-      </PlanSection>
-
-      <section className={pageStyles.start} aria-labelledby="home-start">
-        <div className={pageStyles.container}>
-          <h2 className={pageStyles.startTitle} id="home-start">
-            {FINAL_CTA.title}
-          </h2>
-          <p className={pageStyles.startBody}>{FINAL_CTA.body}</p>
-          <div className={pageStyles.startActions}>
-            <Link className={pageStyles.heroPrimary} href={CREATE_WORKSPACE_HREF}>
-              Create your workspace
-            </Link>
-            <Link className={pageStyles.heroSecondary} href={SIGN_IN_HREF}>
-              Sign in
-            </Link>
+        <div className={`${home.container} ${home.evidenceInner}`}>
+          <div>
+            <p className={home.sectionMark}>00.1 EVIDENCE</p>
+            <h2 className={home.sectionTitle} id="home-problem">
+              {OPERATING_PROBLEM.title}
+            </h2>
+            <p className={home.sectionLead}>{OPERATING_PROBLEM.lead}</p>
           </div>
+
+          <EvidenceLedger />
         </div>
       </section>
+
+      {/* 03 — the one distinction the product turns on, on the darkest ground. */}
+      <section
+        className={`${home.section} ${home.gateSection}`}
+        aria-labelledby="home-model"
+      >
+        <div className={home.container}>
+          <div className={home.gateHead}>
+            <p className={home.sectionMark}>00.2 THE RULE</p>
+            <h2 className={home.sectionTitle} id="home-model">
+              Proposed and accepted are not the same thing
+            </h2>
+            <p className={home.sectionLead}>
+              {"The sequence is above. This is the rule that governs it, and the " +
+                "one distinction the whole product turns on."}
+            </p>
+          </div>
+
+          <ProposalGate />
+        </div>
+      </section>
+
+      {/* 04 — where to read next, with what each chapter contains. */}
+      <section
+        className={`${home.section} ${home.chaptersSection}`}
+        aria-labelledby="home-chapters"
+      >
+        <div className={home.container}>
+          <div>
+            <p className={home.sectionMark}>00.3 THE PLAN</p>
+            <h2 className={home.sectionTitle} id="home-chapters">
+              The plan, in four chapters
+            </h2>
+            <p className={home.sectionLead}>
+              {"Each answers one question. They are meant to be read in order, " +
+                "but they do not have to be."}
+            </p>
+          </div>
+
+          <ChapterIndex />
+        </div>
+      </section>
+
+      <FinalScene />
     </MarketingShell>
   );
 }

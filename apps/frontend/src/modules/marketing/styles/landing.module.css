@@ -146,14 +146,14 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     gap: var(--p-space-8);
-    padding-block: var(--p-space-7);
+    padding-block: var(--p-space-7) var(--p-space-6);
   }
 }
 
 .footerBrandBlock {
   display: flex;
   flex-direction: column;
-  gap: var(--p-space-2);
+  gap: var(--p-space-1);
 }
 
 .footerWordmark {
@@ -188,10 +188,14 @@
   }
 }
 
+/*
+  Tighter than a stack of paragraphs. The rows are 44px targets and stay that
+  way, so the space between a column's heading and its first link is what gives.
+*/
 .footerColumn {
   display: flex;
   flex-direction: column;
-  gap: var(--p-space-3);
+  gap: var(--p-space-2);
 }
 
 .footerColumnTitle {
