@@ -162,7 +162,13 @@
   margin: var(--p-space-3) 0 0;
   max-width: 62ch;
   color: var(--p-text-muted);
-  font-size: var(--p-text-base);
+  /*
+    A rung above body copy, matching what `.heroLead` does under the `h1`.
+    It was `--p-text-base` — the same size, weight and muted colour as the
+    paragraphs beneath it, so the standfirst introducing a section was
+    indistinguishable from the section's own prose and did no work.
+  */
+  font-size: var(--p-text-lg);
   line-height: var(--p-leading-body);
 }
 

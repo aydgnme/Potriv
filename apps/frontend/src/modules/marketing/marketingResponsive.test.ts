@@ -262,3 +262,24 @@ describe("marketing prose reads at its own size", () => {
     expect(landing.source).not.toMatch(/:root\s*\{/);
   });
 });
+
+/**
+ * A standfirst has to outrank the prose it introduces.
+ *
+ * Both leads sit directly under a heading and introduce what follows. When a
+ * lead is set at the body step it carries the same size, weight and muted
+ * colour as the paragraphs beneath it, and stops doing any work.
+ */
+describe("leads read above body copy", () => {
+  it.each([
+    ["hero lead", () => pages.rule(".heroLead")],
+    ["section lead", () => plan.rule(".sectionLead")],
+  ])("sets %s one step above the base", (_label, rule) => {
+    expect(rule()).toMatch(/font-size:\s*var\(--p-text-lg\)/);
+  });
+
+  it("leaves body copy on the base step", () => {
+    // `.gapBody` declares no size, so it inherits the marketing root's base.
+    expect(pages.rule(".gapBody")).not.toMatch(/font-size:/);
+  });
+});
