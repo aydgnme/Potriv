@@ -82,3 +82,44 @@ describe('an invite or reset token in a request body', () => {
     expect(summarize(json)).not.toContain('reset-token-value-abc123');
   });
 });
+
+describe('a token in a URL fragment', () => {
+  /*
+    Both emailed links moved their token into the fragment, which is the whole
+    point of the change — a fragment is never sent to a server. The redactor's
+    only URL rule matched `?token=`, so a mail body, an exception message or a
+    report cell that quoted one of these links kept the credential in full.
+  */
+  const cases = [
+    'https://potriv.example/invite#token=SECRETVALUE',
+    'https://potriv.example/reset-password#token=SECRETVALUE',
+    'https://potriv.example/invite#inviteToken=SECRETVALUE',
+    'https://potriv.example/reset-password#resetToken=SECRETVALUE',
+  ];
+
+  it.each(cases)('is redacted in %s', (url) => {
+    expect(redactText(url)).not.toContain('SECRETVALUE');
+    expect(redactText(url)).toContain(REDACTED);
+  });
+
+  it('is redacted inside a mail body, an error message and a JSON value', () => {
+    const link = 'https://potriv.example/invite#token=SECRETVALUE';
+
+    const body = `Hello,\n\nJoin the workspace: ${link}\n\nThe link expires in 72 hours.`;
+    expect(redactText(body)).not.toContain('SECRETVALUE');
+
+    const message = `MailSendException: failed to send to ${link}`;
+    expect(redactText(message)).not.toContain('SECRETVALUE');
+
+    expect(JSON.stringify(redactValue({ mail: { text: body } })))
+      .not.toContain('SECRETVALUE');
+    expect(summarize({ inviteUrl: link })).not.toContain('SECRETVALUE');
+  });
+
+  it('leaves the rest of the link readable, so a report still says which page', () => {
+    const redacted = redactText('https://potriv.example/invite#token=SECRETVALUE');
+
+    expect(redacted).toContain('/invite');
+    expect(redacted).toContain('#token=');
+  });
+});

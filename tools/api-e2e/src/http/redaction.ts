@@ -40,7 +40,13 @@ const SECRET_PATTERNS: ReadonlyArray<RegExp> = [
   // Deliberately looser than the exact 53-character bcrypt tail: a truncated or
   // partially-quoted hash is still a hash, and still must not reach a report.
   /\$2[aby]\$\d{2}\$[./A-Za-z0-9]{20,}/g,
-  /([?&](token|resetToken|inviteToken)=)[^&\s"']+/gi,
+  /*
+    Query *and* fragment. Both emailed links carry their token after a `#` now
+    — `/invite#token=…`, `/reset-password#token=…` — and a rule that only
+    matched `?token=` left every one of them intact in a report, a captured
+    mail body, or an exception message that happened to quote a URL.
+  */
+  /([?&#](token|resetToken|inviteToken)=)[^&\s"'<>]+/gi,
 ];
 
 export function redactHeaders(
