@@ -141,6 +141,14 @@
   --p-space-5: 24px;
   --p-space-6: 32px;
   --p-space-7: 48px;
+  /*
+    The scale stopped at 48px while four marketing rules already asked for the
+    next step. An undefined custom property with no fallback makes the whole
+    declaration invalid, so those rules were not falling back to something
+    smaller — they were producing nothing: the hero lost its block padding at
+    both ends, and two grids lost their gap.
+  */
+  --p-space-8: 64px;
 
   /* ---- radius: modest, flat surfaces ---- */
   --p-radius-sm: 3px;

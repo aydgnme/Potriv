@@ -69,7 +69,7 @@
   justify-content: space-between;
   gap: var(--p-space-3);
   padding: var(--p-space-2) 0;
-  border-bottom: 1px solid var(--p-border-subtle);
+  border-bottom: 1px solid var(--p-border);
 }
 
 .figureRow:last-child { border-bottom: none; }

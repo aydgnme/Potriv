@@ -92,7 +92,7 @@
   max-width: 62ch;
   color: var(--p-text-muted);
   font-size: var(--p-text-lg);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .chapterLeadDark {
@@ -192,7 +192,7 @@
     indistinguishable from the section's own prose and did no work.
   */
   font-size: var(--p-text-lg);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .sectionLeadDark {
@@ -238,7 +238,7 @@
 
 .ledgerResponse {
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .ledgerObject {
@@ -295,7 +295,7 @@
   margin: 0;
   color: var(--p-text-muted);
   font-size: var(--p-text-base);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 /* ---------- responsibility matrix ---------- */
@@ -416,7 +416,7 @@
   max-width: 58ch;
   color: var(--p-text-muted);
   font-size: var(--p-text-lg);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .continuationLink {

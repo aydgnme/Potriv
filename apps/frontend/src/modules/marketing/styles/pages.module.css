@@ -141,7 +141,7 @@
   max-width: 58ch;
   color: var(--p-text-muted);
   font-size: var(--p-text-lg);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .heroActions,
@@ -220,7 +220,7 @@
 .gapBody {
   margin: 0;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .grammar {
@@ -313,7 +313,7 @@
 .chapterEntrySummary {
   margin: 0;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .chapterEntryLink {
@@ -347,7 +347,7 @@
   margin: var(--p-space-3) 0 0;
   max-width: 54ch;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 /* ---------- 01 · product ---------- */
@@ -388,7 +388,7 @@
   margin: 0;
   max-width: 62ch;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .pillarPlan {
@@ -421,7 +421,7 @@
   margin: 0;
   max-width: 60ch;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .pillarFacts,
@@ -464,7 +464,7 @@
   margin: 0;
   color: var(--p-text);
   font-size: var(--p-text-base);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .brief dd {
@@ -496,7 +496,7 @@
 .boundaryScoreBody {
   margin: 0;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .boundaryList {
@@ -604,7 +604,7 @@
 .stepText {
   margin: 0;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .stepMeta {
@@ -649,7 +649,7 @@
 
 .exampleDetail {
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 /* ---------- 03 · for teams ---------- */
@@ -702,7 +702,7 @@
   margin: 0;
   grid-column: 2;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 @media (max-width: 899px) {
@@ -756,7 +756,7 @@
 .handoffBody {
   margin: 0;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .handoffClose {
@@ -794,7 +794,7 @@
 .limitBody {
   margin: 0;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 /* ---------- 04 · security ---------- */
@@ -811,7 +811,7 @@
   padding-left: var(--p-space-4);
   border-left: 2px solid var(--p-inverse-text-muted);
   color: var(--p-inverse-text);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .controls {
@@ -848,7 +848,7 @@
 
 .controlFactBody {
   color: var(--p-inverse-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .controlMeta dt {
@@ -885,7 +885,7 @@
   display: grid;
   gap: var(--p-space-2);
   color: var(--p-inverse-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .conclusion {
@@ -905,7 +905,7 @@
   margin: var(--p-space-3) 0 0;
   max-width: 58ch;
   color: var(--p-text-muted);
-  line-height: var(--p-leading-body);
+  line-height: var(--p-leading);
 }
 
 .conclusionQuiet {
