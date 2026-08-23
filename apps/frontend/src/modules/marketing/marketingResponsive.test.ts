@@ -378,3 +378,57 @@ describe("the stacked footer is tighter than the laid-out one", () => {
     expect(wide).toMatch(/\.footerInner\s*\{[^}]*padding-block:\s*var\(--p-space-7\)/);
   });
 });
+
+/**
+ * The section number on a phone.
+ *
+ * Beside the title, the number column and its gap held 55px for the width of
+ * the whole section, so at 375px a heading and its lead were measured to 272px
+ * while the paragraphs under them had the full 327px.
+ */
+describe("the section number stops narrowing the phone column", () => {
+  const phone = plan.mediaBlocks(480).find((body) => /\.sectionHead\b/.test(body));
+
+  it("has a phone block for the section head", () => {
+    expect(phone).toBeDefined();
+  });
+
+  it("drops to a single column there", () => {
+    // One column puts the number on its own line above the title, which gives
+    // the title and lead the same measure as the prose beneath them.
+    expect(phone).toMatch(/grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  });
+
+  it("keeps two columns as the default", () => {
+    expect(plan.rule(".sectionHead")).toMatch(/grid-template-columns:\s*auto\s+minmax\(0,\s*1fr\)/);
+  });
+
+  it("drops the optical nudge that only applies beside the title", () => {
+    // The 3px is for sitting level with cap height, not above it.
+    expect(phone).toMatch(/\.sectionIndex\s*\{[^}]*padding-top:\s*0/);
+  });
+});
+
+/**
+ * The stacked hero.
+ *
+ * The process rail is the second half of the hero's argument, not a section
+ * that follows it. At 48px of grid gap plus the demo's own optical padding it
+ * opened 56px below the calls to action.
+ */
+describe("the stacked hero holds together", () => {
+  it("uses the tighter gap when the halves are stacked", () => {
+    expect(pages.rule(".heroInner")).toMatch(/gap:\s*var\(--p-space-6\)/);
+  });
+
+  it("keeps the wider gap once they sit side by side", () => {
+    const wide = pages.source.slice(pages.source.indexOf("@media (min-width: 1024px)"));
+    expect(wide).toMatch(/\.heroInner\s*\{[^}]*gap:\s*var\(--p-space-8\)/);
+  });
+
+  it("only applies the demo's optical padding in the two-column layout", () => {
+    expect(pages.rule(".heroDemo")).toMatch(/padding-top:\s*0/);
+    const wide = pages.source.slice(pages.source.indexOf("@media (min-width: 1024px)"));
+    expect(wide).toMatch(/\.heroDemo\s*\{[^}]*padding-top:\s*var\(--p-space-2\)/);
+  });
+});

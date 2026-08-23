@@ -84,7 +84,7 @@
 
 .submit {
   width: 100%;
-  min-height: 44px;
+  min-height: var(--p-control-lg);
   margin-top: var(--p-space-5);
   background: var(--p-primary);
   border: 1px solid var(--p-primary);
@@ -113,6 +113,18 @@
   font-size: var(--p-text-sm);
 }
 
+/* 44px to aim at; see the shell's own overlay for why it is not padding. */
+.footerNote a {
+  position: relative;
+}
+
+.footerNote a::after {
+  content: "";
+  position: absolute;
+  inset-block: -15px;
+  inset-inline: 0;
+}
+
 /* ---------- success ---------- */
 
 .success {
@@ -139,7 +151,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: var(--p-control-lg);
   padding-inline: var(--p-space-5);
   background: var(--p-primary);
   border-radius: var(--p-radius);

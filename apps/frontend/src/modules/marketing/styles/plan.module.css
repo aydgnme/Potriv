@@ -127,6 +127,29 @@
   margin-bottom: var(--p-space-5);
 }
 
+/*
+  On a phone the number goes above the title instead of beside it.
+
+  Beside it, the number column plus its gap held 55px for the width of the
+  whole section — so at 375px the heading and its lead were measured to 272px
+  while the paragraphs under them had the full 327px. The narrower column broke
+  the lead into 30-odd character lines and made every page taller for a reading
+  aid that occupies one line on its own.
+
+  It stays a reading aid either way: same text, same order, one row higher.
+*/
+@media (max-width: 480px) {
+  .sectionHead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--p-space-2);
+  }
+
+  .sectionIndex {
+    /* The optical nudge is for sitting beside cap height, not above it. */
+    padding-top: 0;
+  }
+}
+
 .sectionIndex {
   color: var(--p-text-muted);
   font-family: var(--p-font-mono);

@@ -25,7 +25,13 @@
 */
 .heroInner {
   display: grid;
-  gap: var(--p-space-7);
+  /*
+    Stacked, the two halves are one argument continuing, not two blocks. At 48px
+    plus the demo's own optical nudge the process rail opened 56px below the
+    calls to action — far enough down a 375px screen that the hero read as
+    finished and the rail as something else that happened to follow.
+  */
+  gap: var(--p-space-6);
   align-items: start;
 }
 
@@ -37,7 +43,14 @@
 }
 
 .heroDemo {
-  padding-top: var(--p-space-2);
+  padding-top: 0;
+}
+
+@media (min-width: 1024px) {
+  .heroDemo {
+    /* Optical alignment with the text column, which only exists side by side. */
+    padding-top: var(--p-space-2);
+  }
 }
 
 .heroEyebrow {
