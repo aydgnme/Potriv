@@ -6,7 +6,7 @@ import { managerChoices, type ManagerChoices } from "../model/managerChoices";
 import {
   getDepartment,
   getDepartments,
-  getOrganizationInvite,
+  getOrganizationInvites,
   getOrganizationMembers,
   type Loaded,
 } from "./organizationDataSources";
@@ -25,20 +25,18 @@ export type OrganizationOverview = {
 };
 
 /**
- * A missing invite is not a failure.
+ * The organization's outstanding invitations.
  *
- * `GET /organizations/current/invite` answers 404 when none is active, which is
- * an ordinary state with an obvious next step, not an error to apologise for.
+ * An empty list is an ordinary state with an obvious next step — nobody has
+ * been invited yet — so it is not modelled as a failure and not apologised for.
  */
 export type InviteState =
-  | { readonly kind: "ready"; readonly invite: OrganizationInvite }
-  | { readonly kind: "none" }
+  | { readonly kind: "ready"; readonly invites: readonly OrganizationInvite[] }
   | { readonly kind: "error" };
 
 async function loadInvite(): Promise<InviteState> {
-  const outcome = await getOrganizationInvite();
-  if (outcome.ok) return { kind: "ready", invite: outcome.value };
-  if (outcome.reason === "NOT_FOUND") return { kind: "none" };
+  const outcome = await getOrganizationInvites();
+  if (outcome.ok) return { kind: "ready", invites: outcome.value };
   return { kind: "error" };
 }
 

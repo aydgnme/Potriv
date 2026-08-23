@@ -30,6 +30,9 @@ export const EMPTY_MANAGER_STATE: ManagerActionState = {};
 export type InviteActionState = {
   readonly error?: string;
   readonly done?: string;
+  /** Kept so a rejected address can be corrected rather than retyped. */
+  readonly email?: string;
+  readonly fieldError?: string;
 };
 
 export const EMPTY_INVITE_STATE: InviteActionState = {};

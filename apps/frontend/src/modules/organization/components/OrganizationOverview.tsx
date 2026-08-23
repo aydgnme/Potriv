@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Alert } from "@/shared/ui/Alert";
-import { formatDate } from "@/shared/utils/formatDate";
 
 import type { OrganizationOverview as Overview } from "../server/loadOrganization";
 
@@ -46,29 +45,30 @@ export function OrganizationOverview({ overview }: OrganizationOverviewProps) {
 
       <section className={styles.panel} aria-labelledby="overview-invite">
         <h2 className={styles.panelHeading} id="overview-invite">
-          Invite link
+          Invitations
         </h2>
 
         {overview.invite.kind === "ready" ? (
           <dl className={styles.figures}>
             <div className={styles.figureRow}>
-              <dt>Status</dt>
-              <dd>{overview.invite.invite.active ? "Active" : "Inactive"}</dd>
+              <dt>Waiting to be accepted</dt>
+              <dd className={styles.numeric}>
+                {overview.invite.invites.filter((entry) => entry.status === "PENDING").length}
+              </dd>
             </div>
             <div className={styles.figureRow}>
-              <dt>Created</dt>
-              <dd>{formatDate(overview.invite.invite.createdAt) ?? "Not recorded"}</dd>
+              <dt>Issued in total</dt>
+              <dd className={styles.numeric}>{overview.invite.invites.length}</dd>
             </div>
           </dl>
-        ) : overview.invite.kind === "none" ? (
-          <p className={styles.panelNote}>No active employee invite is available.</p>
         ) : (
-          <p className={styles.panelNote}>Could not load the invite link. Try again shortly.</p>
+          <p className={styles.panelNote}>Could not load invitations. Try again shortly.</p>
         )}
 
-        {/* The link itself lives on its own page; a landing summary is the wrong
-            place to put a joining credential in front of somebody. */}
-        <Link href="/organization/invite">Open invite</Link>
+        {/* Counts only. Who was invited is on the invitations page, where the
+            addresses are masked; a landing summary is the wrong place to list
+            people who have not joined yet. */}
+        <Link href="/organization/invite">Open invitations</Link>
       </section>
 
       <section className={styles.panel} aria-labelledby="overview-team-roles">
