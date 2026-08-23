@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { LandingPage } from "@/modules/marketing";
+import { HomePage } from "@/modules/marketing";
 
 /**
  * The public entry point.
@@ -25,9 +25,10 @@ export const metadata: Metadata = {
   description:
     "Potriv connects project requirements with your organization's people, " +
     "skills, roles and real availability — then keeps staffing decisions " +
-    "explicit and reviewable.",
+    "explicit and reviewable. Read the operating problem, the model, and the " +
+    "four chapters that explain how a requirement becomes a reviewed allocation.",
 };
 
 export default function Page() {
-  return <LandingPage />;
+  return <HomePage />;
 }

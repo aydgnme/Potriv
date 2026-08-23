@@ -36,7 +36,7 @@
 .viewLink[aria-current="page"] {
   color: var(--p-text);
   font-weight: var(--p-weight-medium);
-  border-bottom-color: var(--p-link);
+  border-bottom-color: var(--p-accent);
 }
 
 /* ── Catalogue layout ────────────────────────────────────────────────────── */
@@ -143,7 +143,7 @@
   justify-content: space-between;
   gap: var(--p-space-3);
   padding: var(--p-space-2) 0;
-  border-bottom: 1px solid var(--p-border-subtle);
+  border-bottom: 1px solid var(--p-border);
 }
 
 .figureRow:last-child { border-bottom: none; }
@@ -165,7 +165,7 @@
 .linkButton {
   padding: 0;
   font: inherit;
-  color: var(--p-link);
+  color: var(--p-accent);
   background: none;
   border: none;
   cursor: pointer;

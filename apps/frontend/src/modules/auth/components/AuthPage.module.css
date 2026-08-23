@@ -33,3 +33,18 @@
   margin-top: var(--p-space-4);
   font-size: var(--p-text-sm);
 }
+
+/*
+  44px to aim at, without making the text bigger or the form taller. Same
+  overlay the shell uses on its own secondary links.
+*/
+.footerLink a {
+  position: relative;
+}
+
+.footerLink a::after {
+  content: "";
+  position: absolute;
+  inset-block: -15px;
+  inset-inline: 0;
+}

@@ -14,6 +14,26 @@
   color: var(--p-text);
   /* A wide topology panel must never turn a 320px screen into a scrollable one. */
   overflow-x: hidden;
+
+  /*
+    One control standard for the five public auth routes.
+
+    The product's own values are deliberately dense — 34px fields and 40px
+    buttons suit screens showing tables and rows of data. These five are the
+    opposite kind of screen: one short form, often on a phone, often the
+    visitor's first contact with Potriv. At the product's sizes the sign-in
+    fields were 34px against marketing calls to action of 48px, and the 14px
+    field text is under the size at which iOS zooms the page on focus.
+
+    Redefined on this root rather than in `tokens.css`, which every
+    authenticated screen reads. These cascade only into the auth shell, so the
+    dense product keeps its density, and sign-in and create-workspace stop
+    disagreeing with each other about how tall a control is.
+  */
+  --p-control: 48px;
+  --p-control-lg: 48px;
+  --p-text-base: 1rem;
+  --p-text-sm: 0.875rem;
 }
 
 @media (min-width: 900px) {
@@ -122,6 +142,7 @@
 }
 
 .wordmark {
+  position: relative;
   display: inline-block;
   margin-bottom: var(--p-space-6);
   color: var(--p-text);
@@ -129,6 +150,30 @@
   font-weight: var(--p-weight-bold);
   letter-spacing: 0.06em;
   text-decoration: none;
+}
+
+/*
+  A 44px target on links whose text is smaller than that.
+
+  The overlay grows what a finger has to hit without growing the box, so the
+  form's vertical rhythm is unchanged and small type stays small — which is
+  what these links should be. Used on the wordmark and on the secondary links
+  under each form.
+*/
+.wordmark::after,
+.footer a::after {
+  content: "";
+  position: absolute;
+  inset-block: -11px;
+  inset-inline: 0;
+}
+
+.footer a {
+  position: relative;
+}
+
+.footer a::after {
+  inset-block: -15px;
 }
 
 .wordmark:hover {

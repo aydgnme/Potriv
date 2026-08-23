@@ -1,0 +1,779 @@
+/**
+ * The business-plan chapters.
+ *
+ * An operating-plan look built from the tokens the product already has: rules
+ * rather than boxes, numbered parts, ledgers and a matrix. Nothing here is a
+ * gradient, a shadow or a card for its own sake — a page where every sentence
+ * is boxed reads as a brochure, and these pages are meant to read as a document
+ * somebody has to make a decision from.
+ */
+
+.container {
+  composes: container from "./landing.module.css";
+}
+
+/* ---------- chapter opening ---------- */
+
+/*
+  The same warm ground the homepage opens on, so arriving at a chapter feels
+  like arriving somewhere in the same publication rather than at a different
+  site. The sections beneath it then alternate, which is what makes a boundary
+  legible without a rule across it.
+*/
+.chapterHead {
+  --ground-text: var(--p-text);
+  --ground-muted: var(--p-text-muted);
+  --ground-brand: var(--p-brand);
+  --ground-line: var(--p-border);
+  padding-block: var(--p-space-9) var(--p-space-8);
+  border-bottom: 1px solid var(--p-border);
+  background: var(--p-surface-warm);
+}
+
+.chapterHeadDark .chapterNumber,
+.chapterHeadDark .chapterLabel {
+  /* Measured: --p-brand on this ground is 2.92:1, which is not text contrast.
+     --p-inverse-brand is the token for brand-coloured text here. */
+  color: var(--p-inverse-brand);
+}
+
+.chapterHeadDark {
+  composes: chapterHead;
+  --ground-text: var(--p-inverse-text);
+  --ground-muted: var(--p-inverse-text-muted);
+  --ground-brand: var(--p-inverse-brand);
+  --ground-line: var(--p-inverse-border);
+  border-bottom-color: transparent;
+  /* The same surface as the section below it: two inverse tokens meeting here
+     left a visible seam, and the inverse text ratios are set against this one. */
+  background: var(--p-inverse-bg);
+}
+
+.chapterMark {
+  display: flex;
+  align-items: baseline;
+  gap: var(--p-space-3);
+  margin: 0 0 var(--p-space-3);
+}
+
+.chapterNumber {
+  color: var(--p-brand);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.chapterLabel {
+  color: var(--p-brand);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapterTitle {
+  margin: 0;
+  max-width: 20ch;
+  /*
+    A chapter's own title is the strongest text on its page, and `--p-display-2`
+    tops out at 36px — the size this scale gives a *section* heading. Set a rung
+    under the homepage's 64px, so the four chapters read as parts of the same
+    publication without competing with its opening.
+  */
+  font-size: clamp(1.875rem, 1.35rem + 2.4vw, 3.25rem);
+  font-weight: var(--p-weight-bold);
+  line-height: var(--p-leading-display);
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.chapterTitleDark {
+  composes: chapterTitle;
+  color: var(--p-inverse-text);
+}
+
+/* The question the reader arrived with, set apart from the prose that answers it. */
+.chapterQuestion {
+  margin: var(--p-space-4) 0 0;
+  padding-left: var(--p-space-4);
+  border-left: 2px solid var(--p-brand);
+  max-width: 60ch;
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+}
+
+.chapterQuestionDark {
+  composes: chapterQuestion;
+  color: var(--p-inverse-text);
+}
+
+.chapterLead {
+  margin: var(--p-space-4) 0 0;
+  max-width: 62ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+.chapterLeadDark {
+  composes: chapterLead;
+  color: var(--p-inverse-text-muted);
+}
+
+/* ---------- numbered part of a chapter ---------- */
+
+/*
+  Ground-aware text colours.
+
+  A section's content should not have to know which ground it is on, and it
+  cannot be told with a descendant selector: these classes live in one CSS
+  module and the page's own classes live in another, so their names are hashed
+  apart. Custom properties are not — they cascade straight through. So each
+  ground declares what "text" and "muted" mean on it, and every page class asks
+  for `--ground-text` rather than naming a palette entry it cannot check.
+
+  `--p-text-subtle` is deliberately absent. It is measured against white and
+  falls to 4.32:1 on the neutral, so it has no ground-aware value to give.
+*/
+.section {
+  --ground-text: var(--p-text);
+  --ground-muted: var(--p-text-muted);
+  --ground-brand: var(--p-brand);
+  --ground-line: var(--p-border);
+  padding-block: var(--p-space-7);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.sectionDark {
+  composes: section;
+  --ground-text: var(--p-inverse-text);
+  --ground-muted: var(--p-inverse-text-muted);
+  /* 8.92:1 here; --p-brand is 2.92:1 on this ground and is not text contrast. */
+  --ground-brand: var(--p-inverse-brand);
+  --ground-line: var(--p-inverse-border);
+  border-bottom-color: transparent;
+  background: var(--p-inverse-bg);
+  color: var(--p-inverse-text);
+}
+
+/*
+  The quiet ground. Three tones — white, this, charcoal — is what the homepage
+  uses, and it is enough: a reader needs to notice that a section changed, not
+  to identify which of six greys it is.
+*/
+.sectionQuiet {
+  composes: section;
+  background: var(--p-surface-sunken);
+  border-bottom-color: transparent;
+}
+
+.sectionDark .sectionIndex {
+  /* 8.29:1 here, against 2.96:1 for the light-ground muted grey. */
+  color: var(--p-inverse-text-muted);
+}
+
+.sectionHead {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--p-space-4);
+  align-items: start;
+  margin-bottom: var(--p-space-5);
+}
+
+/*
+  On a phone the number goes above the title instead of beside it.
+
+  Beside it, the number column plus its gap held 55px for the width of the
+  whole section — so at 375px the heading and its lead were measured to 272px
+  while the paragraphs under them had the full 327px. The narrower column broke
+  the lead into 30-odd character lines and made every page taller for a reading
+  aid that occupies one line on its own.
+
+  It stays a reading aid either way: same text, same order, one row higher.
+*/
+@media (max-width: 480px) {
+  .sectionHead {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--p-space-2);
+  }
+
+  .sectionIndex {
+    /* The optical nudge is for sitting beside cap height, not above it. */
+    padding-top: 0;
+  }
+}
+
+.sectionIndex {
+  color: var(--p-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-base);
+  /* Optical alignment with the heading's cap height. */
+  padding-top: 3px;
+}
+
+.sectionTitle {
+  margin: 0;
+  max-width: 28ch;
+  /*
+    Fluid, and deliberately below the chapter title at every width.
+
+    It was a fixed size while the `h1` uses a `clamp()` that shrinks with the
+    viewport. In a narrow column the two crossed over — a part heading rendered
+    larger than the page's own title, which inverts the hierarchy exactly where
+    a reader has the least context. This tops out under `--p-display-2`'s
+    minimum, so the crossover cannot happen again.
+  */
+  font-size: clamp(1.25rem, 1.05rem + 0.9vw, 1.75rem);
+  font-weight: var(--p-weight-semibold);
+  line-height: var(--p-leading-heading, 1.2);
+  letter-spacing: -0.01em;
+}
+
+.sectionTitleDark {
+  composes: sectionTitle;
+  color: var(--p-inverse-text);
+}
+
+.sectionLead {
+  margin: var(--p-space-3) 0 0;
+  max-width: 62ch;
+  color: var(--p-text-muted);
+  /*
+    A rung above body copy, matching what `.heroLead` does under the `h1`.
+    It was `--p-text-base` — the same size, weight and muted colour as the
+    paragraphs beneath it, so the standfirst introducing a section was
+    indistinguishable from the section's own prose and did no work.
+  */
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+.sectionLeadDark {
+  composes: sectionLead;
+  color: var(--p-inverse-text-muted);
+}
+
+/* ---------- ledger: problem on the left, response on the right ---------- */
+
+.ledger {
+  margin: 0;
+  border-top: 1px solid var(--p-border);
+}
+
+.ledgerRow {
+  display: grid;
+  gap: var(--p-space-2);
+  padding-block: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+@media (min-width: 768px) {
+  .ledgerRow {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: var(--p-space-6);
+    align-items: baseline;
+  }
+}
+
+.ledgerTerm {
+  margin: 0;
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.ledgerDetail {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-1);
+}
+
+.ledgerResponse {
+  color: var(--p-text-muted);
+  line-height: var(--p-leading);
+}
+
+.ledgerObject {
+  color: var(--p-brand-strong);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+/* ---------- stage rail ---------- */
+
+.rail {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--p-border);
+}
+
+@media (min-width: 900px) {
+  .rail {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    border-top: none;
+  }
+}
+
+.railStage {
+  padding-block: var(--p-space-4);
+  border-bottom: 1px solid var(--p-border);
+}
+
+@media (min-width: 900px) {
+  .railStage {
+    padding: var(--p-space-4) var(--p-space-4) var(--p-space-5) 0;
+    border-top: 2px solid var(--p-brand);
+    border-bottom: none;
+  }
+}
+
+.railNumber {
+  display: block;
+  color: var(--p-brand);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.railName {
+  margin: var(--p-space-2) 0 var(--p-space-1);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+}
+
+.railBody {
+  margin: 0;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-base);
+  line-height: var(--p-leading);
+}
+
+/* ---------- responsibility matrix ---------- */
+
+.matrixScroll {
+  /* Wide content scrolls inside its own container rather than pushing the
+     document sideways. Below the stacking breakpoint there is nothing to
+     scroll, because the table is no longer a grid. */
+  overflow-x: auto;
+}
+
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.matrix th,
+.matrix td {
+  padding: var(--p-space-3);
+  border-bottom: 1px solid var(--p-border);
+  vertical-align: top;
+}
+
+.matrix thead th {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+  font-weight: var(--p-weight-semibold);
+  /* Wrapping, not nowrap: six column names on one line is what makes a table
+     set the page width. */
+  white-space: normal;
+}
+
+.matrix tbody th {
+  color: var(--p-text);
+  font-weight: var(--p-weight-semibold);
+}
+
+.matrixYes {
+  color: var(--p-brand-strong);
+  font-weight: var(--p-weight-semibold);
+}
+
+.matrixNo {
+  color: var(--p-text-muted);
+}
+
+/*
+  The matrix stays a grid only where the grid actually fits.
+
+  Its eight columns need 772px of min-content. Stacking at 767px meant a 768px
+  viewport — 704px of content — rendered the full table and hid roughly 68px of
+  it behind a scroll container the reader had no reason to look for. 849px is the
+  last width where the content column is narrower than the table, so the choice
+  is now between a complete stacked reading and a complete grid, never a grid
+  with columns out of view.
+
+  `.matrixScroll` stays as the backstop: a reader who raises their browser's
+  default font size grows the table's min-content past this calculation, and it
+  has to go somewhere other than the document's width.
+*/
+@media (max-width: 849px) {
+  /* One labelled block per role. The header row stays in the DOM — visually
+     hidden, not removed — so the column names remain available. */
+  .matrix,
+  .matrix tbody,
+  .matrix tr,
+  .matrix td {
+    display: block;
+  }
+
+  .matrix thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .matrix tr {
+    padding-block: var(--p-space-3);
+    border-bottom: 1px solid var(--p-border);
+  }
+
+  .matrix tbody th {
+    display: block;
+    padding-inline: 0;
+    border-bottom: none;
+    font-size: var(--p-text-lg);
+  }
+
+  .matrix td {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--p-space-4);
+    padding-inline: 0;
+    border-bottom: none;
+  }
+
+  /* The column name travels with the cell, so a stacked row still says what
+     each answer is an answer to. */
+  .matrix td::before {
+    content: attr(data-label);
+    color: var(--p-text-muted);
+    font-size: var(--p-text-sm);
+  }
+}
+
+/* ---------- continuation ---------- */
+
+.continuation {
+  padding-block: var(--p-space-6);
+  border-bottom: 1px solid var(--p-border);
+}
+
+.continuationBecause {
+  margin: 0 0 var(--p-space-3);
+  max-width: 58ch;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-lg);
+  line-height: var(--p-leading);
+}
+
+.continuationLink {
+  display: inline-flex;
+  align-items: center;
+  /* 44px minimum target, per 2.5.5. */
+  min-height: 44px;
+  color: var(--p-brand-strong);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-semibold);
+  text-decoration: none;
+}
+
+.continuationLink:hover {
+  text-decoration: underline;
+}
+
+/* ---------- the hero spine ----------
+   The five stages as the first thing a visitor sees the product do. */
+.spine {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0;
+}
+
+.spineStage {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--p-space-3);
+  padding: var(--p-space-3) 0 var(--p-space-3) var(--p-space-5);
+}
+
+/* The spine itself: a rule down the left, drawn behind the marks. */
+.spineStage::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--p-border-strong);
+}
+
+.spineStage:first-child::before {
+  top: 50%;
+}
+
+.spineStage:last-child::before {
+  bottom: 50%;
+}
+
+.spineMark {
+  position: absolute;
+  left: 0;
+  top: calc(50% - 4.5px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--p-surface);
+  border: 1.5px solid var(--p-border-strong);
+}
+
+/*
+  The last stage is the only one that means somebody is on a team, so it is the
+  only filled mark — the same "accepted is different" rule the diagram draws.
+*/
+.spineStage:last-child .spineMark {
+  background: var(--p-brand);
+  border-color: var(--p-brand);
+}
+
+.spineNumber {
+  color: var(--p-text-muted);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-sm);
+}
+
+.spineName {
+  color: var(--p-text);
+  font-size: var(--p-text-lg);
+  font-weight: var(--p-weight-medium);
+}
+
+.spineStage:last-child .spineName {
+  font-weight: var(--p-weight-semibold);
+}
+
+/*
+  Revealed once, in order, then done. `backwards` so the first frame is the
+  pre-animation state rather than a flash of the final one; the animation runs
+  a single time and never loops.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  /*
+    A chapter introduces itself once, in reading order — the same four beats the
+    homepage opens with, a rung quieter because a chapter is arrived at rather
+    than landed on. It is above the fold on every one of these pages, so it runs
+    on load.
+  */
+  .chapterMark,
+  .chapterTitle,
+  .chapterTitleDark,
+  .chapterQuestion,
+  .chapterQuestionDark,
+  .chapterLead,
+  .chapterLeadDark {
+    animation: chapter-rise 340ms var(--p-ease) backwards;
+  }
+
+  .chapterMark {
+    animation-delay: 0ms;
+  }
+
+  .chapterTitle,
+  .chapterTitleDark {
+    animation-delay: 60ms;
+  }
+
+  .chapterQuestion,
+  .chapterQuestionDark {
+    animation-delay: 140ms;
+  }
+
+  .chapterLead,
+  .chapterLeadDark {
+    animation-delay: 200ms;
+  }
+
+  /*
+    Section headings arrive as the reader reaches them, not on load: on these
+    pages the last section sits thousands of pixels down, and a load-time delay
+    would have finished before anyone saw it.
+
+    Only the heading block moves. Scrubbing a whole section's opacity against
+    scroll position would leave its body text part-transparent while it is being
+    read, which trades legibility for an effect.
+
+    Scroll-driven needs no observer and no client component. Where the browser
+    does not support it the headings are simply in their finished state, which
+    is what a reduced-motion reader gets.
+  */
+  @supports (animation-timeline: view()) {
+    .sectionHead {
+      animation: chapter-rise 1ms var(--p-ease) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 18%;
+    }
+  }
+}
+
+@keyframes chapter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /*
+    The rule draws itself, top to bottom, before the stages land on it — the
+    sequence is the claim, so the line that carries it arrives first. Five
+    contiguous segments animated in turn read as one continuous draw, which is
+    why this needs no extra element: each stage already owns its own segment.
+  */
+  .spineStage::before {
+    transform-origin: top;
+    animation: spine-draw 130ms linear backwards;
+    animation-delay: calc(400ms + 130ms * var(--stage-index, 0));
+  }
+
+  /*
+    Each stage's content follows the rule down. The mark, number and name are
+    animated rather than the `li`, so the segment above can draw independently
+    of the row it belongs to.
+  */
+  .spineMark,
+  .spineNumber,
+  .spineName {
+    animation: spine-enter 180ms var(--p-ease, ease-out) backwards;
+    animation-delay: calc(520ms + 100ms * var(--stage-index, 0));
+  }
+
+  /*
+    The last connection settles, and that is the only part of this that is an
+    argument rather than an entrance.
+
+    Review is the step where a proposal either becomes an allocation or does
+    not, so the run into the final stage arrives dashed and closes into a
+    single line. The dashes lengthen into each other rather than cutting: a
+    proposal being agreed, not a style being swapped.
+
+    Both delays stay derived from `--stage-index`, so a sixth stage moves this
+    later on its own.
+  */
+  .spineStage:last-child::before {
+    animation:
+      spine-draw 130ms linear backwards,
+      proposal-settles 320ms var(--p-ease, ease-out) backwards;
+    animation-delay:
+      calc(400ms + 130ms * var(--stage-index, 0)),
+      calc(700ms + 100ms * var(--stage-index, 0));
+  }
+
+  /*
+    One animation, not two, because the entrance and the acceptance both drive
+    `transform` on this mark. As separate animations the second one's backwards
+    fill would hold its first frame over the first one's, and the last stage
+    would arrive without the fade the other four get.
+
+    It ends on the mark's own resting style — filled, brand — so a reader who
+    never sees the motion is looking at the same thing.
+  */
+  .spineStage:last-child .spineMark {
+    animation: allocation-accepted 700ms var(--p-ease, ease-out) backwards;
+    animation-delay: calc(520ms + 100ms * var(--stage-index, 0));
+  }
+}
+
+@keyframes spine-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes spine-draw {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/*
+  Dashed to solid by closing the gaps, so the two states interpolate instead of
+  cutting. Both frames are the same kind of gradient for that reason. The
+  colour is the structural line's, not the diagram's proposal teal: this says
+  "not settled yet", and the acceptance itself is carried by the mark.
+*/
+@keyframes proposal-settles {
+  0%,
+  55% {
+    background-color: transparent;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--p-border-strong) 0 4px,
+      transparent 4px 9px
+    );
+  }
+  100% {
+    background-color: var(--p-border-strong);
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--p-border-strong) 0 9px,
+      transparent 9px 9px
+    );
+  }
+}
+
+/*
+  The last stage arrives like the others, waits, then fills. One pulse: it marks
+  the single moment on this page where somebody is actually on a team.
+*/
+@keyframes allocation-accepted {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+    background: var(--p-surface);
+    border-color: var(--p-border-strong);
+  }
+  26% {
+    opacity: 1;
+    transform: none;
+    background: var(--p-surface);
+    border-color: var(--p-border-strong);
+  }
+  50% {
+    background: var(--p-surface);
+    border-color: var(--p-border-strong);
+  }
+  51% {
+    background: var(--p-brand);
+    border-color: var(--p-brand);
+  }
+  68% {
+    transform: scale(1.45);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    background: var(--p-brand);
+    border-color: var(--p-brand);
+  }
+}
