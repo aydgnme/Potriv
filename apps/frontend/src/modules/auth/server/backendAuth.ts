@@ -347,27 +347,47 @@ export async function registerWithInvite(
     return { ok: true, value: { userId, organizationId } };
   }
 
-  // An unknown token. Never distinguished from an expired one.
+  /*
+    Classified by code, never by prose.
+
+    This used to match the backend's message against `/invite/i`. The backend's
+    sentence is "This invitation is not valid." — which happens to contain
+    "invit", so the match worked by luck — and any rewording or translation
+    would have silently reclassified a dead invitation as a validation error,
+    putting the reader back in a form that can never succeed. A message is
+    written for a person; a code is written for this branch.
+  */
   if (response.status === 404) {
     return { ok: false, failure: "INVITE_INVALID", message: INVITE_INVALID_MESSAGE };
   }
 
   if (response.status === 400) {
     const body: unknown = await response.json().catch(() => null);
-    const detail = safeBackendMessage(body);
-    // The backend uses 400 both for a dead token and for a taken email. Only the
-    // email case may be reported specifically; anything token-shaped collapses.
-    if (detail && /invite/i.test(detail)) {
+    if (backendErrorCode(body) === "INVITE_INVALID") {
       return { ok: false, failure: "INVITE_INVALID", message: INVITE_INVALID_MESSAGE };
     }
     return {
       ok: false,
       failure: "VALIDATION",
-      message: detail ?? "Check the details and try again.",
+      message: safeBackendMessage(body) ?? "Check the details and try again.",
     };
   }
 
   return { ok: false, failure: "SERVER", message: GENERIC_SERVER_MESSAGE };
+}
+
+/**
+ * The backend's stable failure identifier, if it sent one.
+ *
+ * Read defensively: this crosses a service boundary, so the field may be
+ * absent, null, or not a string, and none of those is an error worth
+ * reporting — they simply mean "no code", which falls through to the generic
+ * branch.
+ */
+function backendErrorCode(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const code = (body as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
 }
 
 /** One sentence for every dead invite, whatever killed it. */

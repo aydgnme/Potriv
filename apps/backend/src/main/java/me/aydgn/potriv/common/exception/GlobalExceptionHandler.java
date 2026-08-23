@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
         BadRequestException exception,
         HttpServletRequest request
     ) {
-        return build(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+        return build(HttpStatus.BAD_REQUEST, exception.getMessage(), request, exception.getCode());
     }
 
     @ExceptionHandler(UnauthorizedException.class)
@@ -94,13 +94,23 @@ public class GlobalExceptionHandler {
         String message,
         HttpServletRequest request
     ) {
+        return build(status, message, request, null);
+    }
+
+    private ResponseEntity<ApiErrorResponse> build(
+        HttpStatus status,
+        String message,
+        HttpServletRequest request,
+        String code
+    ) {
         return ResponseEntity.status(status).body(
             new ApiErrorResponse(
                 OffsetDateTime.now(),
                 status.value(),
                 status.getReasonPhrase(),
                 message,
-                request.getRequestURI()
+                request.getRequestURI(),
+                code
             )
         );
     }

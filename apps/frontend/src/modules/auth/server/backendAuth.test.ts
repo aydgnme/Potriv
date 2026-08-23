@@ -98,3 +98,79 @@ describe("forwarding a password reset", () => {
     expect(JSON.parse(String(init.body)).token).toBe(RESET_TOKEN);
   });
 });
+
+describe("classifying an invitation failure", () => {
+  /**
+   * The envelope below is the backend's real one — the field names and order
+   * `ApiErrorResponse` serialises — rather than a shape invented here. A
+   * contract test that asserts against a hand-written body proves the two ends
+   * agree with the test, not with each other.
+   */
+  function backendError(overrides: Record<string, unknown> = {}) {
+    return {
+      timestamp: "2026-08-24T00:00:00.000+00:00",
+      status: 400,
+      error: "Bad Request",
+      message: "This invitation is not valid.",
+      path: "/auth/register-employee",
+      code: "INVITE_INVALID",
+      ...overrides,
+    };
+  }
+
+  async function classify(body: unknown, status = 400) {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => body,
+    }));
+    return registerWithInvite(
+      TOKEN, { name: "Ada", email: "ada@example.com", password: "correct-horse" }, null,
+    );
+  }
+
+  it("reads the code, not the sentence", async () => {
+    const outcome = await classify(backendError());
+
+    expect(outcome).toMatchObject({ ok: false, failure: "INVITE_INVALID" });
+  });
+
+  it("still classifies when the sentence is reworded or translated", async () => {
+    /*
+      The regression this replaces matched /invite/i against the message. Any
+      rewording — or a translation, which is the realistic case — reclassified a
+      dead invitation as a validation error and put the reader back into a form
+      that could never succeed.
+    */
+    for (const message of [
+      "Bu davet geçerli değil.",
+      "Das ist nicht mehr gültig.",
+      "Nope.",
+    ]) {
+      const outcome = await classify(backendError({ message }));
+      expect(outcome).toMatchObject({ failure: "INVITE_INVALID" });
+    }
+  });
+
+  it("does not classify by prose when the code says otherwise", async () => {
+    // A genuine validation failure that happens to mention an invitation.
+    const outcome = await classify(
+      backendError({ code: undefined, message: "The invite form is incomplete." }),
+    );
+
+    expect(outcome).toMatchObject({ failure: "VALIDATION" });
+  });
+
+  it("falls back safely when the backend sends no code at all", async () => {
+    const outcome = await classify(backendError({ code: undefined }));
+
+    expect(outcome).toMatchObject({ ok: false, failure: "VALIDATION" });
+  });
+
+  it("reports one message to the browser whatever the backend said", async () => {
+    const outcome = await classify(backendError({ message: "consumed at 12:04 by ada@x" }));
+
+    expect(JSON.stringify(outcome)).not.toContain("12:04");
+    expect(JSON.stringify(outcome)).not.toContain("ada@x");
+  });
+});

@@ -4,6 +4,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import me.aydgn.potriv.common.exception.ErrorCodes;
 import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.security.TokenDigest;
@@ -174,7 +175,7 @@ public class AuthRegistrationService {
      * through the audit trail instead.
      */
     private static BadRequestException invalidInviteException() {
-        return new BadRequestException("This invitation is not valid.");
+        return new BadRequestException("This invitation is not valid.", ErrorCodes.INVITE_INVALID);
     }
 
     private void ensureEmailIsAvailable(String email) {
