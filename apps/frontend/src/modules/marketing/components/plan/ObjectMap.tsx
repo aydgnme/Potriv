@@ -70,6 +70,49 @@ export function ObjectMap() {
         <Node x={260} y={282} label="Allocation" detail="puts somebody on a team" accepted />
       </svg>
 
+      {/*
+        The narrow composition. Same five objects, same two line states, no
+        second line on each node: at this width the details would be five pixels
+        tall, and they are in the list underneath anyway. What is not in the
+        list — which object reaches which — is exactly what survives here.
+      */}
+      <svg className={pages.objectMapNarrow} viewBox="0 0 320 296" aria-hidden="true">
+        <text className={styles.stage} x="8" y="12">
+          WHO
+        </text>
+        <NarrowNode x={8} y={20} label="Department" />
+        <line className={styles.structure} x1="78" y1="56" x2="78" y2="76" />
+        <NarrowNode x={8} y={76} label="Person" />
+        <line className={styles.structure} x1="78" y1="112" x2="78" y2="132" />
+        <NarrowNode x={8} y={132} label="Skill" sunken />
+
+        <text className={styles.stage} x="172" y="12">
+          WHAT
+        </text>
+        <NarrowNode x={172} y={20} label="Project" />
+        <line className={styles.structure} x1="242" y1="56" x2="242" y2="76" />
+        <NarrowNode x={172} y={76} label="Requirement" />
+
+        {/*
+          Both halves reach the proposal, and only the proposal.
+
+          They leave from each column's inner edge and meet in the gutter
+          between them. Dropping straight down from the person instead ran the
+          dashed line through the skill node — an edge crossing an object it has
+          no relationship with, which is the one thing a map like this must not
+          do.
+        */}
+        <path className={styles.proposed} d="M148 94 H160 V188" />
+        <path className={styles.proposed} d="M172 94 H160 V188" />
+
+        <text className={styles.stage} x="92" y="180">
+          THE JOIN
+        </text>
+        <NarrowNode x={92} y={188} label="Proposal" width={136} />
+        <path className={styles.accepted} d="M160 224 V244" />
+        <NarrowNode x={92} y={244} label="Allocation" width={136} accepted />
+      </svg>
+
       <figcaption className={pages.objectMapCaption}>
         A proposal is the only object that touches both halves
       </figcaption>
@@ -110,6 +153,40 @@ function Node({
       </text>
       <text className={styles.labelMono} x={x + 14} y={y + 35}>
         {detail}
+      </text>
+    </g>
+  );
+}
+
+/** A node at narrow width: the object's name, and nothing that would not read. */
+function NarrowNode({
+  x,
+  y,
+  label,
+  width = 140,
+  sunken,
+  accepted,
+}: {
+  readonly x: number;
+  readonly y: number;
+  readonly label: string;
+  readonly width?: number;
+  readonly sunken?: boolean;
+  readonly accepted?: boolean;
+}) {
+  return (
+    <g>
+      <rect
+        className={sunken ? styles.nodeSunken : styles.node}
+        x={x}
+        y={y}
+        width={width}
+        height={36}
+        rx="3"
+      />
+      {accepted ? <rect className={styles.rowMark} x={x + 1} y={y + 6} width="3" height="24" /> : null}
+      <text className={styles.label} x={x + 12} y={y + 23}>
+        {label}
       </text>
     </g>
   );

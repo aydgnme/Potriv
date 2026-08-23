@@ -537,13 +537,22 @@ describe("leads read above body copy", () => {
  */
 describe("desktop navigation links are worth aiming at", () => {
   it("carries an overlay that reaches 44px", () => {
-    // 24px of text plus 10px above and below. An overlay rather than padding:
-    // see the rule's own comment for why the box itself cannot grow.
+    /*
+      The link's own box is a shade under 24px, so the inset has to be 11px
+      each side rather than 10: at 10 the target hit-tested at 43px, which
+      arithmetic on a rounded box height had reported as 44.
+
+      Asserted as a minimum rather than an exact value, so the next person to
+      adjust it cannot quietly go back under the line.
+    */
     const overlay = header.rule(".navLink::after");
 
     expect(overlay).toMatch(/content:\s*""/);
     expect(overlay).toMatch(/position:\s*absolute/);
-    expect(overlay).toMatch(/inset-block:\s*-10px/);
+
+    const inset = overlay.match(/inset-block:\s*-(\d+)px/);
+    expect(inset, "the nav overlay has no inset").not.toBeNull();
+    expect(Number(inset![1])).toBeGreaterThanOrEqual(11);
   });
 
   it("keeps the link positioned so the overlay has something to sit on", () => {

@@ -942,9 +942,17 @@
 }
 
 /*
-  Wide by nature: two halves and the join between them. Below the point where
-  its labels stop being legible the list underneath carries every object and
-  every relationship it draws, so it goes rather than scrolls sideways.
+  Two compositions, not one drawing scaled.
+
+  The wide one is 700 units across and a 768px viewport gives 704px of content,
+  so it renders at its designed size there — an earlier 900px breakpoint held it
+  back for no reason and left tablets reading text where a desktop reader saw
+  the model.
+
+  Below that the narrow one takes over: the same five objects and the same two
+  line states, without the second line of detail on each node. Those details are
+  in the list underneath; the relationships are not, and they are what the map
+  is for.
 */
 .objectMapDrawing {
   display: none;
@@ -954,25 +962,30 @@
   margin-inline: auto;
 }
 
-@media (min-width: 900px) {
+.objectMapNarrow {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
   .objectMapDrawing {
     display: block;
+  }
+
+  .objectMapNarrow {
+    display: none;
   }
 }
 
 .objectMapCaption {
-  display: none;
   margin-top: var(--p-space-4);
   color: var(--ground-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
   text-align: center;
-}
-
-@media (min-width: 900px) {
-  .objectMapCaption {
-    display: block;
-  }
 }
 
 /* ---------- the anatomy of a control, on 04 · security ---------- */
@@ -993,9 +1006,21 @@
   height: auto;
 }
 
+/* The same three parts, stacked, for a column too narrow to set them across. */
+.anatomyNarrow {
+  display: block;
+  width: 100%;
+  max-width: 320px;
+  height: auto;
+}
+
 @media (min-width: 768px) {
   .anatomyDrawing {
     display: block;
+  }
+
+  .anatomyNarrow {
+    display: none;
   }
 }
 

@@ -37,6 +37,19 @@ export function ControlAnatomy() {
         />
       </svg>
 
+      {/*
+        The same three parts, stacked, for a column too narrow to set them
+        across. The order is the argument — enforced, checkable, bounded — and
+        it survives a turn of ninety degrees.
+      */}
+      <svg className={pages.anatomyNarrow} viewBox="0 0 320 236" aria-hidden="true">
+        <NarrowPart y={0} label="CONTROL" title="What is enforced" />
+        <path className={pages.anatomyLine} d="M24 66 V82" />
+        <NarrowPart y={82} label="EVIDENCE" title="How you can check it" />
+        <path className={pages.anatomyLine} d="M24 148 V164" />
+        <NarrowPart y={164} label="LIMITATION" title="What it does not claim" bounded />
+      </svg>
+
       <figcaption className={pages.anatomyCaption}>
         Every entry below carries all three. A control without a limitation is a claim.
       </figcaption>
@@ -75,6 +88,38 @@ function Part({
       </text>
       <text className={pages.anatomyDetail} x={x + 26} y="76">
         {detail}
+      </text>
+    </g>
+  );
+}
+
+/** One part, stacked, at narrow width. */
+function NarrowPart({
+  y,
+  label,
+  title,
+  bounded,
+}: {
+  readonly y: number;
+  readonly label: string;
+  readonly title: string;
+  readonly bounded?: boolean;
+}) {
+  return (
+    <g>
+      <text className={pages.anatomyStage} x="14" y={y + 12}>
+        {label}
+      </text>
+      <rect
+        className={bounded ? pages.anatomyNodeBounded : pages.anatomyNode}
+        x="12"
+        y={y + 20}
+        width="296"
+        height="46"
+        rx="3"
+      />
+      <text className={pages.anatomyTitle} x="26" y={y + 48}>
+        {title}
       </text>
     </g>
   );

@@ -96,7 +96,13 @@
 .navLink::after {
   content: "";
   position: absolute;
-  inset-block: -10px;
+  /*
+    11px, not 10. The link's own box is a shade under 24px, so ten each side
+    hit-tested at 43 — short of 44 by a pixel that arithmetic rounded away and
+    a real probe did not. The auth links were corrected to 11px for exactly
+    this and the fix was not carried back here.
+  */
+  inset-block: -11px;
   inset-inline: 0;
 }
 

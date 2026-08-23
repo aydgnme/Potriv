@@ -167,3 +167,43 @@ describe("every chapter page draws something", () => {
     expect(pages.rule(".anatomyNodeBounded")).toMatch(/stroke-dasharray/);
   });
 });
+
+describe("both chapter drawings survive a narrow column", () => {
+  /*
+    They were removed outright below their breakpoints. No information was lost
+    — the text underneath carries it — but the page fell back to being text on
+    exactly the screens where a reader has the least of it.
+
+    Two compositions, not one drawing scaled, the same answer the hero graph
+    uses: the narrow ones drop the second line of detail on each node and keep
+    the relationships, which is the part the list underneath cannot state.
+  */
+  it.each([
+    ["the object map", ".objectMapDrawing", ".objectMapNarrow"],
+    ["the control anatomy", ".anatomyDrawing", ".anatomyNarrow"],
+  ])("gives %s a narrow composition that shows by default", (_label, wide, narrow) => {
+    // Narrow is the default and the wide one is opted into, so a width the
+    // breakpoints do not anticipate still draws something.
+    expect(pages.rule(wide)).toMatch(/display:\s*none/);
+    expect(pages.rule(narrow)).toMatch(/display:\s*block/);
+  });
+
+  it("swaps the object map in as soon as it fits, not a breakpoint later", () => {
+    /*
+      Its viewBox is 700 across and a 768px viewport gives 704px of content, so
+      it renders at its designed size there. Holding the swap at 900px left
+      tablets reading text where a desktop reader saw the model.
+    */
+    const swaps = [...pages.source.matchAll(/@media \(min-width: (\d+)px\)\s*\{([\s\S]*?)\n\}/g)]
+      .filter(([, , body]) => /\.objectMapDrawing\s*\{[^}]*display:\s*block/.test(body));
+
+    expect(swaps.length, "the object map has no swap breakpoint").toBe(1);
+    expect(Number(swaps[0][1])).toBeLessThanOrEqual(768);
+  });
+
+  it("keeps the caption at every width now that a drawing is always shown", () => {
+    // It used to be hidden alongside the wide drawing, which left the narrow
+    // one uncaptioned once that existed.
+    expect(pages.rule(".objectMapCaption")).not.toMatch(/display:\s*none/);
+  });
+});
