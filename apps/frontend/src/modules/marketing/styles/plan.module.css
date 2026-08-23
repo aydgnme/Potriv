@@ -514,9 +514,63 @@
   a single time and never loops.
 */
 @media (prefers-reduced-motion: no-preference) {
-  .spineStage {
-    animation: spine-enter 420ms var(--p-ease, ease-out) backwards;
-    animation-delay: calc(120ms * var(--stage-index, 0));
+  /*
+    The rule draws itself, top to bottom, before the stages land on it — the
+    sequence is the claim, so the line that carries it arrives first. Five
+    contiguous segments animated in turn read as one continuous draw, which is
+    why this needs no extra element: each stage already owns its own segment.
+  */
+  .spineStage::before {
+    transform-origin: top;
+    animation: spine-draw 130ms linear backwards;
+    animation-delay: calc(400ms + 130ms * var(--stage-index, 0));
+  }
+
+  /*
+    Each stage's content follows the rule down. The mark, number and name are
+    animated rather than the `li`, so the segment above can draw independently
+    of the row it belongs to.
+  */
+  .spineMark,
+  .spineNumber,
+  .spineName {
+    animation: spine-enter 180ms var(--p-ease, ease-out) backwards;
+    animation-delay: calc(520ms + 100ms * var(--stage-index, 0));
+  }
+
+  /*
+    The last connection settles, and that is the only part of this that is an
+    argument rather than an entrance.
+
+    Review is the step where a proposal either becomes an allocation or does
+    not, so the run into the final stage arrives dashed and closes into a
+    single line. The dashes lengthen into each other rather than cutting: a
+    proposal being agreed, not a style being swapped.
+
+    Both delays stay derived from `--stage-index`, so a sixth stage moves this
+    later on its own.
+  */
+  .spineStage:last-child::before {
+    animation:
+      spine-draw 130ms linear backwards,
+      proposal-settles 320ms var(--p-ease, ease-out) backwards;
+    animation-delay:
+      calc(400ms + 130ms * var(--stage-index, 0)),
+      calc(700ms + 100ms * var(--stage-index, 0));
+  }
+
+  /*
+    One animation, not two, because the entrance and the acceptance both drive
+    `transform` on this mark. As separate animations the second one's backwards
+    fill would hold its first frame over the first one's, and the last stage
+    would arrive without the fade the other four get.
+
+    It ends on the mark's own resting style — filled, brand — so a reader who
+    never sees the motion is looking at the same thing.
+  */
+  .spineStage:last-child .spineMark {
+    animation: allocation-accepted 700ms var(--p-ease, ease-out) backwards;
+    animation-delay: calc(520ms + 100ms * var(--stage-index, 0));
   }
 }
 
@@ -528,5 +582,76 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes spine-draw {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/*
+  Dashed to solid by closing the gaps, so the two states interpolate instead of
+  cutting. Both frames are the same kind of gradient for that reason. The
+  colour is the structural line's, not the diagram's proposal teal: this says
+  "not settled yet", and the acceptance itself is carried by the mark.
+*/
+@keyframes proposal-settles {
+  0%,
+  55% {
+    background-color: transparent;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--p-border-strong) 0 4px,
+      transparent 4px 9px
+    );
+  }
+  100% {
+    background-color: var(--p-border-strong);
+    background-image: repeating-linear-gradient(
+      to bottom,
+      var(--p-border-strong) 0 9px,
+      transparent 9px 9px
+    );
+  }
+}
+
+/*
+  The last stage arrives like the others, waits, then fills. One pulse: it marks
+  the single moment on this page where somebody is actually on a team.
+*/
+@keyframes allocation-accepted {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+    background: var(--p-surface);
+    border-color: var(--p-border-strong);
+  }
+  26% {
+    opacity: 1;
+    transform: none;
+    background: var(--p-surface);
+    border-color: var(--p-border-strong);
+  }
+  50% {
+    background: var(--p-surface);
+    border-color: var(--p-border-strong);
+  }
+  51% {
+    background: var(--p-brand);
+    border-color: var(--p-brand);
+  }
+  68% {
+    transform: scale(1.45);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    background: var(--p-brand);
+    border-color: var(--p-brand);
   }
 }

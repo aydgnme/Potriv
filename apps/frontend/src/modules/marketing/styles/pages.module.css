@@ -53,6 +53,70 @@
   }
 }
 
+/*
+  The hero introduces itself once, in reading order.
+
+  Eyebrow and title first, then the sentence that explains them, then the two
+  things a reader can do — each a short rise from 10px, overlapping so the
+  block arrives as one movement rather than five. It is over inside half a
+  second, and it never runs again.
+
+  Inside the reduced-motion query with `backwards` fill, so the element's own
+  styles remain the finished state: nothing here waits on JavaScript, and a
+  reader who has asked for less motion gets the whole hero immediately.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  /*
+    Scoped to the hero section, not to the classes.
+
+    `.heroPrimary` and `.heroSecondary` are also the closing call to action
+    2000px down the page. Left unscoped, that pair animated on load too —
+    invisibly, long before anyone scrolled to it, and for no reason: this
+    sequence is an introduction, and there is nothing to introduce down there.
+  */
+  .hero .heroEyebrow,
+  .hero .heroTitle,
+  .hero .heroLead,
+  .hero .heroPrimary,
+  .hero .heroSecondary {
+    animation: hero-rise 360ms var(--p-ease, ease-out) backwards;
+  }
+
+  .hero .heroEyebrow {
+    animation-delay: 0ms;
+  }
+
+  .hero .heroTitle {
+    animation-delay: 40ms;
+  }
+
+  .hero .heroLead {
+    animation-duration: 300ms;
+    animation-delay: 120ms;
+  }
+
+  .hero .heroPrimary {
+    animation-duration: 300ms;
+    animation-delay: 180ms;
+  }
+
+  .hero .heroSecondary {
+    animation-duration: 240ms;
+    animation-delay: 240ms;
+  }
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .heroEyebrow {
   margin: 0;
   color: var(--p-brand);

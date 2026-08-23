@@ -180,52 +180,238 @@ describe("the responsibility matrix survives a phone", () => {
 /**
  * The motion contract.
  *
- * The site had no motion system at all — the only non-zero transition anywhere
- * was a button's background colour. The hero spine now reveals once, in order,
- * to say that the five stages happen in a sequence.
+ * The hero introduces itself once — text in reading order, then the rule drawn
+ * top to bottom, then the five stages landing on it, then the last connection
+ * settling into an accepted allocation.
  *
- * These pin the three rules that keep that from becoming decoration: it runs
- * once rather than looping, it is disabled outright under `prefers-reduced-motion`,
- * and it animates only opacity and transform so it cannot shift layout.
+ * These pin what keeps that from becoming decoration: it runs once rather than
+ * looping, it is disabled outright under `prefers-reduced-motion`, it cannot
+ * shift layout, and the finished state is what the server sends.
  */
-describe("the hero motion says something and then stops", () => {
-  it("reveals each stage after the one above it", () => {
-    const stage = plan.rule(".spineStage");
-    expect(plan.source).toMatch(/@keyframes spine-enter/);
-    // Delay derived from the stage's index, so adding a stage needs no new CSS.
-    expect(plan.source).toMatch(/animation-delay:\s*calc\([^)]*--stage-index/);
-    void stage;
+
+/** The body of every `prefers-reduced-motion: no-preference` block in a file. */
+function motionBlocks(source: string): string[] {
+  const blocks: string[] = [];
+  const marker = "@media (prefers-reduced-motion: no-preference)";
+  let from = 0;
+  for (;;) {
+    const at = source.indexOf(marker, from);
+    if (at === -1) return blocks;
+    let depth = 0;
+    let i = source.indexOf("{", at);
+    const open = i;
+    for (; i < source.length; i++) {
+      if (source[i] === "{") depth++;
+      else if (source[i] === "}" && --depth === 0) break;
+    }
+    blocks.push(source.slice(open + 1, i));
+    from = i;
+  }
+}
+
+describe("motion runs only where it is welcome", () => {
+  it.each([
+    ["the hero spine", () => plan.source],
+    ["the hero text", () => pages.source],
+  ])("keeps every animation in %s inside the reduced-motion query", (_label, read) => {
+    /*
+      Structure-independent on purpose. The previous version named
+      `.spineStage`, and when the animation moved to that stage's children and
+      its `::before` — so the rule could draw independently of the row — the
+      contract still held but the assertion did not.
+    */
+    const source = read();
+    const guarded = motionBlocks(source).join("\n");
+    const declarations = [...source.matchAll(/^\s*animation(?:-delay|-duration)?:/gm)];
+
+    expect(declarations.length, "no animation declarations found").toBeGreaterThan(0);
+    for (const d of declarations) {
+      const line = source.slice(d.index!, source.indexOf(";", d.index!) + 1).trim();
+      expect(guarded, `outside the reduced-motion query: ${line}`).toContain(line);
+    }
   });
 
   it("never loops", () => {
-    expect(plan.source).not.toMatch(/animation[^;]*infinite/);
-    expect(plan.source).not.toMatch(/animation-iteration-count:\s*infinite/);
-  });
-
-  it("animates only opacity and transform", () => {
-    const frames = plan.source.slice(plan.source.indexOf("@keyframes spine-enter"));
-    const block = frames.slice(0, frames.indexOf("}\n}") + 3);
-    for (const property of ["width", "height", "margin", "padding", "top", "left"]) {
-      expect(block).not.toMatch(new RegExp(`\\b${property}:`));
+    for (const source of [plan.source, pages.source]) {
+      expect(source).not.toMatch(/animation[^;]*infinite/);
+      expect(source).not.toMatch(/animation-iteration-count:\s*infinite/);
     }
-    expect(block).toMatch(/opacity:/);
-    expect(block).toMatch(/transform:/);
   });
 
-  it("runs only where motion is welcome", () => {
-    // The animation lives inside the query, so reduced-motion users get the
-    // final state with no opt-out needed and no chance of a stuck first frame.
-    const guarded = plan.source.slice(
-      plan.source.indexOf("@media (prefers-reduced-motion: no-preference)"),
-    );
-    expect(guarded).toMatch(/\.spineStage\s*\{[^}]*animation:/);
+  it("animates nothing that moves the page", () => {
+    // Checked across every keyframe, not just the first one written.
+    const frames = [...plan.source.matchAll(/@keyframes\s+[\w-]+\s*\{/g), ...pages.source.matchAll(/@keyframes\s+[\w-]+\s*\{/g)];
+    expect(frames.length).toBeGreaterThanOrEqual(4);
+
+    for (const source of [plan.source, pages.source]) {
+      for (const m of source.matchAll(/@keyframes\s+([\w-]+)\s*\{/g)) {
+        let depth = 0;
+        let i = source.indexOf("{", m.index!);
+        const open = i;
+        for (; i < source.length; i++) {
+          if (source[i] === "{") depth++;
+          else if (source[i] === "}" && --depth === 0) break;
+        }
+        const body = source.slice(open + 1, i);
+        for (const property of ["width", "height", "margin", "padding", "top", "left", "right", "bottom"]) {
+          expect(body, `@keyframes ${m[1]} animates ${property}`).not.toMatch(
+            new RegExp(`(^|[;{\\s])${property}:`),
+          );
+        }
+      }
+    }
   });
 
   it("sends the finished state, so nothing waits on JavaScript", () => {
-    // `backwards` only affects the pre-delay frame; the element's own styles are
-    // the final state, which is what the server renders.
+    // `backwards` only affects the pre-delay frame; the elements' own styles
+    // are the final state, which is what the server renders.
     expect(plan.rule(".spineStage")).not.toMatch(/opacity:\s*0/);
     expect(plan.rule(".spineName")).not.toMatch(/visibility:\s*hidden/);
+    expect(plan.rule(".spineStage:last-child .spineMark")).toMatch(/background:\s*var\(--p-brand\)/);
+  });
+});
+
+describe("the hero introduces itself in reading order", () => {
+  const hero = motionBlocks(pages.source).join("\n");
+  const delayOf = (selector: string) => {
+    /*
+      Every occurrence, not the first: these selectors also appear at the end of
+      the grouped rule that assigns the shared animation, and `.heroSecondary {`
+      matches that group's closing selector before it matches its own rule.
+    */
+    let from = 0;
+    for (;;) {
+      const at = hero.indexOf(`${selector} {`, from);
+      if (at === -1) return null;
+      const body = hero.slice(at, hero.indexOf("}", at));
+      const m = body.match(/animation-delay:\s*(\d+)ms/);
+      if (m) return Number(m[1]);
+      from = at + 1;
+    }
+  };
+
+  it("starts with the eyebrow and title, then the lead, then the actions", () => {
+    const order = [
+      ".hero .heroEyebrow",
+      ".hero .heroTitle",
+      ".hero .heroLead",
+      ".hero .heroPrimary",
+      ".hero .heroSecondary",
+    ].map((s) => ({ s, d: delayOf(s) }));
+
+    for (const { s, d } of order) expect(d, `${s} has no delay`).not.toBeNull();
+    for (let i = 1; i < order.length; i++) {
+      expect(order[i].d!, `${order[i].s} does not follow ${order[i - 1].s}`)
+        .toBeGreaterThanOrEqual(order[i - 1].d!);
+    }
+  });
+
+  it("is over before the reader could be waiting on it", () => {
+    // Last thing in starts at 240ms and runs 240ms: the block has arrived by
+    // roughly half a second, well before the spine finishes its own sequence.
+    expect(delayOf(".hero .heroSecondary")!).toBeLessThanOrEqual(280);
+  });
+
+  it("introduces only the hero, not the closing call to action", () => {
+    /*
+      `.heroPrimary` and `.heroSecondary` are reused by the closing CTA about
+      2000px down the page. Unscoped, that pair animated on load as well —
+      invisibly, and for nothing.
+    */
+    for (const selector of [".heroPrimary", ".heroSecondary", ".heroEyebrow", ".heroTitle", ".heroLead"]) {
+      const bare = new RegExp(`(^|[,{}\\n])\\s*\\${selector}\\s*[,{]`, "m");
+      expect(hero.match(bare), `${selector} is animated without a .hero scope`).toBeNull();
+    }
+    expect(hero).toMatch(/\.hero \.heroPrimary/);
+  });
+
+  it("rises from below rather than scaling or sliding sideways", () => {
+    const frames = pages.source.slice(pages.source.indexOf("@keyframes hero-rise"));
+    expect(frames).toMatch(/transform:\s*translateY\(10px\)/);
+    expect(frames).toMatch(/opacity:\s*0/);
+  });
+});
+
+describe("the spine draws before the stages land on it", () => {
+  const spine = motionBlocks(plan.source).join("\n");
+
+  it("starts the rule earlier than the stage content", () => {
+    const rule = spine.match(/\.spineStage::before\s*\{[\s\S]*?animation-delay:\s*calc\((\d+)ms/);
+    const content = spine.match(/\.spineName\s*\{[\s\S]*?animation-delay:\s*calc\((\d+)ms/);
+
+    expect(rule, "the rule has no draw delay").not.toBeNull();
+    expect(content, "the stage content has no delay").not.toBeNull();
+    expect(Number(rule![1])).toBeLessThan(Number(content![1]));
+  });
+
+  it("derives every delay from the stage index, so a sixth stage needs no CSS", () => {
+    const delays = [...spine.matchAll(/animation-delay:\s*([^;]+);/g)].map((m) => m[1]);
+    expect(delays.length).toBeGreaterThanOrEqual(4);
+    for (const d of delays) {
+      expect(d, `a delay is not derived from the stage index: ${d}`).toMatch(/--stage-index/);
+    }
+  });
+
+  it("draws the rule with scaleY from its top", () => {
+    expect(spine).toMatch(/transform-origin:\s*top/);
+    expect(plan.source).toMatch(/@keyframes spine-draw[\s\S]*?transform:\s*scaleY\(0\)/);
+  });
+});
+
+describe("the last connection settles into an allocation", () => {
+  it("closes the dashes rather than cutting between two styles", () => {
+    /*
+      Both keyframes are the same kind of gradient so the gaps interpolate
+      shut. A `background-image: none` end frame would jump, which would read
+      as a style swap rather than a proposal being agreed.
+    */
+    const frames = plan.source.slice(plan.source.indexOf("@keyframes proposal-settles"));
+    const body = frames.slice(0, frames.indexOf("\n}\n") + 3);
+    const gradients = [...body.matchAll(/repeating-linear-gradient/g)];
+
+    expect(gradients.length).toBe(2);
+    expect(body).not.toMatch(/background-image:\s*none/);
+  });
+
+  it("ends on the mark's own resting style", () => {
+    // Whatever the animation does in between, it has to land where a
+    // reduced-motion reader already is.
+    const frames = plan.source.slice(plan.source.indexOf("@keyframes allocation-accepted"));
+    const body = frames.slice(0, frames.indexOf("\n}\n") + 3);
+    const last = body.slice(body.lastIndexOf("100%"));
+
+    expect(last).toMatch(/background:\s*var\(--p-brand\)/);
+    expect(last).toMatch(/border-color:\s*var\(--p-brand\)/);
+    expect(last).toMatch(/transform:\s*none/);
+    expect(last).toMatch(/opacity:\s*1/);
+  });
+
+  it("pulses once, and only on the stage that means someone is on a team", () => {
+    const frames = plan.source.slice(plan.source.indexOf("@keyframes allocation-accepted"));
+    const body = frames.slice(0, frames.indexOf("\n}\n") + 3);
+
+    expect([...body.matchAll(/transform:\s*scale\(/g)].length).toBe(1);
+    expect(motionBlocks(plan.source).join("\n"))
+      .toMatch(/\.spineStage:last-child \.spineMark\s*\{[^}]*allocation-accepted/);
+  });
+
+  it("carries the entrance and the acceptance in one animation", () => {
+    /*
+      Two animations on this mark would both drive `transform`, and the
+      second one's backwards fill would hold its first frame over the first
+      one's — the last stage would arrive without the fade the other four get.
+    */
+    const guarded = motionBlocks(plan.source).join("\n");
+    const at = guarded.indexOf(".spineStage:last-child .spineMark {");
+    const body = guarded.slice(at, guarded.indexOf("}", at));
+    const shorthand = body.match(/animation:\s*([^;]+);/);
+
+    expect(shorthand, "the accepted mark has no animation").not.toBeNull();
+    // Counting commas would count the ones inside `var()` and `calc()`.
+    const named = ["spine-enter", "spine-draw", "proposal-settles", "allocation-accepted"]
+      .filter((name) => shorthand![1].includes(name));
+
+    expect(named, "the accepted mark runs more than one animation").toEqual(["allocation-accepted"]);
   });
 });
 
