@@ -1,0 +1,52 @@
+# Code owners.
+#
+# The repository is owned by a single account, so every entry names that
+# account. The file exists for what the ruleset does with it: a pull request
+# touching any path below needs an owner review before it can merge, which
+# means these paths cannot change without someone deliberately looking at them.
+#
+# Owner resolved from the repository's GitHub metadata, not assumed:
+#   gh api repos/aydgnme/Potriv --jq .owner.login  ->  aydgnme
+
+# Everything, as the fallback. Later matches win, so the specific entries
+# below still apply where they overlap.
+*                                                   @aydgnme
+
+# ---- CI and release automation -------------------------------------------
+# A workflow change can disable a required check or exfiltrate a secret, so it
+# is reviewed even when the rest of the change looks routine.
+/.github/                                           @aydgnme
+/.github/workflows/                                 @aydgnme
+
+# ---- Authentication, authorization and session handling ------------------
+# The JWT filter, the security filter chains, the role annotations and the
+# tenant resolver. A quiet edit here changes who can reach what.
+/apps/backend/src/main/java/me/aydgn/potriv/common/security/      @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/admin/security/       @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/identity/service/     @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/identity/entity/      @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/security/             @aydgnme
+# The BFF's cookie, session and same-origin boundary.
+/apps/frontend/src/modules/auth/server/             @aydgnme
+
+# ---- Database migrations --------------------------------------------------
+# Flyway files are append-only in effect: once applied they cannot be edited,
+# only followed by another migration.
+/apps/backend/src/main/resources/db/migration/      @aydgnme
+
+# ---- Production and deployment configuration ------------------------------
+/apps/backend/src/main/resources/application-prod.yml   @aydgnme
+/apps/backend/Dockerfile                                @aydgnme
+/docker-compose.prod.yml                                @aydgnme
+/docker-compose.yml                                     @aydgnme
+/docker-compose.mail.yml                                @aydgnme
+/.env.prod.example                                      @aydgnme
+/.env.mail.example                                      @aydgnme
+
+# ---- Dependency lockfiles -------------------------------------------------
+# The supply chain. A lockfile edit can pull in code nobody reviewed.
+/apps/backend/pom.xml                               @aydgnme
+/apps/frontend/package-lock.json                    @aydgnme
+/apps/frontend/package.json                         @aydgnme
+/tools/api-e2e/package-lock.json                    @aydgnme
+/tools/api-e2e/package.json                         @aydgnme
