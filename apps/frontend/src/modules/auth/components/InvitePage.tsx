@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
@@ -9,6 +10,7 @@ import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 
 import { registerWithInvite } from "../api/authClient";
+import { scrubLocation, tokenFromFragment } from "../model/credentialUrl";
 import {
   INVITE_PASSWORD_MAX,
   INVITE_PASSWORD_MIN,
@@ -46,17 +48,6 @@ import styles from "./AuthPage.module.css";
  */
 
 /**
- * Pulls `token` out of a location fragment.
- *
- * A fragment is not a query string, but it is encoded like one, so the same
- * parser reads it once the leading `#` is dropped.
- */
-function tokenFromFragment(fragment: string): string {
-  const body = fragment.startsWith("#") ? fragment.slice(1) : fragment;
-  return new URLSearchParams(body).get("token") ?? "";
-}
-
-/**
  * Whether the fragment has been read yet. The first render happens before the
  * effect runs, and the token is not knowable then — rendering "this invite is
  * no longer valid" during that gap would tell every legitimate recipient their
@@ -64,33 +55,46 @@ function tokenFromFragment(fragment: string): string {
  */
 type TokenState = "reading" | "present" | "absent";
 
-export function InvitePage() {
+export function InvitePage({ authenticated }: { readonly authenticated: boolean }) {
+  const router = useRouter();
+
   /* Not state: this value must never cause a render, appear in a snapshot, or
      be read by anything except the submit handler. */
   const tokenRef = useRef("");
+  /**
+   * Reading the fragment is destructive — the next line erases it — so it must
+   * happen exactly once. An effect is not guaranteed to run once: React invokes
+   * it twice in development to surface exactly this class of bug, and any
+   * unstable dependency re-runs it in production. A second run would read an
+   * empty fragment and conclude the link was broken.
+   */
+  const consumed = useRef(false);
   const [tokenState, setTokenState] = useState<TokenState>("reading");
 
   useEffect(() => {
+    if (consumed.current) return;
+    consumed.current = true;
+
     tokenRef.current = tokenFromFragment(window.location.hash);
     setTokenState(tokenRef.current ? "present" : "absent");
 
     /**
-     * Take it out of the address bar immediately.
+     * Out of the address bar immediately — the fragment and any credential in
+     * the query string, whether or not this page would have accepted it.
      *
-     * Not because the fragment travels — it does not — but because the address
-     * bar is shared in ways URLs are not: a screenshot, a screen share, a
-     * bookmark, a browser sync, someone reading over a shoulder. The token has
-     * been read into memory by the line above, so the copy in the URL has no
-     * remaining purpose.
-     *
-     * `replaceState` rather than `pushState`, so Back does not restore it.
+     * Not because a fragment travels; it does not. Because an address bar is
+     * shared in ways a request never is: a screenshot, a screen share, a
+     * bookmark, browser sync, someone reading over a shoulder.
      */
-    window.history.replaceState(
-      null,
-      "",
-      window.location.pathname + window.location.search,
-    );
-  }, []);
+    scrubLocation();
+
+    /*
+      Only now is it safe to send a signed-in reader on. Redirecting before this
+      point — which is what the server used to do — carries the fragment to the
+      destination, because a browser reattaches it when the target has none.
+    */
+    if (authenticated) router.replace("/home");
+  }, [authenticated, router]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -140,6 +144,20 @@ export function InvitePage() {
       "Creating your account adds you to the workspace that invited you. What you can see and do there is decided by that organization.",
     topology: "invite",
   } as const;
+
+  if (authenticated) {
+    /*
+      Already signed in, and on the way to /home. The form is never rendered
+      here: registering would create a second account, and the backend would
+      reject the address anyway. This state exists so the redirect has something
+      to show rather than a flash of an invitation form.
+    */
+    return (
+      <PublicAuthShell title="You are already signed in" {...context}>
+        <p className={styles.intro}>Taking you to your workspace…</p>
+      </PublicAuthShell>
+    );
+  }
 
   if (tokenState === "reading") {
     return (

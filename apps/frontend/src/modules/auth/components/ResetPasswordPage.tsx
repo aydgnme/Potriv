@@ -11,6 +11,7 @@ import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 
 import { confirmPasswordReset } from "../api/authClient";
+import { scrubLocation, tokenFromFragment } from "../model/credentialUrl";
 
 import { PublicAuthShell } from "./PublicAuthShell";
 import styles from "./AuthPage.module.css";
@@ -40,21 +41,25 @@ export function ResetPasswordPage() {
 
   /* Not state: this value must never cause a render or appear in a snapshot. */
   const tokenRef = useRef("");
+  /* Reading the fragment erases it, so it must happen exactly once — see the
+     same guard on the invite page. */
+  const consumed = useRef(false);
   const [tokenState, setTokenState] = useState<TokenState>("reading");
 
   useEffect(() => {
-    const fragment = window.location.hash;
-    const body = fragment.startsWith("#") ? fragment.slice(1) : fragment;
-    tokenRef.current = new URLSearchParams(body).get("token") ?? "";
+    if (consumed.current) return;
+    consumed.current = true;
+
+    tokenRef.current = tokenFromFragment(window.location.hash);
     setTokenState(tokenRef.current ? "present" : "absent");
 
-    // Out of the address bar the moment it has been read — a screenshot, a
-    // screen share or a browser sync is how this one would escape, not the wire.
-    window.history.replaceState(
-      null,
-      "",
-      window.location.pathname + window.location.search,
-    );
+    /*
+      Out of the address bar the moment it has been read — the fragment, and any
+      credential in the query string too. A `?token=` link is not accepted here,
+      but refusing to read one is not the same as removing it: the rejected URL
+      used to stay in the address bar, which is the copy that gets shared.
+    */
+    scrubLocation();
   }, []);
 
   const [password, setPassword] = useState("");

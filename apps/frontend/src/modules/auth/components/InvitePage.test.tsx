@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InvitePage } from "./InvitePage";
 
+const routerReplace = vi.fn();
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplace }) }));
+
 /**
  * Joining a workspace by invitation.
  *
@@ -58,7 +61,7 @@ afterEach(() => {
 
 describe("what the invite page shows", () => {
   it("asks for the three fields the backend contract accepts", () => {
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     for (const label of Object.keys(VALID)) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
@@ -66,7 +69,7 @@ describe("what the invite page shows", () => {
   });
 
   it("does not name an organization it cannot safely know", () => {
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     // The backend offers no way to resolve an invite to an organization before
     // registration, so the copy stays deliberately generic.
@@ -85,7 +88,7 @@ describe("what the invite page shows", () => {
     // The token is in the URL going in, so an implementation that echoed it
     // would be caught here rather than passing by never having had it.
     expect(window.location.hash).toContain(TOKEN);
-    const { container } = render(<InvitePage />);
+    const { container } = render(<InvitePage authenticated={false} />);
 
     expect(container.textContent).not.toContain(TOKEN);
     for (const input of container.querySelectorAll("input")) {
@@ -96,7 +99,7 @@ describe("what the invite page shows", () => {
 
   it("treats a missing token exactly like a dead one", () => {
     withTokenInUrl("");
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       /no longer valid/i,
@@ -109,7 +112,7 @@ describe("submitting the form", () => {
   it("does not call the backend when the form is empty", async () => {
     const fetchSpy = mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
@@ -126,7 +129,7 @@ describe("submitting the form", () => {
   it("sends the token through the BFF, never to the backend directly", async () => {
     const fetchSpy = mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -145,7 +148,7 @@ describe("submitting the form", () => {
   it("does not persist the token anywhere in the browser", async () => {
     const fetchSpy = mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -188,7 +191,7 @@ describe("when the invite is dead", () => {
       }),
     });
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -207,7 +210,7 @@ describe("when the invite is dead", () => {
       }),
     });
     const user = userEvent.setup();
-    const { container } = render(<InvitePage />);
+    const { container } = render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -228,7 +231,7 @@ describe("when the invite is dead", () => {
       }),
     });
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -248,7 +251,7 @@ describe("when the address is already taken", () => {
       }),
     });
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -263,7 +266,7 @@ describe("after a successful registration", () => {
   it("names the account that was created", async () => {
     mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -280,7 +283,7 @@ describe("after a successful registration", () => {
   it("does not claim the new employee is signed in", async () => {
     mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -293,7 +296,7 @@ describe("after a successful registration", () => {
   it("survives an unreachable backend without claiming an account", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const user = userEvent.setup();
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -305,7 +308,7 @@ describe("after a successful registration", () => {
 
 describe("what the page does with the token it was given", () => {
   it("removes it from the address bar as soon as it has been read", () => {
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     // The form is on screen, so the token *was* read...
     expect(screen.getByLabelText("Work email")).toBeInTheDocument();
@@ -315,7 +318,7 @@ describe("what the page does with the token it was given", () => {
   });
 
   it("leaves no copy of it in storage", () => {
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
 
     // Indexed access rather than Object.keys: a Storage is not a plain object,
     // and the test environment does not always provide both.
@@ -335,7 +338,7 @@ describe("what the page does with the token it was given", () => {
     const fetchSpy = mockFetch();
     const user = userEvent.setup();
 
-    render(<InvitePage />);
+    render(<InvitePage authenticated={false} />);
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
 

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 
 import { InvitePage } from "@/modules/auth/components/InvitePage";
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -26,14 +25,22 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   /**
-   * Somebody already signed in cannot use an invite: registering would create a
-   * second account, and the backend would reject the address anyway. Sending
-   * them to the product is the honest outcome, and it matches what /login and
-   * /create-workspace already do — checked against the backend rather than
-   * inferred from a cookie being present.
+   * Signed in or not, the browser gets here first.
+   *
+   * This used to `redirect("/home")` on the server when a session existed. A
+   * redirect keeps the fragment: the browser reattaches it to the destination
+   * when the destination has none of its own, so an invite link opened by a
+   * signed-in reader landed on `/home#token=…` — and no client component ever
+   * mounted on this route to clear it. The token then sat in the address bar of
+   * an ordinary product page, and travelled into every history entry and
+   * screenshot from there.
+   *
+   * So the session is reported to the client instead of acted on here, and the
+   * redirect happens in the browser *after* the fragment has been read and
+   * removed. `authenticated` is a boolean; nothing about the token crosses this
+   * boundary, because the server never saw it.
    */
   const session = await resolveProductSession();
-  if (session.authenticated) redirect("/home");
 
-  return <InvitePage />;
+  return <InvitePage authenticated={session.authenticated} />;
 }
