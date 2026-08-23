@@ -114,8 +114,11 @@ class InviteTokenSecrecyIntegrationTest extends AbstractMockMvcIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("email", employeeEmail))))
-            .andExpect(status().isCreated())
+            .andExpect(status().isAccepted())
             .andReturn().getResponse().getContentAsString();
+
+        // Queued, not sent. Delivery is the worker's job.
+        inviteDeliveryWorker.runOnce();
 
         String listed = mockMvc.perform(get(INVITES)
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))

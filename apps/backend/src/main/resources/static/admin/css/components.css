@@ -308,6 +308,7 @@
 .badge--active,
 .badge--approved,
 .badge--accepted,
+.badge--sent,
 .badge--success,
 .badge--in_progress,
 .badge--completed {
@@ -318,6 +319,7 @@
 /* In-flight / attention states */
 .signal--warn,
 .badge--pending,
+.badge--queued,
 .badge--starting,
 .badge--closing {
     background: var(--warn-tint);
@@ -327,6 +329,7 @@
 /* Negative / terminal states */
 .signal--fail,
 .badge--rejected,
+.badge--failed,
 .badge--disabled,
 .badge--expired,
 .badge--revoked,

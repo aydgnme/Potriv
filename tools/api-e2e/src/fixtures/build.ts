@@ -58,7 +58,9 @@ async function buildOrganization(
   const invite = async (email: string): Promise<string> => {
     await expect(
       client.post('/organizations/current/invites', { actor: admin, body: { email } }),
-      201,
+      // 202: the request queues the invitation; a worker mints the token and
+      // mails it, which is why the token is read out of the mailbox below.
+      202,
       `invite ${email} into org ${label}`,
     );
     // The response carries metadata only; the token is in the mail.
@@ -69,7 +71,7 @@ async function buildOrganization(
     client.post('/organizations/current/invites', {
       actor: admin, body: { email: identity(runId, 'standing', label) },
     }),
-    201,
+    202,
     `issue a standing invitation in org ${label}`,
   );
   const standingInviteId = field(standing.body, 'inviteId', 'invite-employee');

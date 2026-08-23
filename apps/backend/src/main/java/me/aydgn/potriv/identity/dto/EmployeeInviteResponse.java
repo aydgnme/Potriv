@@ -20,9 +20,25 @@ public record EmployeeInviteResponse(
     UUID inviteId,
     String maskedEmail,
     InviteStatus status,
+    DeliveryStatus delivery,
     OffsetDateTime createdAt,
     OffsetDateTime expiresAt
 ) {
+
+    /**
+     * Whether the link has actually left the building.
+     *
+     * Separate from {@link InviteStatus} because they answer different
+     * questions, and conflating them produced a response that lied: an
+     * invitation whose mail had failed was reported as sent and shown as
+     * pending, so an administrator waiting for somebody to accept had no way to
+     * learn the person had never received anything.
+     */
+    public enum DeliveryStatus {
+        QUEUED,
+        SENT,
+        FAILED
+    }
 
     public enum InviteStatus {
         PENDING,

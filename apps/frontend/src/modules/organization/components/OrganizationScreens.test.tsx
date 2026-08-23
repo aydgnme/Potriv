@@ -423,6 +423,7 @@ describe("invitations", () => {
     inviteId: "686fcfea-14c7-493f-9c7a-2aa31267723a",
     maskedEmail: "ad****@example.com",
     status: "PENDING" as const,
+    delivery: "SENT" as const,
     createdAt: "2026-08-11T13:02:36Z",
     expiresAt: "2026-08-14T13:02:36Z",
   };
@@ -492,6 +493,29 @@ describe("invitations", () => {
 
     expect(screen.getByText(/Could not load invitations/)).toBeInTheDocument();
     expect(screen.queryByText("Nobody has been invited yet.")).toBeNull();
+  });
+
+  it("reports delivery separately from status, so a failed send is visible", () => {
+    /*
+      The state the old flow could not express: outstanding, and never
+      delivered. It reported "sent" from a request that had only tried, so an
+      administrator waiting for somebody to accept had no way to learn the
+      message had bounced off a refused connection.
+    */
+    const undelivered = { ...pending, delivery: "FAILED" as const };
+    render(<InvitePanel invite={{ kind: "ready", invites: [undelivered] }} />);
+
+    expect(screen.getByText("Could not be delivered")).toBeInTheDocument();
+    // Still outstanding: the invitation is fine, the delivery is not.
+    expect(screen.getByText("Waiting to be accepted")).toBeInTheDocument();
+  });
+
+  it("says a queued invitation is still sending rather than claiming it was sent", () => {
+    const queued = { ...pending, delivery: "QUEUED" as const };
+    render(<InvitePanel invite={{ kind: "ready", invites: [queued] }} />);
+
+    expect(screen.getByText("Sending…")).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toContain("Delivered");
   });
 
   it("says so plainly when nobody has been invited", () => {

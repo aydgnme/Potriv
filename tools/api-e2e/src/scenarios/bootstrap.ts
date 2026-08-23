@@ -143,7 +143,7 @@ export async function runBootstrapScenarios(
   const invited = await client.post('/organizations/current/invites', {
     actor: founder, body: { email: secondEmail },
   });
-  if (invited.status !== 201) {
+  if (invited.status !== 202) {
     prober.record({
       id: 'bootstrap.setup.invite', kind: 'success',
       description: 'invite a second person into the solo organization',

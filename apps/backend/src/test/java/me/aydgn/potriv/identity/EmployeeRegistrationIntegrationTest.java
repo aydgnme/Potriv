@@ -182,12 +182,15 @@ class EmployeeRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest
         // mandatory. Only the hash is stored, so the raw value lives here.
         String expiredToken = "expired-" + UUID.randomUUID();
         String invitedEmail = uniqueEmail("employee");
-        inviteTokenRepository.save(new InviteToken(
+        InviteToken expired = new InviteToken(
             organization,
-            TokenDigest.sha256Base64Url(expiredToken),
             invitedEmail,
-            OffsetDateTime.now(ZoneOffset.UTC).minusDays(1)
-        ));
+            OffsetDateTime.now(ZoneOffset.UTC).minusDays(1));
+        // Delivered, then left to lapse: the state a real expired invite is in.
+        expired.prepareAttempt(TokenDigest.sha256Base64Url(expiredToken),
+            OffsetDateTime.now(ZoneOffset.UTC).minusDays(1));
+        expired.markSent();
+        inviteTokenRepository.save(expired);
 
         String body = objectMapper.writeValueAsString(Map.of(
             "token", expiredToken,

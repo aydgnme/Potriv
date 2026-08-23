@@ -72,6 +72,10 @@ export class TestEnvironment {
             `jdbc:postgresql://127.0.0.1:${this.config.dbPort}/potriv_e2e`,
           SPRING_DATASOURCE_USERNAME: 'potriv_e2e',
           SPRING_DATASOURCE_PASSWORD: DATABASE_PASSWORD,
+          // Invitation mail is delivered by a worker on a schedule. The
+          // suite reads tokens out of Mailpit, so the interval has to be
+          // short enough that a mailbox poll finds the message.
+          APP_INVITE_DELIVERY_INTERVAL_MS: '500',
           SPRING_MAIL_HOST: '127.0.0.1',
           SPRING_MAIL_PORT: String(this.config.smtpPort),
           // The embedded console is part of the surface under test.

@@ -125,12 +125,17 @@ class InviteEnumerationParityIntegrationTest extends AbstractMockMvcIntegrationT
     // ---- helpers ----
 
     private String invite(String adminToken, String email) throws Exception {
-        return mockMvc.perform(post(INVITES)
+        String body = mockMvc.perform(post(INVITES)
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("email", email))))
-            .andExpect(status().isCreated())
+            .andExpect(status().isAccepted())
             .andReturn().getResponse().getContentAsString();
+
+        // Queued, not sent. Delivery is the worker's job, and it has to run for
+        // "was mail sent" to mean anything in the assertions above.
+        inviteDeliveryWorker.runOnce();
+        return body;
     }
 
     /** Field names and which of them are populated — the part a probe can read. */

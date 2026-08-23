@@ -117,8 +117,13 @@ public class OrganizationInviteService {
             .findPendingFor(organization, normalizedEmail)
             .forEach(InviteToken::deactivate);
 
-        InviteTokenService.IssuedInvite issued =
-            inviteTokenService.createFor(organization, normalizedEmail);
+        /*
+          The intention only. No token is minted here and no mail is sent, so
+          this transaction cannot fail for a reason outside the database — and
+          the organization lock it holds is released in milliseconds rather
+          than being held open for the length of an SMTP timeout.
+        */
+        InviteToken queued = inviteTokenService.queueFor(organization, normalizedEmail);
 
         securityAuditService.record(
             SecurityAuditEvent.builder(
@@ -130,19 +135,12 @@ public class OrganizationInviteService {
                 // The invite's id, never its value. The account-exists flag is
                 // recorded here and nowhere the caller can see, which is the
                 // whole point of moving it out of the response.
-                .details("Employee invited. Invite ID: " + issued.invite().getId()
+                .details("Employee invite queued. Invite ID: " + queued.getId()
                     + ". Address already registered: " + addressAlreadyRegistered + ".")
                 .build()
         );
 
-        // The raw token's entire lifetime: built into a URL, handed to the mail
-        // service, and out of scope. Nothing returns it and nothing stores it.
-        inviteMailService.sendInviteMail(
-            normalizedEmail,
-            organization.getName(),
-            inviteUrlFactory.build(issued.rawToken()));
-
-        return toResponse(issued.invite());
+        return toResponse(queued);
     }
 
     @Transactional
@@ -186,6 +184,7 @@ public class OrganizationInviteService {
             invite.getId(),
             EmployeeInviteResponse.mask(invite.getInvitedEmail()),
             statusOf(invite),
+            EmployeeInviteResponse.DeliveryStatus.valueOf(invite.getDeliveryStatus().name()),
             invite.getCreatedAt(),
             invite.getExpiresAt()
         );

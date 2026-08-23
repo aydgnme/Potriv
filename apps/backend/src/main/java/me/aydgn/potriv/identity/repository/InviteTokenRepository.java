@@ -1,9 +1,11 @@
 package me.aydgn.potriv.identity.repository;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -55,6 +57,40 @@ public interface InviteTokenRepository extends JpaRepository<InviteToken, UUID> 
            and i.expiresAt > CURRENT_TIMESTAMP
         """)
     List<InviteToken> findPendingFor(@Param("organization") Organization organization);
+
+    /**
+     * Claims one delivery attempt, atomically.
+     *
+     * The lease is the schedule itself: the row's next attempt is pushed
+     * forward as part of the same statement that selects it, so a second worker
+     * asking for due work will not see it, and a worker that dies mid-attempt
+     * leaves a job that simply becomes due again when the lease expires. That
+     * needs no SENDING state and no cleanup sweep — both of which can strand a
+     * job permanently if the process holding it never comes back.
+     *
+     * Returns the number of rows claimed: 1 for the winner, 0 for everybody
+     * else. The caller must not proceed on 0.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update InviteToken i
+           set i.nextAttemptAt = :leaseUntil
+         where i.id = :id
+           and i.deliveryStatus = me.aydgn.potriv.identity.entity.InviteToken$DeliveryStatus.QUEUED
+           and i.nextAttemptAt <= :now
+        """)
+    int claimDelivery(@Param("id") UUID id,
+                      @Param("now") OffsetDateTime now,
+                      @Param("leaseUntil") OffsetDateTime leaseUntil);
+
+    /** Invitations whose next delivery attempt is due, oldest first. */
+    @Query("""
+        select i from InviteToken i
+         where i.deliveryStatus = me.aydgn.potriv.identity.entity.InviteToken$DeliveryStatus.QUEUED
+           and i.nextAttemptAt <= :now
+         order by i.nextAttemptAt asc
+        """)
+    List<InviteToken> findDueDeliveries(@Param("now") OffsetDateTime now, Pageable pageable);
 
     /**
      * Claims an invite, atomically.

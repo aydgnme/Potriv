@@ -21,10 +21,19 @@
 -- invites each person again, by address.
 
 ALTER TABLE invite_tokens
-    ADD COLUMN token_hash    character varying(64),
-    ADD COLUMN invited_email character varying(180),
-    ADD COLUMN consumed_at   timestamp(6) with time zone,
-    ADD COLUMN revoked_at    timestamp(6) with time zone;
+    ADD COLUMN token_hash      character varying(64),
+    ADD COLUMN invited_email   character varying(180),
+    ADD COLUMN consumed_at     timestamp(6) with time zone,
+    ADD COLUMN revoked_at      timestamp(6) with time zone,
+    -- Delivery state. The invitation row *is* the outbox record: creating it
+    -- and sending the mail are separate transactions, so a mail server that is
+    -- down cannot roll back the intent and an intent that is committed cannot
+    -- be silently lost.
+    ADD COLUMN delivery_status character varying(20),
+    ADD COLUMN attempt_count   integer,
+    ADD COLUMN next_attempt_at timestamp(6) with time zone,
+    -- The last failure, for an operator. Never the token, and never the link.
+    ADD COLUMN last_error      character varying(500);
 
 -- Revoke everything that exists. `active = false` is what the application
 -- already reads; `revoked_at` records when and gives the reason a place to
@@ -49,20 +58,40 @@ UPDATE invite_tokens
        invited_email = 'retired-' || id || '@invalid'
  WHERE token_hash IS NULL;
 
+-- Retired rows are past any delivery question.
+UPDATE invite_tokens
+   SET delivery_status = 'FAILED',
+       attempt_count   = 0
+ WHERE delivery_status IS NULL;
+
+-- `token_hash` is deliberately nullable.
+--
+-- A queued invitation has no token yet: the worker mints one when it claims the
+-- job, so that a token exists only from the moment it is about to be mailed and
+-- a failed attempt leaves nothing redeemable behind. Uniqueness is enforced by
+-- a partial index below, which applies exactly where a value is present.
 ALTER TABLE invite_tokens
-    ALTER COLUMN token_hash    SET NOT NULL,
-    ALTER COLUMN invited_email SET NOT NULL,
-    ALTER COLUMN expires_at    SET NOT NULL;
+    ALTER COLUMN invited_email   SET NOT NULL,
+    ALTER COLUMN expires_at      SET NOT NULL,
+    ALTER COLUMN delivery_status SET NOT NULL,
+    ALTER COLUMN attempt_count   SET NOT NULL;
+
+ALTER TABLE invite_tokens
+    ADD CONSTRAINT invite_tokens_delivery_status_check CHECK (
+        (delivery_status)::text = ANY (ARRAY['QUEUED', 'SENT', 'FAILED']::text[])
+    );
 
 -- The raw column and everything that indexed it.
 DROP INDEX IF EXISTS idx_invite_tokens_token;
 ALTER TABLE invite_tokens DROP CONSTRAINT IF EXISTS invite_tokens_token_key;
 ALTER TABLE invite_tokens DROP COLUMN token;
 
-ALTER TABLE invite_tokens
-    ADD CONSTRAINT invite_tokens_token_hash_key UNIQUE (token_hash);
-
-CREATE INDEX idx_invite_tokens_token_hash ON invite_tokens USING btree (token_hash);
+-- Unique where present. A plain UNIQUE would also allow many NULLs, but a
+-- partial index says what is meant: rows without a token are not competing for
+-- uniqueness because they are not addressable yet.
+CREATE UNIQUE INDEX invite_tokens_token_hash_key
+    ON invite_tokens USING btree (token_hash)
+ WHERE token_hash IS NOT NULL;
 
 CREATE INDEX idx_invite_tokens_invited_email
     ON invite_tokens USING btree (invited_email);
@@ -72,3 +101,9 @@ CREATE INDEX idx_invite_tokens_invited_email
 CREATE INDEX idx_invite_tokens_redeemable
     ON invite_tokens USING btree (token_hash)
  WHERE active AND consumed_at IS NULL;
+
+-- The worker's claim query: the oldest job whose backoff has elapsed. Partial,
+-- so the index stays the size of the backlog rather than the table.
+CREATE INDEX idx_invite_tokens_due
+    ON invite_tokens USING btree (next_attempt_at)
+ WHERE delivery_status = 'QUEUED';

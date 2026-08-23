@@ -41,6 +41,7 @@ const INVITE = {
   inviteId: "686fcfea-14c7-493f-9c7a-2aa31267723a",
   maskedEmail: "ad****@example.com",
   status: "PENDING",
+  delivery: "SENT",
   createdAt: "2026-08-11T13:02:36Z",
   expiresAt: "2026-08-14T13:02:36Z",
 };

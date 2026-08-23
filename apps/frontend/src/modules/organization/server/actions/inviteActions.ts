@@ -76,11 +76,21 @@ export async function inviteEmployeeAction(
   refreshInvitations();
 
   /**
-   * The confirmation names the address the administrator just typed, which they
-   * already know. It does not name anything the backend returned — the response
-   * carries a masked address precisely so the full one is not re-circulated.
+   * "Queued", not "sent", because that is what happened.
+   *
+   * The backend records the intention and answers 202; a worker mints the token
+   * and mails it afterwards. Saying "sent" here would be the same lie the old
+   * `catch (MailException)` told — and the delivery column on the list is where
+   * the administrator finds out whether it actually went.
+   *
+   * The address named is the one the administrator just typed, which they
+   * already know; nothing the backend returned is echoed, because the response
+   * masks the address precisely so the full one is not re-circulated.
    */
-  return { done: `An invitation was sent to ${validated.email}.` };
+  return {
+    done: `An invitation to ${validated.email} is queued. The list below shows`
+      + ` whether it has been delivered.`,
+  };
 }
 
 export async function revokeInviteAction(

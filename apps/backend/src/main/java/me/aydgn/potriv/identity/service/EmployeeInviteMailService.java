@@ -1,9 +1,6 @@
 package me.aydgn.potriv.identity.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -19,7 +16,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class EmployeeInviteMailService {
 
-    private static final Logger log = LoggerFactory.getLogger(EmployeeInviteMailService.class);
 
     private final JavaMailSender mailSender;
     private final String fromAddress;
@@ -48,13 +44,18 @@ public class EmployeeInviteMailService {
                 + "The Potriv Team"
         );
 
-        try {
-            mailSender.send(message);
-        } catch (MailException exception) {
-            // The invite is already issued and the caller gets the link back;
-            // a mail outage must not fail the request or change its shape. The
-            // link is deliberately absent from this statement.
-            log.warn("Failed to send employee invite email.", exception);
-        }
+        /*
+          The exception is deliberately not caught.
+
+          It used to be, with a logged warning: the request returned 201, the
+          administrator was told "invitation sent", and the recipient got
+          nothing — while a live token sat in the database that only the mail
+          nobody received could have carried. Swallowing it here is what made
+          that outcome invisible.
+
+          The delivery worker is the caller now, and a thrown exception is how
+          it learns to discard this attempt's token and schedule another.
+        */
+        mailSender.send(message);
     }
 }

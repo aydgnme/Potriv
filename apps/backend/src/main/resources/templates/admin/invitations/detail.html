@@ -37,6 +37,13 @@
             <dt>Status</dt>
             <dd><span th:replace="~{admin/fragments/badges :: badge(${invitation.status})}"></span></dd>
             <dt>Outstanding</dt><dd th:text="${invitation.pending} ? 'Yes' : 'No'">Yes</dd>
+            <dt>Delivery</dt>
+            <dd><span th:replace="~{admin/fragments/badges :: badge(${invitation.delivery})}"></span></dd>
+            <dt>Attempts</dt><dd th:text="${invitation.attemptCount}">0</dd>
+            <!-- Present only when a send has failed. The cause, never the link. -->
+            <dt th:if="${invitation.lastError != null}">Last error</dt>
+            <dd th:if="${invitation.lastError != null}"
+                th:text="${invitation.lastError}">—</dd>
         </dl>
     </section>
 

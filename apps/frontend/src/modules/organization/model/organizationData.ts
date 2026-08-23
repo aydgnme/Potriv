@@ -60,10 +60,21 @@ export type OrganizationMember = {
  */
 export type InviteStatus = "PENDING" | "ACCEPTED" | "EXPIRED" | "REVOKED";
 
+/**
+ * Whether the link has actually left the building.
+ *
+ * Separate from the invitation's own status, because they answer different
+ * questions. Conflating them is what let the product say "sent" while the mail
+ * server was refusing connections: an administrator waiting for somebody to
+ * accept had no way to learn the person had never received anything.
+ */
+export type InviteDelivery = "QUEUED" | "SENT" | "FAILED";
+
 export type OrganizationInvite = {
   readonly inviteId: string;
   readonly maskedEmail: string;
   readonly status: InviteStatus;
+  readonly delivery: InviteDelivery;
   readonly createdAt: string;
   readonly expiresAt: string;
 };

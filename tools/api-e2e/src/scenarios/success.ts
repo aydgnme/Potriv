@@ -134,7 +134,7 @@ export async function runSuccessScenarios(
   const withdrawn = await prober.run({
     id: 'organization.invites.create.success', kind: 'success', method: 'POST',
     template: '/organizations/current/invites', url: '/organizations/current/invites',
-    expect: 201, actor: a.admin,
+    expect: 202, actor: a.admin,
     options: { body: { email: identity(ctx.runId, 'withdrawn', 'A') } },
     check: (r) => {
       const body = JSON.stringify(r.body ?? {});

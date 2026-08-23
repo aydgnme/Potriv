@@ -52,7 +52,16 @@ public class OrganizationInviteController {
      * the same link is emailed to the address it was issued to.
      */
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
+    /*
+      202, not 201.
+
+      The request records an intention to invite; the link is minted and mailed
+      by a worker afterwards. Answering 201 "created" claimed something had
+      been sent that had not — and, when the mail server was unreachable, never
+      would be. The response carries the delivery state so the caller can say
+      what is actually true.
+    */
+    @ResponseStatus(HttpStatus.ACCEPTED)
     @OrganizationAdminOnly
     public EmployeeInviteResponse inviteEmployee(
         @AuthenticationPrincipal AuthenticatedUser authenticatedUser,

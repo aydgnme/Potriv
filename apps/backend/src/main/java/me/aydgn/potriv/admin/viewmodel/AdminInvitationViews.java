@@ -41,6 +41,10 @@ public final class AdminInvitationViews {
         UUID organizationId,
         String maskedEmail,
         String status,
+        /** QUEUED, SENT or FAILED — whether the link actually left. */
+        String delivery,
+        int attemptCount,
+        String lastError,
         boolean pending,
         OffsetDateTime createdAt,
         OffsetDateTime expiresAt,

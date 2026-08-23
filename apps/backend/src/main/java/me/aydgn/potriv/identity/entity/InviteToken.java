@@ -3,6 +3,8 @@ package me.aydgn.potriv.identity.entity;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -41,7 +43,16 @@ public class InviteToken extends BaseEntity {
     @JoinColumn(name = "organization_id", nullable = false)
     private Organization organization;
 
-    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
+    /*
+      Nullable, and unique only where present.
+
+      A queued invitation has no token: the worker mints one when it claims the
+      delivery, so a token exists only from the moment it is about to be mailed,
+      and an attempt that fails leaves nothing redeemable behind. Uniqueness is
+      a partial index in the migration rather than a column constraint here,
+      because "unique among the rows that have one" is what is actually meant.
+    */
+    @Column(name = "token_hash", length = 64)
     private String tokenHash;
 
     /**
@@ -62,6 +73,28 @@ public class InviteToken extends BaseEntity {
     @Column(name = "consumed_at")
     private OffsetDateTime consumedAt;
 
+    /**
+     * Where this invitation is in delivery.
+     *
+     * The row is its own outbox record. Creating the intent and sending the
+     * mail are separate transactions, so an unreachable mail server cannot roll
+     * back an invitation the administrator was told about, and an invitation
+     * that was committed cannot be silently lost when the send fails.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "delivery_status", nullable = false, length = 20)
+    private DeliveryStatus deliveryStatus = DeliveryStatus.QUEUED;
+
+    @Column(name = "attempt_count", nullable = false)
+    private int attemptCount;
+
+    @Column(name = "next_attempt_at")
+    private OffsetDateTime nextAttemptAt;
+
+    /** The last failure, for an operator. Never the token, never the link. */
+    @Column(name = "last_error", length = 500)
+    private String lastError;
+
     @Column(name = "revoked_at")
     private OffsetDateTime revokedAt;
 
@@ -71,17 +104,26 @@ public class InviteToken extends BaseEntity {
     protected InviteToken() {
     }
 
+    /**
+     * A queued invitation: an intention to invite this address, with no token
+     * yet and nothing sent.
+     *
+     * The expiry is provisional and is set again when a token is actually
+     * minted, so the clock starts when the person receives the link rather than
+     * when the administrator pressed a button behind a broken mail server.
+     */
     public InviteToken(
         Organization organization,
-        String tokenHash,
         String invitedEmail,
         OffsetDateTime expiresAt
     ) {
         this.organization = organization;
-        this.tokenHash = tokenHash;
         this.invitedEmail = invitedEmail;
         this.expiresAt = expiresAt;
         this.active = true;
+        this.deliveryStatus = DeliveryStatus.QUEUED;
+        this.attemptCount = 0;
+        this.nextAttemptAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 
     public Organization getOrganization() {
@@ -137,6 +179,21 @@ public class InviteToken extends BaseEntity {
         REVOKED
     }
 
+    /**
+     * QUEUED until a worker has mailed it, then SENT, or FAILED once the
+     * attempts are exhausted.
+     *
+     * There is no SENDING state. A worker claims a job with a conditional
+     * UPDATE that moves `next_attempt_at` forward, so a claimed job is simply
+     * not due again until its lease expires — which needs no extra state and
+     * cannot strand a job if the worker dies mid-attempt.
+     */
+    public enum DeliveryStatus {
+        QUEUED,
+        SENT,
+        FAILED
+    }
+
     public Status status() {
         if (isConsumed()) {
             return Status.ACCEPTED;
@@ -166,6 +223,75 @@ public class InviteToken extends BaseEntity {
      */
     public boolean isPending() {
         return active && !isExpired() && !isConsumed();
+    }
+
+    /**
+     * Whether a token exists that somebody could actually redeem.
+     *
+     * A queued invitation is outstanding but not yet redeemable — nothing has
+     * been minted or mailed. The distinction matters to the accept path, which
+     * looks up by hash and would simply not find these rows, and to any code
+     * asking "can this person join right now".
+     */
+    public boolean isRedeemable() {
+        return isPending() && tokenHash != null;
+    }
+
+    // ---- delivery ----
+
+    public DeliveryStatus getDeliveryStatus() {
+        return deliveryStatus;
+    }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public OffsetDateTime getNextAttemptAt() {
+        return nextAttemptAt;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    /** Records the token about to be mailed. Only ever the hash. */
+    public void prepareAttempt(String tokenHash, OffsetDateTime expiresAt) {
+        this.tokenHash = tokenHash;
+        this.expiresAt = expiresAt;
+        this.attemptCount = this.attemptCount + 1;
+    }
+
+    public void markSent() {
+        this.deliveryStatus = DeliveryStatus.SENT;
+        this.nextAttemptAt = null;
+        this.lastError = null;
+    }
+
+    /**
+     * The attempt failed: the token it minted is discarded so nothing
+     * redeemable is left behind, and the job is due again after the backoff.
+     */
+    public void markAttemptFailed(String reason, OffsetDateTime retryAt) {
+        this.tokenHash = null;
+        this.nextAttemptAt = retryAt;
+        this.lastError = truncate(reason);
+    }
+
+    /** Attempts exhausted. The invitation is dead and never redeemable. */
+    public void markDeliveryFailed(String reason) {
+        this.tokenHash = null;
+        this.deliveryStatus = DeliveryStatus.FAILED;
+        this.nextAttemptAt = null;
+        this.lastError = truncate(reason);
+        this.active = false;
+    }
+
+    private static String truncate(String reason) {
+        if (reason == null) {
+            return null;
+        }
+        return reason.length() <= 500 ? reason : reason.substring(0, 500);
     }
 
     /**

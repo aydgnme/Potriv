@@ -10,7 +10,7 @@ import { formatDate } from "@/shared/utils/formatDate";
 
 import { INVITE_EMAIL_MAX } from "../model/inviteForm";
 import { EMPTY_INVITE_STATE } from "../model/organizationActionState";
-import type { InviteStatus, OrganizationInvite } from "../model/organizationData";
+import type { InviteDelivery, InviteStatus, OrganizationInvite } from "../model/organizationData";
 import type { InviteState } from "../server/loadOrganization";
 import { inviteEmployeeAction, revokeInviteAction } from "../server/actions/inviteActions";
 
@@ -110,11 +110,25 @@ function InviteEmployeeForm() {
 
       <p className={styles.panelNote}>
         The link goes to that address only. Inviting somebody again replaces their
-        previous invitation.
+        previous invitation. Delivery happens in the background — the list shows
+        whether the message actually went out.
       </p>
     </form>
   );
 }
+
+/**
+ * Delivery is shown separately from status, because they can disagree.
+ *
+ * An invitation can be outstanding and undelivered at the same time — that is
+ * exactly the state a broken mail server produces, and the state the product
+ * used to hide by reporting "sent" from a request that had only tried.
+ */
+const DELIVERY_LABEL: Record<InviteDelivery, string> = {
+  QUEUED: "Sending…",
+  SENT: "Delivered",
+  FAILED: "Could not be delivered",
+};
 
 const STATUS_LABEL: Record<InviteStatus, string> = {
   PENDING: "Waiting to be accepted",
@@ -130,7 +144,8 @@ function InviteTable({ invites }: { readonly invites: readonly OrganizationInvit
         <tr>
           <th scope="col">Invited</th>
           <th scope="col">Status</th>
-          <th scope="col">Sent</th>
+          <th scope="col">Delivery</th>
+          <th scope="col">Created</th>
           <th scope="col">Expires</th>
           <th scope="col">
             <span className={styles.visuallyHidden}>Actions</span>
@@ -148,7 +163,16 @@ function InviteTable({ invites }: { readonly invites: readonly OrganizationInvit
                 <span className={styles.muted}>{STATUS_LABEL[entry.status]}</span>
               )}
             </td>
-            <td data-label="Sent" className={styles.muted}>
+            <td data-label="Delivery">
+              {entry.delivery === "SENT" ? (
+                DELIVERY_LABEL.SENT
+              ) : (
+                <span className={entry.delivery === "FAILED" ? styles.warning : styles.muted}>
+                  {DELIVERY_LABEL[entry.delivery]}
+                </span>
+              )}
+            </td>
+            <td data-label="Created" className={styles.muted}>
               {formatDate(entry.createdAt) ?? "Not recorded"}
             </td>
             <td data-label="Expires" className={styles.muted}>

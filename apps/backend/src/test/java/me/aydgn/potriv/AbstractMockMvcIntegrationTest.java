@@ -41,6 +41,17 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
     @org.springframework.beans.factory.annotation.Autowired
     protected RecordingMailSender recordingMailSender;
 
+    /**
+     * Invitation mail is delivered by a worker, not by the request that creates
+     * the invitation.
+     *
+     * Tests drive one pass explicitly rather than waiting for the scheduler:
+     * sleeping would make them slow when they pass and flaky when they fail,
+     * and it would blur the ordering these tests exist to pin.
+     */
+    @org.springframework.beans.factory.annotation.Autowired
+    protected me.aydgn.potriv.identity.service.InviteDeliveryWorker inviteDeliveryWorker;
+
     protected JsonNode registerAdmin(String organizationName, String email, String password)
         throws Exception {
 
@@ -109,8 +120,13 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of("email", email))))
-            .andExpect(status().isCreated())
+            .andExpect(status().isAccepted())
             .andReturn().getResponse().getContentAsString();
+
+        // 202 means queued. Delivering it is a separate step, here as in
+        // production; a helper that hid that would let a test pass while the
+        // recipient received nothing.
+        inviteDeliveryWorker.runOnce();
 
         return objectMapper.readTree(response);
     }

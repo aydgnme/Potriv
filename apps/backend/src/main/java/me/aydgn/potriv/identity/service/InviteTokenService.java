@@ -41,7 +41,7 @@ public class InviteTokenService {
     }
 
     /**
-     * A freshly created invite and its raw value, together, once.
+     * A token about to be mailed, and the invitation it belongs to.
      *
      * The raw value is carried out of here in memory and dropped. It is not on
      * the entity, so nothing downstream can log it, audit it or serialise it
@@ -51,26 +51,41 @@ public class InviteTokenService {
     }
 
     /**
-     * Issues an invite for one address.
+     * Records the intention to invite an address. No token, nothing sent.
      *
-     * The address is stored normalised and redemption compares against it, so
-     * the same normalisation has to happen on both sides — hence one method
-     * owning it rather than each caller lowercasing in its own way.
+     * This is the transaction the caller waits on, and it deliberately does
+     * nothing that can fail for an external reason. The token is minted, and
+     * the mail sent, by the delivery worker in a later transaction — so a mail
+     * server that is unreachable cannot roll back an invitation the
+     * administrator has already been told about, and cannot hold a database
+     * lock open for the length of an SMTP timeout.
      */
-    public IssuedInvite createFor(Organization organization, String email) {
-        String rawToken = generateToken();
-        OffsetDateTime expiresAt =
-            OffsetDateTime.now(ZoneOffset.UTC).plusHours(inviteTokenHours);
-
-        InviteToken saved = inviteTokenRepository.save(
+    public InviteToken queueFor(Organization organization, String email) {
+        return inviteTokenRepository.save(
             new InviteToken(
                 organization,
-                TokenDigest.sha256Base64Url(rawToken),
                 normalizeEmail(email),
-                expiresAt)
+                OffsetDateTime.now(ZoneOffset.UTC).plusHours(inviteTokenHours))
         );
+    }
 
-        return new IssuedInvite(saved, rawToken);
+    /**
+     * Mints the token for one delivery attempt.
+     *
+     * A new value every attempt, deliberately. A retry that reused the previous
+     * token would extend the lifetime of a value that may already have reached
+     * a mailbox, a bounce message or a mail relay's logs on the failed attempt.
+     *
+     * The expiry restarts here too: the clock the recipient experiences begins
+     * when the link is sent, not when the intention was recorded behind a
+     * broken mail server.
+     */
+    public IssuedInvite mintFor(InviteToken invite) {
+        String rawToken = generateToken();
+        invite.prepareAttempt(
+            TokenDigest.sha256Base64Url(rawToken),
+            OffsetDateTime.now(ZoneOffset.UTC).plusHours(inviteTokenHours));
+        return new IssuedInvite(invite, rawToken);
     }
 
     /** The one place an invited address is normalised. */
