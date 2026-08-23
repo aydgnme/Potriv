@@ -21,12 +21,20 @@ export function PlanSection({
   readonly title: string;
   readonly titleId: string;
   readonly lead?: ReactNode;
-  readonly tone?: "default" | "dark";
+  readonly tone?: "default" | "quiet" | "dark";
   readonly children: ReactNode;
 }) {
   const dark = tone === "dark";
+  /*
+    Three grounds, chosen by the page rather than alternated automatically. A
+    section's ground says "a new subject starts here", which is a judgement
+    about the argument and not something a counter can make.
+  */
+  const ground =
+    tone === "dark" ? styles.sectionDark : tone === "quiet" ? styles.sectionQuiet : styles.section;
+
   return (
-    <section className={dark ? styles.sectionDark : styles.section} aria-labelledby={titleId}>
+    <section className={ground} aria-labelledby={titleId}>
       <div className={styles.container}>
         <div className={styles.sectionHead}>
           <span className={styles.sectionIndex} aria-hidden="true">

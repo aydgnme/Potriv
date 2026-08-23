@@ -13,6 +13,13 @@
  *
  * Every colour here is an existing token. The palette this page needed turned
  * out to be the palette the product already had.
+ *
+ * One rule follows from having more than one ground: small text uses
+ * `--p-text-muted`, never `--p-text-subtle`. Subtle is measured at 4.5:1 against
+ * white and lands at 4.32:1 on the light neutral — so the moment a section
+ * stopped being white, thirteen labels on this page fell below 1.4.3. Muted
+ * clears it on all three light grounds: 4.83:1 on white, 5.81:1 on the warm
+ * off-white, 5.46:1 on the neutral.
  */
 
 .section {
@@ -128,7 +135,7 @@
 */
 .heroAssurance {
   margin: var(--p-space-4) 0 0;
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
 }
@@ -167,7 +174,7 @@
 
 .graphCaption {
   margin-top: var(--p-space-4);
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
   text-align: center;
@@ -206,7 +213,7 @@
 
 .sectionMark {
   margin: 0;
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
   letter-spacing: 0.08em;
@@ -287,7 +294,7 @@
 }
 
 .ledgerNumber {
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
 }
@@ -333,7 +340,7 @@
   border: 1px solid var(--p-border);
   border-radius: var(--p-radius-sm);
   background: var(--p-surface-sunken);
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
   font-weight: var(--p-weight-normal);
@@ -627,7 +634,7 @@
 }
 
 .chapterNumber {
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
 }
@@ -650,7 +657,7 @@
 }
 
 .chapterArrow {
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-size: var(--p-text-lg);
 }
 
@@ -718,7 +725,7 @@
 
 .chapterPreviewCaption {
   margin: 0 0 var(--p-space-4);
-  color: var(--p-text-subtle);
+  color: var(--p-text-muted);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
 }

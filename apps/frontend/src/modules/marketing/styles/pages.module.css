@@ -119,7 +119,7 @@
 
 .heroEyebrow {
   margin: 0;
-  color: var(--p-brand);
+  color: var(--ground-brand);
   font-size: var(--p-text-sm);
   font-weight: var(--p-weight-semibold);
   letter-spacing: 0.12em;
@@ -139,7 +139,7 @@
 .heroLead {
   margin: var(--p-space-4) 0 0;
   max-width: 58ch;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   font-size: var(--p-text-lg);
   line-height: var(--p-leading);
 }
@@ -177,7 +177,7 @@
   background: transparent;
   border: 1px solid var(--p-border-strong);
   border-radius: var(--p-radius);
-  color: var(--p-text);
+  color: var(--ground-text);
   font-size: var(--p-text-lg);
   font-weight: var(--p-weight-semibold);
   text-decoration: none;
@@ -219,7 +219,7 @@
 
 .gapBody {
   margin: 0;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -234,7 +234,7 @@
   align-items: baseline;
   gap: var(--p-space-3);
   margin: 0;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
 }
 
 .markSolid,
@@ -248,7 +248,7 @@
 
 .markSolid {
   border-top-style: solid;
-  border-top-color: var(--p-brand);
+  border-top-color: var(--ground-brand);
 }
 
 .markDashed {
@@ -288,14 +288,14 @@
 }
 
 .chapterEntryNumber {
-  color: var(--p-brand);
+  color: var(--ground-brand);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-base);
   font-weight: var(--p-weight-semibold);
 }
 
 .chapterEntryLabel {
-  color: var(--p-brand);
+  color: var(--ground-brand);
   font-size: var(--p-text-sm);
   font-weight: var(--p-weight-semibold);
   letter-spacing: 0.12em;
@@ -312,7 +312,7 @@
 
 .chapterEntrySummary {
   margin: 0;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -321,7 +321,7 @@
   align-items: center;
   min-height: 44px;
   margin-top: auto;
-  color: var(--p-brand-strong);
+  color: var(--ground-brand);
   font-weight: var(--p-weight-semibold);
   text-decoration: none;
 }
@@ -346,7 +346,7 @@
 .startBody {
   margin: var(--p-space-3) 0 0;
   max-width: 54ch;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -370,7 +370,7 @@
 
 .chainIndex {
   grid-area: index;
-  color: var(--p-brand);
+  color: var(--ground-brand);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
   padding-top: 4px;
@@ -387,7 +387,7 @@
   grid-area: body;
   margin: 0;
   max-width: 62ch;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -405,7 +405,7 @@
 
 .pillarMark {
   margin: 0;
-  color: var(--p-brand);
+  color: var(--ground-brand);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-lg);
   font-weight: var(--p-weight-semibold);
@@ -420,7 +420,7 @@
 .pillarBody {
   margin: 0;
   max-width: 60ch;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -450,7 +450,7 @@
 .controlMeta dt,
 .brief dt {
   margin: 0 0 2px;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   font-size: var(--p-text-sm);
   font-weight: var(--p-weight-semibold);
   letter-spacing: 0.08em;
@@ -462,22 +462,34 @@
 .controlMeta dd,
 .brief dd {
   margin: 0;
-  color: var(--p-text);
+  color: var(--ground-text);
   font-size: var(--p-text-base);
   line-height: var(--p-leading);
 }
 
 .brief dd {
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
 }
 
+/*
+  A panel that paints its own light ground, inside whichever section it sits in.
+
+  It therefore has to say what text means on it rather than inherit the
+  section's answer: when the section went dark, near-white text landed on this
+  light teal at 1.13:1. `color` is set as well as the variables, because the
+  title inside declares no colour of its own and inherits.
+*/
 .boundary {
+  --ground-text: var(--p-text);
+  --ground-muted: var(--p-text-muted);
+  --ground-brand: var(--p-brand-strong);
   display: grid;
   gap: var(--p-space-5);
   padding: var(--p-space-5);
   border: 1px solid var(--p-brand);
   border-radius: var(--p-radius);
   background: var(--p-brand-selection, var(--p-surface-sunken));
+  color: var(--ground-text);
 }
 
 @media (min-width: 900px) {
@@ -495,7 +507,7 @@
 
 .boundaryScoreBody {
   margin: 0;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -511,7 +523,7 @@
 .boundaryItem {
   padding-left: var(--p-space-4);
   border-left: 2px solid var(--p-brand);
-  color: var(--p-text);
+  color: var(--ground-text);
   font-weight: var(--p-weight-medium);
 }
 
@@ -543,7 +555,7 @@
 
 .ruleSolid {
   border-top-style: solid;
-  border-top-color: var(--p-brand);
+  border-top-color: var(--ground-brand);
 }
 
 .ruleDashed {
@@ -557,12 +569,12 @@
 }
 
 .ruleTitle {
-  color: var(--p-text);
+  color: var(--ground-text);
   font-weight: var(--p-weight-semibold);
 }
 
 .ruleBody {
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
 }
 
 .steps {
@@ -589,7 +601,7 @@
 }
 
 .stepNumber {
-  color: var(--p-brand);
+  color: var(--ground-brand);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-lg);
   font-weight: var(--p-weight-semibold);
@@ -603,7 +615,7 @@
 
 .stepText {
   margin: 0;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -642,13 +654,13 @@
 }
 
 .exampleStage {
-  color: var(--p-brand-strong);
+  color: var(--ground-brand);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
 }
 
 .exampleDetail {
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -689,19 +701,19 @@
   flex: none;
   width: 18px;
   height: 18px;
-  color: var(--p-brand);
+  color: var(--ground-brand);
 }
 
 .profileOwns {
   margin: 0;
-  color: var(--p-text);
+  color: var(--ground-text);
   font-weight: var(--p-weight-medium);
 }
 
 .profileBody {
   margin: 0;
   grid-column: 2;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -742,7 +754,7 @@
 
 .handoffIndex {
   display: block;
-  color: var(--p-brand);
+  color: var(--ground-brand);
   font-family: var(--p-font-mono);
   font-size: var(--p-text-sm);
 }
@@ -755,14 +767,14 @@
 
 .handoffBody {
   margin: 0;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
 .handoffClose {
   margin: var(--p-space-5) 0 0;
   max-width: 58ch;
-  color: var(--p-text);
+  color: var(--ground-text);
   font-size: var(--p-text-lg);
 }
 
@@ -793,7 +805,7 @@
 
 .limitBody {
   margin: 0;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -810,7 +822,7 @@
 .notClaimedItem {
   padding-left: var(--p-space-4);
   border-left: 2px solid var(--p-inverse-text-muted);
-  color: var(--p-inverse-text);
+  color: var(--ground-text);
   line-height: var(--p-leading);
 }
 
@@ -827,7 +839,7 @@
 
 .controlArea {
   margin: 0 0 var(--p-space-3);
-  color: var(--p-inverse-text);
+  color: var(--ground-text);
   font-size: var(--p-text-lg);
   font-weight: var(--p-weight-semibold);
 }
@@ -842,21 +854,21 @@
 
 .controlFactTitle {
   display: block;
-  color: var(--p-inverse-text);
+  color: var(--ground-text);
   font-weight: var(--p-weight-semibold);
 }
 
 .controlFactBody {
-  color: var(--p-inverse-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
 .controlMeta dt {
-  color: var(--p-inverse-text-muted);
+  color: var(--ground-muted);
 }
 
 .controlMeta dd {
-  color: var(--p-inverse-text);
+  color: var(--ground-text);
 }
 
 .split {
@@ -873,7 +885,7 @@
 
 .splitTitle {
   margin: 0 0 var(--p-space-3);
-  color: var(--p-inverse-text);
+  color: var(--ground-text);
   font-size: var(--p-text-lg);
   font-weight: var(--p-weight-semibold);
 }
@@ -884,7 +896,7 @@
   list-style: none;
   display: grid;
   gap: var(--p-space-2);
-  color: var(--p-inverse-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -904,7 +916,7 @@
 .conclusionBody {
   margin: var(--p-space-3) 0 0;
   max-width: 58ch;
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   line-height: var(--p-leading);
 }
 
@@ -913,12 +925,12 @@
   align-items: center;
   min-height: 48px;
   padding-inline: var(--p-space-3);
-  color: var(--p-text-muted);
+  color: var(--ground-muted);
   font-size: var(--p-text-lg);
   text-decoration: none;
 }
 
 .conclusionQuiet:hover {
-  color: var(--p-text);
+  color: var(--ground-text);
   text-decoration: underline;
 }

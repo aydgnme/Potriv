@@ -39,6 +39,7 @@ export function ProductPage() {
       </PlanSection>
 
       <PlanSection
+        tone="quiet"
         index="01.2"
         title="The objects it holds"
         titleId="product-objects"
@@ -100,6 +101,7 @@ export function ProductPage() {
         proposal. A test asserts this block by name.
       */}
       <PlanSection
+        tone="dark"
         index="01.4"
         title={DECISION_BOUNDARY.title}
         titleId="product-boundary"

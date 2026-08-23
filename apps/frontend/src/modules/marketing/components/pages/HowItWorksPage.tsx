@@ -73,6 +73,7 @@ export function HowItWorksPage() {
       </PlanSection>
 
       <PlanSection
+        tone="quiet"
         index="02.2"
         title="Five stages"
         titleId="how-it-works-stages"
@@ -117,6 +118,7 @@ export function HowItWorksPage() {
       </PlanSection>
 
       <PlanSection
+        tone="dark"
         index="02.4"
         title={WORKED_EXAMPLE.title}
         titleId="how-it-works-example"

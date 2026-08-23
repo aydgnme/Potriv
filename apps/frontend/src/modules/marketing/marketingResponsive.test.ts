@@ -344,11 +344,23 @@ describe("the spine draws before the stages land on it", () => {
     expect(Number(rule![1])).toBeLessThan(Number(content![1]));
   });
 
-  it("derives every delay from the stage index, so a sixth stage needs no CSS", () => {
-    const delays = [...spine.matchAll(/animation-delay:\s*([^;]+);/g)].map((m) => m[1]);
-    expect(delays.length).toBeGreaterThanOrEqual(4);
-    for (const d of delays) {
-      expect(d, `a delay is not derived from the stage index: ${d}`).toMatch(/--stage-index/);
+  it("derives every spine delay from the stage index, so a sixth stage needs no CSS", () => {
+    /*
+      Scoped to the rules that draw the spine. The file also carries the chapter
+      header's entrance, whose delays are four fixed beats rather than an
+      indexed list — an earlier version of this asserted over the whole file and
+      would have failed the moment any other animation was added to it.
+    */
+    const spineRules = [...spine.matchAll(/\.spine[\w-]*(?:::before)?[^{]*\{([^}]*)\}/g)]
+      .map((m) => m[1])
+      .filter((body) => /animation-delay:/.test(body));
+
+    expect(spineRules.length, "no spine rule carries a delay").toBeGreaterThanOrEqual(3);
+    for (const body of spineRules) {
+      for (const d of body.matchAll(/animation-delay:\s*([^;]+);/g)) {
+        expect(d[1], `a spine delay is not derived from the stage index: ${d[1]}`)
+          .toMatch(/--stage-index/);
+      }
     }
   });
 

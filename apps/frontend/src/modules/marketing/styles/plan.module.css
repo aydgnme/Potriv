@@ -14,10 +14,20 @@
 
 /* ---------- chapter opening ---------- */
 
+/*
+  The same warm ground the homepage opens on, so arriving at a chapter feels
+  like arriving somewhere in the same publication rather than at a different
+  site. The sections beneath it then alternate, which is what makes a boundary
+  legible without a rule across it.
+*/
 .chapterHead {
-  padding-block: var(--p-space-7) var(--p-space-6);
+  --ground-text: var(--p-text);
+  --ground-muted: var(--p-text-muted);
+  --ground-brand: var(--p-brand);
+  --ground-line: var(--p-border);
+  padding-block: var(--p-space-9) var(--p-space-8);
   border-bottom: 1px solid var(--p-border);
-  background: var(--p-surface-sunken);
+  background: var(--p-surface-warm);
 }
 
 .chapterHeadDark .chapterNumber,
@@ -29,6 +39,10 @@
 
 .chapterHeadDark {
   composes: chapterHead;
+  --ground-text: var(--p-inverse-text);
+  --ground-muted: var(--p-inverse-text-muted);
+  --ground-brand: var(--p-inverse-brand);
+  --ground-line: var(--p-inverse-border);
   border-bottom-color: transparent;
   /* The same surface as the section below it: two inverse tokens meeting here
      left a visible seam, and the inverse text ratios are set against this one. */
@@ -59,8 +73,14 @@
 
 .chapterTitle {
   margin: 0;
-  max-width: 24ch;
-  font-size: var(--p-display-2);
+  max-width: 20ch;
+  /*
+    A chapter's own title is the strongest text on its page, and `--p-display-2`
+    tops out at 36px — the size this scale gives a *section* heading. Set a rung
+    under the homepage's 64px, so the four chapters read as parts of the same
+    publication without competing with its opening.
+  */
+  font-size: clamp(1.875rem, 1.35rem + 2.4vw, 3.25rem);
   font-weight: var(--p-weight-bold);
   line-height: var(--p-leading-display);
   letter-spacing: -0.02em;
@@ -102,16 +122,49 @@
 
 /* ---------- numbered part of a chapter ---------- */
 
+/*
+  Ground-aware text colours.
+
+  A section's content should not have to know which ground it is on, and it
+  cannot be told with a descendant selector: these classes live in one CSS
+  module and the page's own classes live in another, so their names are hashed
+  apart. Custom properties are not — they cascade straight through. So each
+  ground declares what "text" and "muted" mean on it, and every page class asks
+  for `--ground-text` rather than naming a palette entry it cannot check.
+
+  `--p-text-subtle` is deliberately absent. It is measured against white and
+  falls to 4.32:1 on the neutral, so it has no ground-aware value to give.
+*/
 .section {
+  --ground-text: var(--p-text);
+  --ground-muted: var(--p-text-muted);
+  --ground-brand: var(--p-brand);
+  --ground-line: var(--p-border);
   padding-block: var(--p-space-7);
   border-bottom: 1px solid var(--p-border);
 }
 
 .sectionDark {
   composes: section;
+  --ground-text: var(--p-inverse-text);
+  --ground-muted: var(--p-inverse-text-muted);
+  /* 8.92:1 here; --p-brand is 2.92:1 on this ground and is not text contrast. */
+  --ground-brand: var(--p-inverse-brand);
+  --ground-line: var(--p-inverse-border);
   border-bottom-color: transparent;
   background: var(--p-inverse-bg);
   color: var(--p-inverse-text);
+}
+
+/*
+  The quiet ground. Three tones — white, this, charcoal — is what the homepage
+  uses, and it is enough: a reader needs to notice that a section changed, not
+  to identify which of six greys it is.
+*/
+.sectionQuiet {
+  composes: section;
+  background: var(--p-surface-sunken);
+  border-bottom-color: transparent;
 }
 
 .sectionDark .sectionIndex {
@@ -513,6 +566,75 @@
   pre-animation state rather than a flash of the final one; the animation runs
   a single time and never loops.
 */
+@media (prefers-reduced-motion: no-preference) {
+  /*
+    A chapter introduces itself once, in reading order — the same four beats the
+    homepage opens with, a rung quieter because a chapter is arrived at rather
+    than landed on. It is above the fold on every one of these pages, so it runs
+    on load.
+  */
+  .chapterMark,
+  .chapterTitle,
+  .chapterTitleDark,
+  .chapterQuestion,
+  .chapterQuestionDark,
+  .chapterLead,
+  .chapterLeadDark {
+    animation: chapter-rise 340ms var(--p-ease) backwards;
+  }
+
+  .chapterMark {
+    animation-delay: 0ms;
+  }
+
+  .chapterTitle,
+  .chapterTitleDark {
+    animation-delay: 60ms;
+  }
+
+  .chapterQuestion,
+  .chapterQuestionDark {
+    animation-delay: 140ms;
+  }
+
+  .chapterLead,
+  .chapterLeadDark {
+    animation-delay: 200ms;
+  }
+
+  /*
+    Section headings arrive as the reader reaches them, not on load: on these
+    pages the last section sits thousands of pixels down, and a load-time delay
+    would have finished before anyone saw it.
+
+    Only the heading block moves. Scrubbing a whole section's opacity against
+    scroll position would leave its body text part-transparent while it is being
+    read, which trades legibility for an effect.
+
+    Scroll-driven needs no observer and no client component. Where the browser
+    does not support it the headings are simply in their finished state, which
+    is what a reduced-motion reader gets.
+  */
+  @supports (animation-timeline: view()) {
+    .sectionHead {
+      animation: chapter-rise 1ms var(--p-ease) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 18%;
+    }
+  }
+}
+
+@keyframes chapter-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   /*
     The rule draws itself, top to bottom, before the stages land on it — the

@@ -45,6 +45,7 @@ export function ForTeamsPage() {
       </PlanSection>
 
       <PlanSection
+        tone="quiet"
         index="03.2"
         title="Decisions and hand-offs"
         titleId="for-teams-matrix"
@@ -54,6 +55,7 @@ export function ForTeamsPage() {
       </PlanSection>
 
       <PlanSection
+        tone="dark"
         index="03.3"
         title={HANDOFF.title}
         titleId="for-teams-handoff"
