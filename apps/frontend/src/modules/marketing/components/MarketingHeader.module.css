@@ -78,9 +78,26 @@
 }
 
 .navLink {
+  position: relative;
   color: var(--p-text-muted);
   font-size: var(--p-text-base);
   text-decoration: none;
+}
+
+/*
+  A 44px pointer target on a link whose text is only 24px tall.
+
+  Every other control in this header already clears 44px; these four did not.
+  The extra height is an overlay rather than padding because the current-page
+  marker is a `border-bottom` on this same box — padding would push the rule
+  away from the word it underlines, and a taller box would grow the 65px header.
+  This leaves both where they are and enlarges only what a finger has to hit.
+*/
+.navLink::after {
+  content: "";
+  position: absolute;
+  inset-block: -10px;
+  inset-inline: 0;
 }
 
 .navLink:hover {

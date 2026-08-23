@@ -82,14 +82,42 @@ describe("the diagram swaps composition rather than scaling", () => {
     expect(diagram.rule(".desktop")).toMatch(/display:\s*none/);
     expect(diagram.rule(".mobile")).toMatch(/display:\s*block/);
 
-    const wide = diagram.source.slice(diagram.source.indexOf("@media (min-width: 860px)"));
+    const wide = diagram.source.slice(diagram.source.indexOf("@media (min-width: 768px)"));
     expect(wide).toMatch(/\.desktop\s*\{[^}]*display:\s*block/);
     expect(wide).toMatch(/\.mobile\s*\{[^}]*display:\s*none/);
+  });
+
+  it("swaps as soon as the desktop drawing fits, not a breakpoint later", () => {
+    /*
+      The desktop `viewBox` is 720 wide and a 768px viewport gives 704px of
+      content, so it renders at 0.98x — its designed size. Holding the swap at
+      860px left tablets rendering the 320-wide mobile drawing stretched across
+      704px: a 2.2x blow-up, 704 x 1034, taller than the viewport, with every
+      12px label reading at 26px.
+    */
+    const swap = diagram.source.match(/@media\s*\(min-width:\s*(\d+)px\)/);
+    expect(swap, "the diagram has no swap breakpoint").not.toBeNull();
+    expect(Number(swap![1])).toBeLessThanOrEqual(768);
   });
 
   it("lets each drawing take the width it is given, and keep its ratio", () => {
     expect(diagram.rule(".mobile")).toMatch(/width:\s*100%/);
     expect(diagram.rule(".mobile")).toMatch(/height:\s*auto/);
+  });
+
+  it("caps both drawings so neither is stretched past its design size", () => {
+    /*
+      `width: 100%` alone hands each drawing the whole column. The mobile
+      variant is 320 units wide and was reaching 704px; the desktop variant is
+      720 and was reaching 1136px, where it stopped illustrating the page and
+      started being it.
+    */
+    expect(diagram.rule(".mobile")).toMatch(/max-width:\s*400px/);
+    expect(diagram.rule(".mobile")).toMatch(/margin-inline:\s*auto/);
+
+    const wide = diagram.source.slice(diagram.source.indexOf("@media (min-width: 768px)"));
+    expect(wide).toMatch(/\.desktop\s*\{[^}]*max-width:\s*960px/);
+    expect(wide).toMatch(/\.desktop\s*\{[^}]*margin-inline:\s*auto/);
   });
 });
 
@@ -110,7 +138,7 @@ describe("the chapter index stacks before it sits side by side", () => {
  */
 describe("the responsibility matrix survives a phone", () => {
   it("stacks into labelled blocks below the table breakpoint", () => {
-    const stacking = plan.mediaBlocks(767).find((body) => /\.matrix\b/.test(body));
+    const stacking = plan.mediaBlocks(849).find((body) => /\.matrix\b/.test(body));
     expect(stacking).toBeDefined();
     expect(stacking).toMatch(/display:\s*block/);
     // The column name travels with the cell, so a stacked row keeps its meaning.
@@ -122,6 +150,25 @@ describe("the responsibility matrix survives a phone", () => {
   it("lets a wide table scroll inside its own container", () => {
     // Never the document. A page that scrolls sideways has lost its layout.
     expect(plan.rule(".matrixScroll")).toMatch(/overflow-x:\s*auto/);
+  });
+
+  it("only renders the grid at widths where the whole grid fits", () => {
+    /*
+      The eight columns need 772px of min-content, measured in the browser. A
+      viewport spends 64px on gutters above 768px, so the content column reaches
+      772px at a 836px viewport — below that the table renders wider than its
+      container and roughly 68px of it sits behind a scroll the reader has no
+      cue to look for. The breakpoint has to be at least 835px for the choice to
+      be between a whole stacked reading and a whole grid.
+    */
+    const breakpoints = [...plan.source.matchAll(/@media\s*\(max-width:\s*(\d+)px\)/g)]
+      .map((m) => Number(m[1]));
+    const matrixBreakpoint = breakpoints.find((bp) =>
+      plan.mediaBlocks(bp).some((body) => /\.matrix\b/.test(body)),
+    );
+
+    expect(matrixBreakpoint, "no max-width block carries the matrix").toBeDefined();
+    expect(matrixBreakpoint!).toBeGreaterThanOrEqual(835);
   });
 
   it("lets the column headings wrap", () => {
@@ -281,5 +328,53 @@ describe("leads read above body copy", () => {
   it("leaves body copy on the base step", () => {
     // `.gapBody` declares no size, so it inherits the marketing root's base.
     expect(pages.rule(".gapBody")).not.toMatch(/font-size:/);
+  });
+});
+
+/**
+ * Pointer targets in the desktop header.
+ *
+ * Every other control in the header already cleared 44px; the four navigation
+ * links were the height of their own text, about 24px.
+ */
+describe("desktop navigation links are worth aiming at", () => {
+  it("carries an overlay that reaches 44px", () => {
+    // 24px of text plus 10px above and below. An overlay rather than padding:
+    // see the rule's own comment for why the box itself cannot grow.
+    const overlay = header.rule(".navLink::after");
+
+    expect(overlay).toMatch(/content:\s*""/);
+    expect(overlay).toMatch(/position:\s*absolute/);
+    expect(overlay).toMatch(/inset-block:\s*-10px/);
+  });
+
+  it("keeps the link positioned so the overlay has something to sit on", () => {
+    expect(header.rule(".navLink")).toMatch(/position:\s*relative/);
+  });
+
+  it("leaves the current-page rule attached to the word", () => {
+    // The marker is a `border-bottom` on the link box. Growing that box with
+    // padding would strand the rule at the bottom of a 44px target.
+    const current = header.rule('.navLink[aria-current="page"]');
+    expect(current).toMatch(/border-bottom:/);
+    expect(header.rule(".navLink")).not.toMatch(/padding-block:/);
+  });
+});
+
+/**
+ * Footer height on a phone.
+ *
+ * The footer stacks below 720px and its height lands at the end of an already
+ * long page. Its link columns are 44px targets and stay that way — the padding
+ * is the part that can give.
+ */
+describe("the stacked footer is tighter than the laid-out one", () => {
+  it("uses the smaller block padding by default", () => {
+    expect(landing.rule(".footerInner")).toMatch(/padding-block:\s*var\(--p-space-6\)/);
+  });
+
+  it("restores the generous padding once it lays out in columns", () => {
+    const wide = landing.source.slice(landing.source.indexOf("@media (min-width: 720px)"));
+    expect(wide).toMatch(/\.footerInner\s*\{[^}]*padding-block:\s*var\(--p-space-7\)/);
   });
 });

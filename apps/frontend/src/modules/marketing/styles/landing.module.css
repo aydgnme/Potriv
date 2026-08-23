@@ -129,7 +129,16 @@
 .footerInner {
   display: grid;
   gap: var(--p-space-6);
-  padding-block: var(--p-space-7);
+  /*
+    A tighter block on phones, where the footer stacks and its height is added
+    to an already long page. The generous version returns as soon as the brand
+    and the columns sit side by side and the footer stops being a fifth screen.
+
+    The rest of its height is not padding and is deliberately left alone: the
+    link columns are 44px targets, and shrinking those to reach a height target
+    would trade a real affordance for a number.
+  */
+  padding-block: var(--p-space-6);
 }
 
 @media (min-width: 720px) {
@@ -137,6 +146,7 @@
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
     gap: var(--p-space-8);
+    padding-block: var(--p-space-7);
   }
 }
 

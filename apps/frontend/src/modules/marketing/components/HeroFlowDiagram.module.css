@@ -20,17 +20,43 @@
   display: none;
 }
 
+/*
+  Capped, because `width: 100%` alone stretches a 320-unit drawing to whatever
+  column it is given. Below the swap the mobile variant used to take the full
+  content width, so at a 768px viewport it rendered 704 x 1034 — a 2.2x blow-up
+  in which every 12px label became 26px and the diagram stood taller than the
+  viewport. The cap is 1.25x its natural width; past that it is centred and the
+  column grows around it instead.
+*/
 .mobile {
   display: block;
   width: 100%;
+  max-width: 400px;
   height: auto;
+  margin-inline: auto;
 }
 
-@media (min-width: 860px) {
+/*
+  The swap happens as soon as the desktop drawing fits, not a breakpoint later.
+
+  Its `viewBox` is 720 wide, and a 768px viewport gives 704px of content — so it
+  renders at 0.98x, essentially its designed size, with ~11.7px labels. Holding
+  the swap at 860px bought nothing and left tablets with the stretched mobile
+  composition described above.
+*/
+@media (min-width: 768px) {
   .desktop {
     display: block;
     width: 100%;
+    /*
+      And never larger than 960. Uncapped it followed the 1136px content column
+      at desktop widths, rendering 1136 x 631 and dominating the page. At 960 it
+      is 1.33x its `viewBox` — large enough to read, small enough to sit inside
+      the text column's measure rather than replace it.
+    */
+    max-width: 960px;
     height: auto;
+    margin-inline: auto;
   }
 
   .mobile {

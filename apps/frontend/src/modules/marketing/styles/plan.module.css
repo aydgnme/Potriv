@@ -320,7 +320,21 @@
   color: var(--p-text-muted);
 }
 
-@media (max-width: 767px) {
+/*
+  The matrix stays a grid only where the grid actually fits.
+
+  Its eight columns need 772px of min-content. Stacking at 767px meant a 768px
+  viewport — 704px of content — rendered the full table and hid roughly 68px of
+  it behind a scroll container the reader had no reason to look for. 849px is the
+  last width where the content column is narrower than the table, so the choice
+  is now between a complete stacked reading and a complete grid, never a grid
+  with columns out of view.
+
+  `.matrixScroll` stays as the backstop: a reader who raises their browser's
+  default font size grows the table's min-content past this calculation, and it
+  has to go somewhere other than the document's width.
+*/
+@media (max-width: 849px) {
   /* One labelled block per role. The header row stays in the DOM — visually
      hidden, not removed — so the column names remain available. */
   .matrix,
