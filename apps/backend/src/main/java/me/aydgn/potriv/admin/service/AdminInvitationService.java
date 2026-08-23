@@ -12,13 +12,12 @@ import me.aydgn.potriv.admin.support.AdminListView;
 import me.aydgn.potriv.admin.support.AdminNotFoundException;
 import me.aydgn.potriv.admin.support.AdminPaging;
 import me.aydgn.potriv.admin.viewmodel.AdminInvitationViews;
+import me.aydgn.potriv.identity.dto.EmployeeInviteResponse;
 import me.aydgn.potriv.identity.entity.InviteToken;
 
 @Service
 public class AdminInvitationService {
 
-    /** The raw invite token is never rendered; only this fixed masked hint. */
-    private static final String TOKEN_HINT = "•••• (hidden)";
 
     private final AdminInvitationRepository invitationRepository;
 
@@ -36,7 +35,7 @@ public class AdminInvitationService {
             new AdminInvitationViews.ListItem(
                 invite.getId(),
                 invite.getOrganization().getName(),
-                TOKEN_HINT,
+                EmployeeInviteResponse.mask(invite.getInvitedEmail()),
                 status(invite),
                 invite.getCreatedAt(),
                 invite.getExpiresAt()));
@@ -51,12 +50,13 @@ public class AdminInvitationService {
             invite.getId(),
             invite.getOrganization().getName(),
             invite.getOrganization().getId(),
-            TOKEN_HINT,
+            EmployeeInviteResponse.mask(invite.getInvitedEmail()),
             status(invite),
-            invite.isActive(),
-            invite.isExpired(),
+            invite.isPending(),
             invite.getCreatedAt(),
             invite.getExpiresAt(),
+            invite.getConsumedAt(),
+            invite.getRevokedAt(),
             invite.getUpdatedAt());
     }
 

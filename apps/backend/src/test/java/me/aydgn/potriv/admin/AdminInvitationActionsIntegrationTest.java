@@ -77,7 +77,7 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
     private InviteToken activeInviteOf(UUID organizationId) {
         Organization organization = organizationRepository.findById(organizationId).orElseThrow();
         List<InviteToken> active = inviteTokenRepository
-            .findAllByOrganizationAndActiveTrue(organization);
+            .findPendingFor(organization);
         assertThat(active).hasSize(1);
         return active.get(0);
     }
@@ -86,15 +86,22 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         return auditEventRepository.findAll().stream().anyMatch(e -> e.getEventType() == type);
     }
 
-    private void revoke(UUID invitationId) throws Exception {
-        mockMvc.perform(post("/admin/invitations/" + invitationId + "/revoke")
-                .with(csrf()).session(adminSession()))
-            .andExpect(status().is3xxRedirection())
-            .andExpect(redirectedUrl("/admin/invitations/" + invitationId));
+    /**
+     * Scoped to one organization.
+     *
+     * The audit table is shared by every test in the run, and one of them seeds
+     * a legacy {@code ADMIN_INVITATION_REGENERATED} row on purpose. Asking
+     * globally whether that type exists therefore answers a question about the
+     * fixture rather than about the code under test.
+     */
+    private boolean auditedFor(SecurityAuditEventType type, UUID organizationId) {
+        return auditEventRepository.findAll().stream()
+            .anyMatch(e -> e.getEventType() == type
+                && organizationId.equals(e.getOrganizationId()));
     }
 
-    private void regenerate(UUID invitationId) throws Exception {
-        mockMvc.perform(post("/admin/invitations/" + invitationId + "/regenerate")
+    private void revoke(UUID invitationId) throws Exception {
+        mockMvc.perform(post("/admin/invitations/" + invitationId + "/revoke")
                 .with(csrf()).session(adminSession()))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/admin/invitations/" + invitationId));
@@ -120,7 +127,9 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         String html = adminGet("/admin/invitations/" + seed.invitationId())
             .andExpect(status().isOk())
             .andReturn().getResponse().getContentAsString();
-        assertThat(html).contains("Revoke", "Regenerate");
+        // One control, and only while the invitation can still be withdrawn.
+        assertThat(html).contains("Withdraw");
+        assertThat(html).doesNotContain("Regenerate");
     }
 
     @Test
@@ -130,10 +139,6 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         mockMvc.perform(post("/admin/invitations/" + seed.invitationId() + "/revoke")
                 .session(adminSession()))
             .andExpect(status().isForbidden());
-        mockMvc.perform(post("/admin/invitations/" + seed.invitationId() + "/regenerate")
-                .session(adminSession()))
-            .andExpect(status().isForbidden());
-
         assertThat(reload(seed.invitationId()).isActive()).isTrue();
     }
 
@@ -204,75 +209,53 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         assertThat(login(employeeEmail, "Password123!").get("accessToken").asText()).isNotBlank();
     }
 
-    // --------------------------------------------------------- Regenerate
+    // ------------------------------------------------- No bulk action
 
     @Test
-    void regenerateRevokesEveryActiveInviteAndKillsTheOldLink() throws Exception {
+    void thereIsNoRegenerateEndpointLeft() throws Exception {
         /*
-          The console used to mint a replacement here. It no longer can:
-          invites are stored as a hash, so a link exists only in the response
-          that creates it, and a replacement made from this screen could not be
-          shown here or anywhere else. The action revokes; the organization
-          admin rotates through their own endpoint to get a working link.
+          "Regenerate" disabled every active invitation for an organization and,
+          once invites became hash-only, created nothing to replace them — a
+          control labelled as a refresh that silently cut off everybody
+          mid-registration. In a per-recipient model there is nothing
+          organization-wide to regenerate, so the route is gone rather than
+          renamed.
         */
         Seed seed = seed();
 
-        regenerate(seed.invitationId());
+        mockMvc.perform(post("/admin/invitations/" + seed.invitationId() + "/regenerate")
+                .with(csrf()).session(adminSession()))
+            .andExpect(status().isNotFound());
 
-        assertThat(reload(seed.invitationId()).isActive()).isFalse();
-        assertThat(inviteTokenRepository
-            .findAllByOrganizationAndActiveTrue(
-                reload(seed.invitationId()).getOrganization()))
-            .isEmpty();
-
-        // The old link is dead, and says nothing about why.
-        mockMvc.perform(post("/auth/register-employee")
-                .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(java.util.Map.of(
-                    "token", seed.rawToken(),
-                    "name", "Old Link",
-                    "email", uniqueEmail("oldlink"),
-                    "password", "Password123!"))))
-            .andExpect(status().isBadRequest());
-
-        assertThat(audited(SecurityAuditEventType.ADMIN_INVITATION_REGENERATED)).isTrue();
+        assertThat(reload(seed.invitationId()).isPending()).isTrue();
     }
 
     @Test
-    void regenerateLeavesNoActiveInvitationForTheOrganization() throws Exception {
-        /*
-          There is nothing for the console to replace the invitation with. A new
-          one has to be addressed to a person and mailed to them, which is the
-          organization admin's action, not a system administrator's. So this
-          ends at zero rather than at one, and the organization admin invites
-          the person again.
-        */
+    void nothingWritesTheLegacyRegenerateAuditEvent() throws Exception {
         Seed seed = seed();
 
-        regenerate(seed.invitationId());
+        revoke(seed.invitationId());
 
-        Organization organization = organizationRepository.findById(seed.organizationId())
-            .orElseThrow();
-        assertThat(inviteTokenRepository.findAllByOrganizationAndActiveTrue(organization))
-            .isEmpty();
+        // The constant stays so old rows still load; nothing emits it.
+        assertThat(auditedFor(SecurityAuditEventType.ADMIN_INVITATION_REGENERATED,
+            seed.organizationId())).isFalse();
+        assertThat(auditedFor(SecurityAuditEventType.ADMIN_INVITATION_REVOKED,
+            seed.organizationId())).isTrue();
     }
 
     @Test
-    void actionsOnOneOrganizationDoNotTouchAnother() throws Exception {
+    void withdrawingOneOrganizationsInvitationDoesNotTouchAnother() throws Exception {
         Seed first = seed();
         Seed second = seed();
 
-        regenerate(first.invitationId());
+        revoke(first.invitationId());
 
-        // The first organization's invitation is gone...
-        assertThat(reload(first.invitationId()).isActive()).isFalse();
+        assertThat(reload(first.invitationId()).isPending()).isFalse();
         Organization firstOrganization = organizationRepository
             .findById(first.organizationId()).orElseThrow();
-        assertThat(inviteTokenRepository.findAllByOrganizationAndActiveTrue(firstOrganization))
-            .isEmpty();
+        assertThat(inviteTokenRepository.findPendingFor(firstOrganization)).isEmpty();
 
-        // ...and the second organization is untouched by it.
-        assertThat(reload(second.invitationId()).isActive()).isTrue();
+        assertThat(reload(second.invitationId()).isPending()).isTrue();
         assertThat(activeInviteOf(second.organizationId()).getId())
             .isEqualTo(second.invitationId());
     }
@@ -292,7 +275,8 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
 
         assertThat(detail).doesNotContain(seed.rawToken());
         assertThat(list).doesNotContain(seed.rawToken());
-        assertThat(detail).contains("(hidden)");
+        // The recipient is shown masked; the token is not shown at all.
+        assertThat(detail).contains("****@");
     }
 
     @Test
@@ -300,7 +284,6 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         Seed seed = seed();
 
         revoke(seed.invitationId());
-        regenerate(seed.invitationId());
 
         /*
           Two assertions, because the first alone would pass a regression that

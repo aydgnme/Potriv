@@ -93,18 +93,6 @@ public class AdminInvitationController {
         return "redirect:/admin/invitations/" + id;
     }
 
-    /** Disables the organization's active links and issues one fresh invitation. */
-    @PostMapping("/admin/invitations/{id}/regenerate")
-    public String regenerate(
-        @PathVariable UUID id,
-        @AuthenticationPrincipal AdminPrincipal principal,
-        RedirectAttributes redirectAttributes
-    ) {
-        guard.requireEnabled();
-        flash(redirectAttributes, invitationWriteService.regenerate(id, principal));
-        return "redirect:/admin/invitations/" + id;
-    }
-
     private static void flash(
         RedirectAttributes redirectAttributes, InvitationActionOutcome outcome) {
         redirectAttributes.addFlashAttribute("adminSuccess", outcome.message());

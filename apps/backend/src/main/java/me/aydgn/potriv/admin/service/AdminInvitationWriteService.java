@@ -9,9 +9,6 @@ import me.aydgn.potriv.admin.security.AdminPrincipal;
 import me.aydgn.potriv.admin.support.AdminNotFoundException;
 import me.aydgn.potriv.identity.entity.InviteToken;
 import me.aydgn.potriv.identity.repository.InviteTokenRepository;
-import me.aydgn.potriv.identity.service.InviteTokenService;
-import me.aydgn.potriv.organization.entity.Organization;
-import me.aydgn.potriv.organization.repository.OrganizationRepository;
 import me.aydgn.potriv.security.entity.SecurityAuditEvent;
 import me.aydgn.potriv.security.entity.SecurityAuditEventType;
 import me.aydgn.potriv.security.service.SecurityAuditService;
@@ -43,86 +40,46 @@ public class AdminInvitationWriteService {
     }
 
     private final InviteTokenRepository inviteTokenRepository;
-    private final OrganizationRepository organizationRepository;
-    private final InviteTokenService inviteTokenService;
     private final SecurityAuditService securityAuditService;
 
     public AdminInvitationWriteService(
         InviteTokenRepository inviteTokenRepository,
-        OrganizationRepository organizationRepository,
-        InviteTokenService inviteTokenService,
         SecurityAuditService securityAuditService
     ) {
         this.inviteTokenRepository = inviteTokenRepository;
-        this.organizationRepository = organizationRepository;
-        this.inviteTokenService = inviteTokenService;
         this.securityAuditService = securityAuditService;
     }
 
     /**
-     * Permanently disables an invite link. Idempotent: revoking an already
-     * disabled invitation reports that and changes nothing.
+     * Withdraws one invitation, and only that one.
+     *
+     * There is no organization-wide action here any more. "Regenerate" used to
+     * disable every active invitation for the organization and — once invites
+     * became hash-only — create nothing to replace them, so a control labelled
+     * as a refresh silently cut off everybody who was mid-registration. In a
+     * model where an invitation is addressed to a person there is nothing
+     * organization-wide left to regenerate. A bulk withdrawal is a different
+     * feature, with its own name and its own confirmation, and is not smuggled
+     * in behind this one.
+     *
+     * Idempotent: an invitation that is not outstanding reports that and
+     * changes nothing.
      */
     @Transactional
     public InvitationActionOutcome revoke(UUID invitationId, AdminPrincipal actor) {
         InviteToken invite = requireInvitation(invitationId);
 
-        if (!invite.isActive()) {
-            return InvitationActionOutcome.info("Invitation is already disabled.");
+        if (!invite.isPending()) {
+            return InvitationActionOutcome.info(
+                "Invitation is not outstanding, so there is nothing to withdraw.");
         }
+
         invite.deactivate();
 
         audit(SecurityAuditEventType.ADMIN_INVITATION_REVOKED, invite, actor,
             "Revoked invitation " + invite.getId());
         return InvitationActionOutcome.success(
             "Invitation revoked. The link can no longer be used to register.");
-    }
-
-    /**
-     * Replaces the organization's invite link: every active invitation for that
-     * organization is disabled and one fresh invitation is created.
-     *
-     * <p>This mirrors the invariant the organization-admin rotation keeps — at
-     * most one active invite per organization — and takes the same pessimistic
-     * organization lock so concurrent regenerations cannot both create one.
-     *
-     * <p>The new token is deliberately <strong>not</strong> returned or rendered:
-     * the console's job is to invalidate a leaked link, and the organization
-     * retrieves the new URL through the product's own invite endpoint.
-     */
-    @Transactional
-    public InvitationActionOutcome regenerate(UUID invitationId, AdminPrincipal actor) {
-        InviteToken invite = requireInvitation(invitationId);
-
-        Organization organization = organizationRepository
-            .findByIdForUpdate(invite.getOrganization().getId())
-            .orElseThrow(() -> new AdminNotFoundException("Organization was not found."));
-
-        int revoked = 0;
-        for (InviteToken active : inviteTokenRepository
-                .findAllByOrganizationAndActiveTrue(organization)) {
-            active.deactivate();
-            revoked++;
-        }
-
-        /*
-          No replacement is created here any more.
-
-          Invites are stored as a hash, so the raw link exists only in the
-          response that creates it. A replacement minted from this console
-          could not be shown here — and, since the organization's own invite
-          endpoint can no longer read a link back either, could not be shown
-          anywhere. It would be an invite nobody could use.
-
-          This action revokes; the organization admin rotates through their own
-          endpoint when they need a working link.
-        */
-        audit(SecurityAuditEventType.ADMIN_INVITATION_REGENERATED, invite, actor,
-            "Revoked " + revoked + " active invitation(s) for this organization.");
-        return InvitationActionOutcome.success(
-            "Every active invitation for this organization was disabled. A new link is"
-                + " created by the organization's own invite rotation, which is the only"
-                + " place the link is ever shown.");
     }
 
     private InviteToken requireInvitation(UUID invitationId) {

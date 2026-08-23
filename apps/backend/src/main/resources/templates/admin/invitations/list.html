@@ -12,13 +12,13 @@
     <div class="admin-table-scroll">
         <table th:unless="${list.items.isEmpty()}" class="admin-table">
             <thead>
-            <tr><th>Organization</th><th>Token</th><th>Status</th><th>Created</th><th>Expires</th></tr>
+            <tr><th>Organization</th><th>Invited</th><th>Status</th><th>Created</th><th>Expires</th></tr>
             </thead>
             <tbody>
             <tr th:each="invite : ${list.items}">
                 <td><a th:href="@{'/admin/invitations/' + ${invite.id}}"
                        th:text="${invite.organizationName}">Org</a></td>
-                <td><code th:text="${invite.tokenHint}">hidden</code></td>
+                <td th:text="${invite.maskedEmail}">ad****@example.com</td>
                 <td><span th:replace="~{admin/fragments/badges :: badge(${invite.status})}"></span></td>
                 <td th:text="${@adminFormat.dateTime(invite.createdAt)}">date</td>
                 <td th:text="${invite.expiresAt != null
