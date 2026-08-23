@@ -34,7 +34,8 @@ class AdminSkillCategoryFormIntegrationTest extends AbstractAdminIntegrationTest
     private SecurityAuditEventRepository auditEventRepository;
 
     private UUID seedOrganization() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("SkillCatOrg"), uniqueEmail("skillcat"), "Password123!");
+        String adminEmail = uniqueEmail("skillcat");
+        JsonNode admin = registerAdmin(uniqueName("SkillCatOrg"), adminEmail, "Password123!");
         return UUID.fromString(admin.get("organizationId").asText());
     }
 

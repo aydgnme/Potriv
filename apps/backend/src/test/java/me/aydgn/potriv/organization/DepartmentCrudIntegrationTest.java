@@ -113,10 +113,12 @@ class DepartmentCrudIntegrationTest extends AbstractMockMvcIntegrationTest {
 
     @Test
     void employeeReceives403() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("Org"), uniqueEmail("admin"), "Password123!");
+        String adminEmail = uniqueEmail("admin");
+        JsonNode admin = registerAdmin(uniqueName("Org"), adminEmail, "Password123!");
         String employeeEmail = uniqueEmail("employee");
-        registerEmployee(extractInviteToken(admin.get("employeeInviteUrl").asText()),
-            employeeEmail, "Password123!");
+        inviteAndRegisterEmployee(
+loginForAccessToken(adminEmail, "Password123!"),
+employeeEmail, "Password123!");
         String employeeToken = loginForAccessToken(employeeEmail, "Password123!");
 
         mockMvc.perform(get("/departments")

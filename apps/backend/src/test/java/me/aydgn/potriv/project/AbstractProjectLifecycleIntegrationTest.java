@@ -26,7 +26,7 @@ import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
 public abstract class AbstractProjectLifecycleIntegrationTest
     extends AbstractMockMvcIntegrationTest {
 
-    protected record Org(UUID orgId, UUID adminId, String adminToken, String inviteToken) {
+    protected record Org(UUID orgId, UUID adminId, String adminToken) {
     }
 
     protected record Member(UUID userId, String email, String token) {
@@ -38,13 +38,12 @@ public abstract class AbstractProjectLifecycleIntegrationTest
         return new Org(
             UUID.fromString(admin.get("organizationId").asText()),
             UUID.fromString(admin.get("userId").asText()),
-            loginForAccessToken(email, "Password123!"),
-            extractInviteToken(admin.get("employeeInviteUrl").asText()));
+            loginForAccessToken(email, "Password123!"));
     }
 
     protected Member newEmployee(Org org, String prefix) throws Exception {
         String email = uniqueEmail(prefix);
-        JsonNode employee = registerEmployee(org.inviteToken(), email, "Password123!");
+        JsonNode employee = inviteAndRegisterEmployee(org.adminToken(), email, "Password123!");
         return new Member(UUID.fromString(employee.get("userId").asText()), email,
             loginForAccessToken(email, "Password123!"));
     }

@@ -6,9 +6,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import me.aydgn.potriv.identity.entity.InviteToken;
-import me.aydgn.potriv.identity.service.InviteTokenService;
-import me.aydgn.potriv.organization.entity.Organization;
+import me.aydgn.potriv.identity.service.InviteUrlFactory;
 
 /**
  * The links this backend emails to people who cannot yet sign in.
@@ -19,67 +17,70 @@ import me.aydgn.potriv.organization.entity.Organization;
  * origin no application in this repository serves, so invite links had no
  * destination and development reset links were dead.
  *
- * These tests pin the *shape* — base URL, path, and the token carried as a
- * {@code token} query parameter — without asserting the token's contents, which
- * are random by design and must stay that way.
+ * These tests pin the *shape* — base URL, path, and how the token is carried —
+ * without asserting the token's contents, which are random by design and must
+ * stay that way.
+ *
+ * The invite's token now travels in the URL *fragment*. A fragment is never
+ * sent to a server, so it cannot reach an access log, a reverse proxy, a
+ * platform trace or a {@code Referer} header. The previous {@code ?token=}
+ * form reached all of them.
  */
 class GeneratedFrontendLinkTest {
 
     private static final String FRONTEND_URL = "https://potriv.example";
 
     @Test
-    @DisplayName("an invite URL is the configured frontend base plus /invite?token=")
+    @DisplayName("an invite URL is the configured frontend base plus /invite#token=")
     void inviteUrlUsesConfiguredFrontendBase() {
-        // No repository is needed: building a URL is pure string work and never
-        // touches persistence. Passing null keeps a mocking framework — and its
-        // generated classes — out of a test that does not need either.
-        InviteTokenService service = new InviteTokenService(null, FRONTEND_URL);
+        // Building a URL is pure string work and never touches persistence, so
+        // this needs no repository and no mocking framework.
+        InviteUrlFactory factory = new InviteUrlFactory(FRONTEND_URL);
 
-        Organization organization = new Organization("Example", "1 Example Way");
-        InviteToken token = new InviteToken(organization, "a-token-value", null);
+        String url = factory.build("a-token-value");
 
-        String url = service.buildInviteUrl(token);
-
-        assertThat(url).startsWith(FRONTEND_URL + "/invite?token=");
-        // The token travels as a query parameter, not a path segment: the Next
-        // route reads `?token=`, and the two must agree.
-        assertThat(url).contains("?token=");
+        assertThat(url).startsWith(FRONTEND_URL + "/invite#token=");
+        assertThat(url).contains("#token=");
         assertThat(url).doesNotContain("localhost:5173");
+    }
+
+    @Test
+    @DisplayName("the invite token never appears in the query string or the path")
+    void inviteTokenStaysOutOfTheServerVisiblePartOfTheUrl() {
+        /*
+          The point of the whole change. Everything before the '#' is sent to
+          the server on every request for that page; everything after it never
+          leaves the browser.
+        */
+        InviteUrlFactory factory = new InviteUrlFactory(FRONTEND_URL);
+        String tokenValue = UUID.randomUUID().toString();
+
+        String url = factory.build(tokenValue);
+        String serverVisible = url.substring(0, url.indexOf('#'));
+
+        assertThat(serverVisible).doesNotContain(tokenValue);
+        assertThat(serverVisible).doesNotContain("token=");
+        assertThat(serverVisible).isEqualTo(FRONTEND_URL + "/invite");
     }
 
     @Test
     @DisplayName("the invite URL carries the token it was built from")
     void inviteUrlCarriesItsToken() {
-        // No repository is needed: building a URL is pure string work and never
-        // touches persistence. Passing null keeps a mocking framework — and its
-        // generated classes — out of a test that does not need either.
-        InviteTokenService service = new InviteTokenService(null, FRONTEND_URL);
+        InviteUrlFactory factory = new InviteUrlFactory(FRONTEND_URL);
 
         String tokenValue = UUID.randomUUID().toString();
-        InviteToken token = new InviteToken(
-            new Organization("Example", "1 Example Way"),
-            tokenValue,
-            null
-        );
 
-        assertThat(service.buildInviteUrl(token)).isEqualTo(
-            FRONTEND_URL + "/invite?token=" + tokenValue
-        );
+        assertThat(factory.build(tokenValue))
+            .isEqualTo(FRONTEND_URL + "/invite#token=" + tokenValue);
     }
 
     @Test
     @DisplayName("a trailing slash in configuration would double the separator")
     void baseUrlIsUsedVerbatim() {
-        InviteTokenService service = new InviteTokenService(null, FRONTEND_URL + "/");
-
-        InviteToken token = new InviteToken(
-            new Organization("Example", "1 Example Way"),
-            "t",
-            null
-        );
+        InviteUrlFactory factory = new InviteUrlFactory(FRONTEND_URL + "/");
 
         // Documenting the real behaviour rather than pretending it normalises:
-        // the service concatenates, so configuration must not end in a slash.
-        assertThat(service.buildInviteUrl(token)).isEqualTo(FRONTEND_URL + "//invite?token=t");
+        // the factory concatenates, so configuration must not end in a slash.
+        assertThat(factory.build("t")).isEqualTo(FRONTEND_URL + "//invite#token=t");
     }
 }

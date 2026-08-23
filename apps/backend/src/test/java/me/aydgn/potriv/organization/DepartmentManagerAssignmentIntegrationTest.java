@@ -298,7 +298,7 @@ class DepartmentManagerAssignmentIntegrationTest extends AbstractMockMvcIntegrat
 
     // ---- helpers ----
 
-    private record Org(UUID orgId, UUID adminId, String adminToken, String inviteToken) {
+    private record Org(UUID orgId, UUID adminId, String adminToken) {
     }
 
     private record Employee(UUID userId, String email) {
@@ -310,13 +310,12 @@ class DepartmentManagerAssignmentIntegrationTest extends AbstractMockMvcIntegrat
         return new Org(
             UUID.fromString(admin.get("organizationId").asText()),
             UUID.fromString(admin.get("userId").asText()),
-            loginForAccessToken(email, "Password123!"),
-            extractInviteToken(admin.get("employeeInviteUrl").asText()));
+            loginForAccessToken(email, "Password123!"));
     }
 
     private Employee newEmployee(Org org, String prefix) throws Exception {
         String email = uniqueEmail(prefix);
-        JsonNode employee = registerEmployee(org.inviteToken(), email, "Password123!");
+        JsonNode employee = inviteAndRegisterEmployee(org.adminToken(), email, "Password123!");
         return new Employee(UUID.fromString(employee.get("userId").asText()), email);
     }
 

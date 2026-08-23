@@ -98,17 +98,31 @@ public class AdminInvitationWriteService {
             .findByIdForUpdate(invite.getOrganization().getId())
             .orElseThrow(() -> new AdminNotFoundException("Organization was not found."));
 
-        inviteTokenRepository.findAllByOrganizationAndActiveTrue(organization)
-            .forEach(InviteToken::deactivate);
-        InviteToken replacement = inviteTokenService.createForOrganization(organization);
+        int revoked = 0;
+        for (InviteToken active : inviteTokenRepository
+                .findAllByOrganizationAndActiveTrue(organization)) {
+            active.deactivate();
+            revoked++;
+        }
 
-        // The replacement's id is safe to record; its token is not.
+        /*
+          No replacement is created here any more.
+
+          Invites are stored as a hash, so the raw link exists only in the
+          response that creates it. A replacement minted from this console
+          could not be shown here — and, since the organization's own invite
+          endpoint can no longer read a link back either, could not be shown
+          anywhere. It would be an invite nobody could use.
+
+          This action revokes; the organization admin rotates through their own
+          endpoint when they need a working link.
+        */
         audit(SecurityAuditEventType.ADMIN_INVITATION_REGENERATED, invite, actor,
-            "Regenerated organization invite. New invitation ID: " + replacement.getId());
+            "Revoked " + revoked + " active invitation(s) for this organization.");
         return InvitationActionOutcome.success(
-            "A new invitation was created and every previous link for this organization"
-                + " was disabled. The new link is available through the organization's"
-                + " own invite endpoint — it is never shown here.");
+            "Every active invitation for this organization was disabled. A new link is"
+                + " created by the organization's own invite rotation, which is the only"
+                + " place the link is ever shown.");
     }
 
     private InviteToken requireInvitation(UUID invitationId) {

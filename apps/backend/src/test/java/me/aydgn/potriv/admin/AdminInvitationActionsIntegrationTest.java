@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import me.aydgn.potriv.identity.entity.InviteToken;
+import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.repository.InviteTokenRepository;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.organization.entity.Organization;
@@ -41,28 +43,43 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
     @Autowired
     private SecurityAuditEventRepository auditEventRepository;
 
-    /** A freshly registered organization plus its invite link and raw token. */
-    private record Seed(UUID organizationId, UUID invitationId, String rawToken) {
+    /** An organization with one outstanding invitation, addressed to one person. */
+    private record Seed(UUID organizationId, UUID invitationId, String invitedEmail,
+                        String rawToken) {
     }
 
     private Seed seed() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("InviteOrg"), uniqueEmail("inviteorg"),
-            "Password123!");
+        String adminEmail = uniqueEmail("inviteorg");
+        JsonNode admin = registerAdmin(uniqueName("InviteOrg"), adminEmail, "Password123!");
         UUID organizationId = UUID.fromString(admin.get("organizationId").asText());
-        String rawToken = extractInviteToken(admin.get("employeeInviteUrl").asText());
-        UUID invitationId = inviteTokenRepository.findByToken(rawToken).orElseThrow().getId();
-        return new Seed(organizationId, invitationId, rawToken);
+        String adminToken = loginForAccessToken(adminEmail, "Password123!");
+
+        // The raw token is not in the invite response by design, so the test
+        // reads it the way the recipient would: out of the mail that was sent.
+        String invitedEmail = uniqueEmail("invitee");
+        inviteEmployee(adminToken, invitedEmail);
+        String rawToken = inviteTokenFromMailTo(invitedEmail);
+
+        UUID invitationId = inviteTokenRepository
+            .findByTokenHash(TokenDigest.sha256Base64Url(rawToken)).orElseThrow().getId();
+        return new Seed(organizationId, invitationId, invitedEmail, rawToken);
     }
 
     private InviteToken reload(UUID invitationId) {
         return inviteTokenRepository.findById(invitationId).orElseThrow();
     }
 
+    /**
+     * The organization's single outstanding invitation. Callers use this only
+     * on organizations they seeded with exactly one, and the assertion below
+     * makes that assumption fail loudly rather than pick an arbitrary row.
+     */
     private InviteToken activeInviteOf(UUID organizationId) {
         Organization organization = organizationRepository.findById(organizationId).orElseThrow();
-        return inviteTokenRepository
-            .findFirstByOrganizationAndActiveTrueOrderByCreatedAtDesc(organization)
-            .orElseThrow();
+        List<InviteToken> active = inviteTokenRepository
+            .findAllByOrganizationAndActiveTrue(organization);
+        assertThat(active).hasSize(1);
+        return active.get(0);
     }
 
     private boolean audited(SecurityAuditEventType type) {
@@ -168,14 +185,14 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
     }
 
     /**
-     * The link is shared, so "already used" is not a state it can be in. What must
-     * hold instead is that revoking never reaches back into accounts that were
-     * created with it.
+     * Revoking is about the invitation, not about the person. Once someone has
+     * redeemed theirs, revoking the spent record must not reach back into the
+     * account it created.
      */
     @Test
-    void revokeDoesNotAffectEmployeesAlreadyRegisteredWithTheLink() throws Exception {
+    void revokeDoesNotAffectAnEmployeeWhoAlreadyRegistered() throws Exception {
         Seed seed = seed();
-        String employeeEmail = uniqueEmail("joined");
+        String employeeEmail = seed.invitedEmail();
         registerEmployee(seed.rawToken(), employeeEmail, "Password123!");
 
         revoke(seed.invitationId());
@@ -189,18 +206,25 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
     // --------------------------------------------------------- Regenerate
 
     @Test
-    void regenerateDisablesTheOldLinkAndIssuesAWorkingReplacement() throws Exception {
+    void regenerateRevokesEveryActiveInviteAndKillsTheOldLink() throws Exception {
+        /*
+          The console used to mint a replacement here. It no longer can:
+          invites are stored as a hash, so a link exists only in the response
+          that creates it, and a replacement made from this screen could not be
+          shown here or anywhere else. The action revokes; the organization
+          admin rotates through their own endpoint to get a working link.
+        */
         Seed seed = seed();
 
         regenerate(seed.invitationId());
 
         assertThat(reload(seed.invitationId()).isActive()).isFalse();
+        assertThat(inviteTokenRepository
+            .findAllByOrganizationAndActiveTrue(
+                reload(seed.invitationId()).getOrganization()))
+            .isEmpty();
 
-        InviteToken replacement = activeInviteOf(seed.organizationId());
-        assertThat(replacement.getId()).isNotEqualTo(seed.invitationId());
-        assertThat(replacement.isUsable()).isTrue();
-
-        // The old link is dead...
+        // The old link is dead, and says nothing about why.
         mockMvc.perform(post("/auth/register-employee/" + seed.rawToken())
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(java.util.Map.of(
@@ -208,22 +232,27 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
                     "email", uniqueEmail("oldlink"),
                     "password", "Password123!"))))
             .andExpect(status().isBadRequest());
-        // ...and the replacement works.
-        registerEmployee(replacement.getToken(), uniqueEmail("newlink"), "Password123!");
+
         assertThat(audited(SecurityAuditEventType.ADMIN_INVITATION_REGENERATED)).isTrue();
     }
 
     @Test
-    void regenerateLeavesExactlyOneActiveInvitationForTheOrganization() throws Exception {
+    void regenerateLeavesNoActiveInvitationForTheOrganization() throws Exception {
+        /*
+          There is nothing for the console to replace the invitation with. A new
+          one has to be addressed to a person and mailed to them, which is the
+          organization admin's action, not a system administrator's. So this
+          ends at zero rather than at one, and the organization admin invites
+          the person again.
+        */
         Seed seed = seed();
 
         regenerate(seed.invitationId());
-        regenerate(activeInviteOf(seed.organizationId()).getId());
 
         Organization organization = organizationRepository.findById(seed.organizationId())
             .orElseThrow();
         assertThat(inviteTokenRepository.findAllByOrganizationAndActiveTrue(organization))
-            .hasSize(1);
+            .isEmpty();
     }
 
     @Test
@@ -232,17 +261,18 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         Seed second = seed();
 
         regenerate(first.invitationId());
-        revoke(second.invitationId());
 
-        // The second organization keeps exactly the state its own action produced.
-        assertThat(reload(second.invitationId()).isActive()).isFalse();
-        // The first organization got a replacement; the second did not.
-        Organization secondOrganization = organizationRepository
-            .findById(second.organizationId()).orElseThrow();
-        assertThat(inviteTokenRepository.findAllByOrganizationAndActiveTrue(secondOrganization))
+        // The first organization's invitation is gone...
+        assertThat(reload(first.invitationId()).isActive()).isFalse();
+        Organization firstOrganization = organizationRepository
+            .findById(first.organizationId()).orElseThrow();
+        assertThat(inviteTokenRepository.findAllByOrganizationAndActiveTrue(firstOrganization))
             .isEmpty();
-        assertThat(activeInviteOf(first.organizationId()).getId())
-            .isNotEqualTo(first.invitationId());
+
+        // ...and the second organization is untouched by it.
+        assertThat(reload(second.invitationId()).isActive()).isTrue();
+        assertThat(activeInviteOf(second.organizationId()).getId())
+            .isEqualTo(second.invitationId());
     }
 
     // ----------------------------------------------------- Token secrecy
@@ -266,17 +296,24 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
     @Test
     void rawTokenNeverAppearsInAuditDetails() throws Exception {
         Seed seed = seed();
-        String replacedToken;
 
         revoke(seed.invitationId());
         regenerate(seed.invitationId());
-        replacedToken = activeInviteOf(seed.organizationId()).getToken();
 
+        /*
+          Two assertions, because the first alone would pass a regression that
+          logged a *different* token. The second rejects anything shaped like
+          one: 43 characters of base64url is what a 32-byte token encodes to,
+          and no legitimate audit detail on these events contains such a run.
+        */
         assertThat(auditEventRepository.findAll())
             .filteredOn(event -> event.getDetails() != null)
             .allSatisfy(event -> {
                 assertThat(event.getDetails()).doesNotContain(seed.rawToken());
-                assertThat(event.getDetails()).doesNotContain(replacedToken);
+                assertThat(event.getDetails())
+                    .withFailMessage("audit detail carries a token-shaped value: %s",
+                        event.getDetails())
+                    .doesNotMatch(".*[A-Za-z0-9_-]{43}.*");
             });
     }
 }

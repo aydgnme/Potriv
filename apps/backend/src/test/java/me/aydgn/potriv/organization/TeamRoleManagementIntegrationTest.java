@@ -220,22 +220,20 @@ class TeamRoleManagementIntegrationTest extends AbstractMockMvcIntegrationTest {
     }
 
     private String employeeTokenInNewOrg() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("Org"), uniqueEmail("admin"), "Password123!");
+        String adminEmail = uniqueEmail("admin");
+        JsonNode admin = registerAdmin(uniqueName("Org"), adminEmail, "Password123!");
         String employeeEmail = uniqueEmail("employee");
-        registerEmployee(extractInviteToken(admin.get("employeeInviteUrl").asText()),
-            employeeEmail, "Password123!");
+        inviteAndRegisterEmployee(
+loginForAccessToken(adminEmail, "Password123!"),
+employeeEmail, "Password123!");
         return loginForAccessToken(employeeEmail, "Password123!");
     }
 
     private String employeeTokenInSameOrgAs(String adminToken) throws Exception {
-        // Fetch the admin's org invite and register an employee under it.
-        String inviteResponse = mockMvc.perform(get("/organizations/current/invite")
-                .header(HttpHeaders.AUTHORIZATION, bearer(adminToken)))
-            .andReturn().getResponse().getContentAsString();
-        String inviteToken = extractInviteToken(
-            objectMapper.readTree(inviteResponse).get("inviteUrl").asText());
+        // There is no organization-wide invite to fetch any more: the admin
+        // invites this address, and the token reaches only its mailbox.
         String employeeEmail = uniqueEmail("employee");
-        registerEmployee(inviteToken, employeeEmail, "Password123!");
+        inviteAndRegisterEmployee(adminToken, employeeEmail, "Password123!");
         return loginForAccessToken(employeeEmail, "Password123!");
     }
 }

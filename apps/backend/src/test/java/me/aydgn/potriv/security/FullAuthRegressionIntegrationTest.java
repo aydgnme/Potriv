@@ -28,12 +28,12 @@ class FullAuthRegressionIntegrationTest extends AbstractMockMvcIntegrationTest {
     void fullAuthenticationJourneyWorksEndToEnd() throws Exception {
         // 1. Admin registration
         String adminEmail = uniqueEmail("admin");
-        JsonNode admin = registerAdmin(uniqueName("Org"), adminEmail, "Password123!");
-        String inviteToken = extractInviteToken(admin.get("employeeInviteUrl").asText());
+        registerAdmin(uniqueName("Org"), adminEmail, "Password123!");
+        String adminToken = loginForAccessToken(adminEmail, "Password123!");
 
         // 2. Employee invite registration
         String employeeEmail = uniqueEmail("employee");
-        JsonNode employee = registerEmployee(inviteToken, employeeEmail, "Password123!");
+        JsonNode employee = inviteAndRegisterEmployee(adminToken, employeeEmail, "Password123!");
         UUID employeeId = UUID.fromString(employee.get("userId").asText());
 
         // 3. Login

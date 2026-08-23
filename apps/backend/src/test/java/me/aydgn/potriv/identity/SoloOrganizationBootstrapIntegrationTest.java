@@ -46,14 +46,12 @@ class SoloOrganizationBootstrapIntegrationTest extends AbstractMockMvcIntegratio
     private String founderEmail;
     private String founderToken;
     private UUID founderUserId;
-    private String inviteToken;
 
     @BeforeEach
     void registerSoloOrganization() throws Exception {
         founderEmail = uniqueEmail("founder");
         JsonNode founder = registerAdmin(uniqueName("Solo Org"), founderEmail, PASSWORD);
         founderUserId = UUID.fromString(founder.get("userId").asText());
-        inviteToken = extractInviteToken(founder.get("employeeInviteUrl").asText());
         founderToken = loginForAccessToken(founderEmail, PASSWORD);
     }
 
@@ -125,13 +123,11 @@ class SoloOrganizationBootstrapIntegrationTest extends AbstractMockMvcIntegratio
     @Test
     void nonAdminSoloUserCannotBootstrapThemselves() throws Exception {
         // A second organization whose invited employee is not an administrator.
-        JsonNode otherFounder =
-            registerAdmin(uniqueName("Other Org"), uniqueEmail("other-founder"), PASSWORD);
+        String otherFounderEmail = uniqueEmail("other-founder");
+        registerAdmin(uniqueName("Other Org"), otherFounderEmail, PASSWORD);
         String employeeEmail = uniqueEmail("plain-employee");
-        registerEmployee(
-            extractInviteToken(otherFounder.get("employeeInviteUrl").asText()),
-            employeeEmail,
-            PASSWORD);
+        inviteAndRegisterEmployee(
+            loginForAccessToken(otherFounderEmail, PASSWORD), employeeEmail, PASSWORD);
         String employeeToken = loginForAccessToken(employeeEmail, PASSWORD);
 
         UUID employeeId = userRepository.findByEmail(employeeEmail).orElseThrow().getId();
@@ -147,7 +143,7 @@ class SoloOrganizationBootstrapIntegrationTest extends AbstractMockMvcIntegratio
 
     @Test
     void founderCannotBootstrapOnceTheOrganizationHasASecondUser() throws Exception {
-        registerEmployee(inviteToken, uniqueEmail("second"), PASSWORD);
+        inviteAndRegisterEmployee(founderToken, uniqueEmail("second"), PASSWORD);
 
         updateOwnRoles(List.of("EMPLOYEE", "ORGANIZATION_ADMIN", "DEPARTMENT_MANAGER"))
             .andExpect(status().isBadRequest());
@@ -160,7 +156,7 @@ class SoloOrganizationBootstrapIntegrationTest extends AbstractMockMvcIntegratio
         updateOwnRoles(List.of("EMPLOYEE", "ORGANIZATION_ADMIN", "DEPARTMENT_MANAGER"))
             .andExpect(status().isOk());
 
-        registerEmployee(inviteToken, uniqueEmail("later"), PASSWORD);
+        inviteAndRegisterEmployee(founderToken, uniqueEmail("later"), PASSWORD);
 
         // The grant stands; only further self-service is closed off.
         assertThat(rolesOfFounder()).contains(AccessRole.DEPARTMENT_MANAGER);

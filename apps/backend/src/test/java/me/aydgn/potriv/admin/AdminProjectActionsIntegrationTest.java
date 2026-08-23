@@ -69,10 +69,8 @@ class AdminProjectActionsIntegrationTest extends AbstractAdminIntegrationTest {
         String adminEmail = uniqueEmail("proj-admin");
         JsonNode admin = registerAdmin(uniqueName("ProjActionOrg"), adminEmail, "Password123!");
         String adminToken = loginForAccessToken(adminEmail, "Password123!");
-        String inviteToken = extractInviteToken(admin.get("employeeInviteUrl").asText());
-
         String pmEmail = uniqueEmail("pm");
-        JsonNode pm = registerEmployee(inviteToken, pmEmail, "Password123!");
+        JsonNode pm = inviteAndRegisterEmployee(adminToken, pmEmail, "Password123!");
         UUID pmUserId = UUID.fromString(pm.get("userId").asText());
         mockMvc.perform(patch("/users/" + pmUserId + "/roles")
                 .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))

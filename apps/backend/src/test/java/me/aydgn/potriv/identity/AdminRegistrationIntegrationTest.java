@@ -62,11 +62,13 @@ class AdminRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest {
             .extracting(UserRole::getRole)
             .containsExactlyInAnyOrder(AccessRole.EMPLOYEE, AccessRole.ORGANIZATION_ADMIN);
 
-        assertThat(inviteTokenRepository
-            .findFirstByOrganizationAndActiveTrueOrderByCreatedAtDesc(organization))
-            .isPresent();
+        // Registering an organization no longer mints an invitation. There is
+        // nothing organization-wide left to hand out: every employee is invited
+        // by address, and the credential is mailed to that address only.
+        assertThat(inviteTokenRepository.findAllByOrganizationAndActiveTrue(organization))
+            .isEmpty();
 
-        assertThat(response.get("employeeInviteUrl").asText()).contains("token=");
+        assertThat(response.has("employeeInviteUrl")).isFalse();
     }
 
     @Test

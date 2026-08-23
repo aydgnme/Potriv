@@ -30,6 +30,9 @@ app:
     refresh-token-days: 7
   auth:
     password-reset-token-minutes: 30
+    # 72 hours. Long enough to reach somebody across a weekend, short enough
+    # that a link found later in a mailbox or a proxy log is already dead.
+    invite-token-hours: ${INVITE_TOKEN_HOURS:72}
     max-failed-login-attempts: 5
     lock-duration-minutes: 15
   mail:

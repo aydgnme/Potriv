@@ -57,7 +57,8 @@ class AdminSkillFormIntegrationTest extends AbstractAdminIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     private UUID org() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("SkillOrg"), uniqueEmail("skillorg"), "Password123!");
+        String adminEmail = uniqueEmail("skillorg");
+        JsonNode admin = registerAdmin(uniqueName("SkillOrg"), adminEmail, "Password123!");
         return UUID.fromString(admin.get("organizationId").asText());
     }
 

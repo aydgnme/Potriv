@@ -15,7 +15,15 @@ public enum SecurityAuditEventType {
     PASSWORD_RESET_COMPLETED,
     USER_STATUS_CHANGED,
     USER_ROLES_CHANGED,
+    /**
+     * Retained for audit rows written before invitations became
+     * per-recipient. Nothing emits it any more — there is no shared link
+     * left to rotate — but the column stores the name, so removing the
+     * constant would make old history fail to load.
+     */
     EMPLOYEE_INVITE_ROTATED,
+    EMPLOYEE_INVITE_ISSUED,
+    EMPLOYEE_INVITE_REVOKED,
     ADMIN_ORGANIZATION_UPDATED,
     ADMIN_DEPARTMENT_CREATED,
     ADMIN_DEPARTMENT_UPDATED,
