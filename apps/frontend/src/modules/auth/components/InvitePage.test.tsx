@@ -15,13 +15,13 @@ import { InvitePage } from "./InvitePage";
 const TOKEN = "invite-token-value-abc123";
 
 /**
- * The token reaches the component the way it reaches it in production: from the
- * address bar. It is deliberately not a prop — a prop on a client component is
- * serialised into the RSC payload and would put the token in the HTML as well
- * as the URL — so the tests must set the URL, not pass a value.
+ * The token reaches the component the way it reaches it in production: in the
+ * URL **fragment**. It is not a prop and cannot be one — a fragment never
+ * reaches the server, so the server component that renders this has no value to
+ * pass down. The tests therefore set the URL, exactly as the browser would.
  */
 function withTokenInUrl(token: string) {
-  window.history.replaceState({}, "", token ? `/invite?token=${token}` : "/invite");
+  window.history.replaceState({}, "", token ? `/invite#token=${token}` : "/invite");
 }
 
 const VALID = {
@@ -58,7 +58,7 @@ afterEach(() => {
 
 describe("what the invite page shows", () => {
   it("asks for the three fields the backend contract accepts", () => {
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     for (const label of Object.keys(VALID)) {
       expect(screen.getByLabelText(label)).toBeInTheDocument();
@@ -66,7 +66,7 @@ describe("what the invite page shows", () => {
   });
 
   it("does not name an organization it cannot safely know", () => {
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     // The backend offers no way to resolve an invite to an organization before
     // registration, so the copy stays deliberately generic.
@@ -82,10 +82,10 @@ describe("what the invite page shows", () => {
    * than the one request that spends it.
    */
   it("never renders the token, in any field or any text", () => {
-    // The token is in the URL for this render, so an implementation that echoed
-    // it would be caught here rather than passing by never having it.
-    expect(window.location.search).toContain(TOKEN);
-    const { container } = render(<InvitePage hasToken />);
+    // The token is in the URL going in, so an implementation that echoed it
+    // would be caught here rather than passing by never having had it.
+    expect(window.location.hash).toContain(TOKEN);
+    const { container } = render(<InvitePage />);
 
     expect(container.textContent).not.toContain(TOKEN);
     for (const input of container.querySelectorAll("input")) {
@@ -95,7 +95,8 @@ describe("what the invite page shows", () => {
   });
 
   it("treats a missing token exactly like a dead one", () => {
-    render(<InvitePage hasToken={false} />);
+    withTokenInUrl("");
+    render(<InvitePage />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
       /no longer valid/i,
@@ -108,7 +109,7 @@ describe("submitting the form", () => {
   it("does not call the backend when the form is empty", async () => {
     const fetchSpy = mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
@@ -125,7 +126,7 @@ describe("submitting the form", () => {
   it("sends the token through the BFF, never to the backend directly", async () => {
     const fetchSpy = mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -144,7 +145,7 @@ describe("submitting the form", () => {
   it("does not persist the token anywhere in the browser", async () => {
     const fetchSpy = mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -187,7 +188,7 @@ describe("when the invite is dead", () => {
       }),
     });
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -206,7 +207,7 @@ describe("when the invite is dead", () => {
       }),
     });
     const user = userEvent.setup();
-    const { container } = render(<InvitePage hasToken />);
+    const { container } = render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -227,7 +228,7 @@ describe("when the invite is dead", () => {
       }),
     });
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -247,7 +248,7 @@ describe("when the address is already taken", () => {
       }),
     });
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -262,7 +263,7 @@ describe("after a successful registration", () => {
   it("names the account that was created", async () => {
     mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -279,7 +280,7 @@ describe("after a successful registration", () => {
   it("does not claim the new employee is signed in", async () => {
     mockFetch();
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
@@ -292,12 +293,54 @@ describe("after a successful registration", () => {
   it("survives an unreachable backend without claiming an account", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     const user = userEvent.setup();
-    render(<InvitePage hasToken />);
+    render(<InvitePage />);
 
     await fillForm(user);
     await user.click(screen.getByRole("button", { name: /create account/i }));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /your account is ready/i })).toBeNull();
+  });
+});
+
+describe("what the page does with the token it was given", () => {
+  it("removes it from the address bar as soon as it has been read", () => {
+    render(<InvitePage />);
+
+    // The form is on screen, so the token *was* read...
+    expect(screen.getByLabelText("Work email")).toBeInTheDocument();
+    // ...and the address bar no longer carries it.
+    expect(window.location.hash).toBe("");
+    expect(window.location.href).not.toContain(TOKEN);
+  });
+
+  it("leaves no copy of it in storage", () => {
+    render(<InvitePage />);
+
+    // Indexed access rather than Object.keys: a Storage is not a plain object,
+    // and the test environment does not always provide both.
+    for (const store of [window.localStorage, window.sessionStorage]) {
+      if (!store) continue;
+      const values: string[] = [];
+      for (let i = 0; i < store.length; i += 1) {
+        const key = store.key(i);
+        if (key !== null) values.push(store.getItem(key) ?? "");
+      }
+      expect(values.join("|")).not.toContain(TOKEN);
+    }
+    expect(document.cookie).not.toContain(TOKEN);
+  });
+
+  it("still sends it after the address bar has been cleared", async () => {
+    const fetchSpy = mockFetch();
+    const user = userEvent.setup();
+
+    render(<InvitePage />);
+    await fillForm(user);
+    await user.click(screen.getByRole("button", { name: /create account/i }));
+
+    // Read once into memory, spent once — the cleared URL does not lose it.
+    const body = JSON.parse(String(fetchSpy.mock.calls[0][1].body));
+    expect(body.token).toBe(TOKEN);
   });
 });

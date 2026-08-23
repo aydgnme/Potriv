@@ -5,10 +5,15 @@ import { InvitePage } from "@/modules/auth/components/InvitePage";
 import { resolveProductSession } from "@/modules/auth/server/productSession";
 
 /**
- * The destination of the invite links the backend generates.
+ * The destination of the invite links the backend mails out.
  *
- * `{app.frontend-url}/invite?token=…` has been produced by `InviteTokenService`
- * all along; until now nothing served it. This is that page.
+ * The link is `{app.frontend-url}/invite#token=…`. The token is in the
+ * **fragment**, which browsers never put on the wire: it reaches no access log,
+ * no reverse proxy, no platform trace and no `Referer`. It also never reaches
+ * this function — a server component cannot see a fragment, by design and by
+ * definition. So this file no longer reads a token, and cannot report whether
+ * one is present; that question is answerable only in the browser, and
+ * `InvitePage` answers it there.
  */
 export const metadata: Metadata = {
   title: "Join a Potriv workspace · Potriv",
@@ -19,11 +24,7 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function Page({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string | string[] }>;
-}) {
+export default async function Page() {
   /**
    * Somebody already signed in cannot use an invite: registering would create a
    * second account, and the backend would reject the address anyway. Sending
@@ -34,18 +35,5 @@ export default async function Page({
   const session = await resolveProductSession();
   if (session.authenticated) redirect("/home");
 
-  const params = await searchParams;
-  // A repeated ?token= yields an array; only a single value is a usable token.
-  const hasToken = typeof params.token === "string" && params.token.length > 0;
-
-  /**
-   * Only whether a token is present crosses to the client — never its value.
-   *
-   * A prop passed to a client component is serialised into the RSC payload
-   * embedded in the HTML, so handing the token down would write it into the
-   * document as well as the URL: a second copy, in something that proxies and
-   * caches may retain. The form reads the real value straight out of
-   * `window.location` at submit time, so the token lives in exactly one place.
-   */
-  return <InvitePage hasToken={hasToken} />;
+  return <InvitePage />;
 }

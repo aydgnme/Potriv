@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
@@ -22,12 +22,16 @@ import styles from "./AuthPage.module.css";
 /**
  * Join a workspace by invitation.
  *
- * The token stays in the URL. Only a boolean saying whether one is present
- * crosses the server/client boundary, because a prop handed to a client
- * component is serialised into the RSC payload embedded in the HTML — which
- * would put the token in the document as well as the address bar. It is read
- * from `window.location` at submit time, sent once, and never rendered, stored,
- * or echoed in an error.
+ * The token arrives in the URL **fragment**, which the browser never sends to
+ * any server. It therefore never crosses the server/client boundary at all:
+ * nothing about it is in the RSC payload, because the server never saw it.
+ *
+ * On mount the fragment is read once into a ref and then removed from the
+ * address bar with `history.replaceState`. After that the token exists in
+ * exactly one place — a variable in this component — and disappears when the
+ * page does. It is never rendered, never put in a form field, never written to
+ * `localStorage`, `sessionStorage`, a cookie or an analytics call, and never
+ * echoed back in an error.
  *
  * There is **no way to check a token before submitting**: the backend exposes no
  * endpoint that reports whether an invite is usable, and inventing one would
@@ -42,18 +46,51 @@ import styles from "./AuthPage.module.css";
  */
 
 /**
- * Reads the invite token from the address bar at the moment it is spent.
+ * Pulls `token` out of a location fragment.
  *
- * Deliberately not a prop, not state and not a ref: anything held in React would
- * be serialised into the page payload or survive past the one request that needs
- * it. Read, sent, forgotten.
+ * A fragment is not a query string, but it is encoded like one, so the same
+ * parser reads it once the leading `#` is dropped.
  */
-function readTokenFromUrl(): string {
-  if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get("token") ?? "";
+function tokenFromFragment(fragment: string): string {
+  const body = fragment.startsWith("#") ? fragment.slice(1) : fragment;
+  return new URLSearchParams(body).get("token") ?? "";
 }
 
-export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
+/**
+ * Whether the fragment has been read yet. The first render happens before the
+ * effect runs, and the token is not knowable then — rendering "this invite is
+ * no longer valid" during that gap would tell every legitimate recipient their
+ * link is broken for one frame.
+ */
+type TokenState = "reading" | "present" | "absent";
+
+export function InvitePage() {
+  /* Not state: this value must never cause a render, appear in a snapshot, or
+     be read by anything except the submit handler. */
+  const tokenRef = useRef("");
+  const [tokenState, setTokenState] = useState<TokenState>("reading");
+
+  useEffect(() => {
+    tokenRef.current = tokenFromFragment(window.location.hash);
+    setTokenState(tokenRef.current ? "present" : "absent");
+
+    /**
+     * Take it out of the address bar immediately.
+     *
+     * Not because the fragment travels — it does not — but because the address
+     * bar is shared in ways URLs are not: a screenshot, a screen share, a
+     * bookmark, a browser sync, someone reading over a shoulder. The token has
+     * been read into memory by the line above, so the copy in the URL has no
+     * remaining purpose.
+     *
+     * `replaceState` rather than `pushState`, so Back does not restore it.
+     */
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+  }, []);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -78,7 +115,7 @@ export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
 
     setSubmitting(true);
     const outcome = await registerWithInvite({
-      token: readTokenFromUrl(),
+      token: tokenRef.current,
       ...validated.value,
     });
     setSubmitting(false);
@@ -104,7 +141,15 @@ export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
     topology: "invite",
   } as const;
 
-  if (inviteDead || !hasToken) {
+  if (tokenState === "reading") {
+    return (
+      <PublicAuthShell title="Join a Potriv workspace" {...context}>
+        <p className={styles.intro}>Checking your invitation…</p>
+      </PublicAuthShell>
+    );
+  }
+
+  if (inviteDead || tokenState === "absent") {
     return (
       <PublicAuthShell title="This invite is no longer valid" {...context}>
         <Alert tone="danger">

@@ -48,6 +48,25 @@ export default function nextConfig(phase: string): NextConfig {
     pageExtensions: isDevelopmentServer
       ? [...DEVELOPMENT_ONLY_EXTENSIONS, ...ROUTABLE_EXTENSIONS]
       : ROUTABLE_EXTENSIONS,
+    headers: async () => [
+      {
+        /**
+         * The invite page carries a credential in its URL fragment.
+         *
+         * A fragment is never sent to a server and browsers already strip it
+         * from `Referer`, so this is not what keeps the token out of other
+         * origins' logs — the fragment itself does that. What this removes is
+         * the remaining signal: without it, following any link from this page
+         * would tell the destination that this person is mid-invite, which is
+         * an account they do not have yet and a workspace they have not joined.
+         *
+         * The page clears the fragment on mount regardless. This is the header
+         * that holds while the page is still loading.
+         */
+        source: "/invite",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ],
   };
 }
 
