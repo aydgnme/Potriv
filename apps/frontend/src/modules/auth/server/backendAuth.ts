@@ -214,12 +214,6 @@ export async function logoutAll(accessToken: string): Promise<boolean> {
 export type BackendWorkspaceRegistration = {
   readonly userId: string;
   readonly organizationId: string;
-  /**
-   * The backend builds this from its own `app.frontend-url`, which currently
-   * points at an origin this app does not serve. It is therefore accepted and
-   * discarded rather than shown — see the V2-02 note in the migration doc.
-   */
-  readonly employeeInviteUrl?: string;
 };
 
 /**

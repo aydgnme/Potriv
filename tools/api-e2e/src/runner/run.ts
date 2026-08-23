@@ -95,7 +95,7 @@ async function main(): Promise<number> {
     console.log(`OpenAPI operations: ${operations.length}\n`);
 
     console.log('Building fixtures…');
-    const context = await buildWorld(client, config.runId);
+    const context = await buildWorld(client, config.runId, config);
 
     console.log('Success paths…');
     await runSuccessScenarios(client, prober, context);
@@ -103,7 +103,7 @@ async function main(): Promise<number> {
     await runMailScenarios(client, prober, context, config);
     await runCapacityScenarios(client, prober, context);
     await runRejectionScenarios(client, prober, context);
-    await runBootstrapScenarios(client, prober, context);
+    await runBootstrapScenarios(client, prober, context, config);
     console.log('Validation, not-found, pagination…');
     await runValidationScenarios(prober, context);
     await runNotFoundScenarios(prober, context);

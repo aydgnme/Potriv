@@ -1,9 +1,11 @@
+import type { Config } from '../config/env.js';
 import type { ApiClient } from '../http/client.js';
 import {
   DEFAULT_PASSWORD, SYSTEM_ADMIN_EMAIL, SYSTEM_ADMIN_PASSWORD,
-  field, identity, inviteTokenFrom, login, plusDays, utcToday,
+  field, identity, login, plusDays, utcToday,
   type Organization, type Person, type RunContext,
 } from './context.js';
+import { inviteTokenFor } from './mailbox.js';
 
 /**
  * Builds the whole world through the real API, in dependency order.
@@ -29,6 +31,7 @@ async function buildOrganization(
   client: ApiClient,
   runId: string,
   label: 'A' | 'B',
+  config: Config,
 ): Promise<Organization> {
   const adminEmail = identity(runId, 'admin', label);
   const created = await expect(
@@ -46,17 +49,36 @@ async function buildOrganization(
   );
 
   const organizationId = field(created.body, 'organizationId', 'register-admin');
-  const inviteToken = inviteTokenFrom(
-    field(created.body, 'employeeInviteUrl', 'register-admin'),
-  );
+
+  // Registration mints no invitation now, so the admin has to sign in before
+  // anybody can be invited into this organization.
   const admin = await login(client,
     { email: adminEmail, as: `org${label}Admin`, role: 'ORGANIZATION_ADMIN' });
 
-  const employee = await registerEmployee(client, runId, label, 'employee', inviteToken, 'EMPLOYEE');
+  const invite = async (email: string): Promise<string> => {
+    await expect(
+      client.post('/organizations/current/invites', { actor: admin, body: { email } }),
+      201,
+      `invite ${email} into org ${label}`,
+    );
+    // The response carries metadata only; the token is in the mail.
+    return inviteTokenFor(config, email);
+  };
+
+  const standing = await expect(
+    client.post('/organizations/current/invites', {
+      actor: admin, body: { email: identity(runId, 'standing', label) },
+    }),
+    201,
+    `issue a standing invitation in org ${label}`,
+  );
+  const standingInviteId = field(standing.body, 'inviteId', 'invite-employee');
+
+  const employee = await registerEmployee(client, runId, label, 'employee', invite, 'EMPLOYEE');
   const departmentManager = await registerEmployee(
-    client, runId, label, 'deptmgr', inviteToken, 'DEPARTMENT_MANAGER');
+    client, runId, label, 'deptmgr', invite, 'DEPARTMENT_MANAGER');
   const projectManager = await registerEmployee(
-    client, runId, label, 'projmgr', inviteToken, 'PROJECT_MANAGER');
+    client, runId, label, 'projmgr', invite, 'PROJECT_MANAGER');
 
   await grantRoles(client, admin, departmentManager, ['EMPLOYEE', 'DEPARTMENT_MANAGER']);
   await grantRoles(client, admin, projectManager, ['EMPLOYEE', 'PROJECT_MANAGER']);
@@ -65,7 +87,8 @@ async function buildOrganization(
     label,
     organizationId,
     admin,
-    inviteToken,
+    invite,
+    standingInviteId,
     // Registration returns an id, not a session — every actor needs a real login.
     employee: await login(client,
       { email: employee.email, as: `org${label}Employee`, role: 'EMPLOYEE' }),
@@ -86,11 +109,11 @@ async function buildOrganization(
 
 async function registerEmployee(
   client: ApiClient, runId: string, org: string, role: string,
-  inviteToken: string, actorRole: string,
+  invite: (email: string) => Promise<string>, actorRole: string,
 ): Promise<Person> {
   const email = identity(runId, role, org);
   const created = await expect(
-    client.post(`/auth/register-employee/${inviteToken}`, {
+    client.post(`/auth/register-employee/${await invite(email)}`, {
       body: { name: `QA ${role} ${org}`, email, password: DEFAULT_PASSWORD },
     }),
     201,
@@ -225,9 +248,11 @@ async function buildDomain(client: ApiClient, org: Organization, runId: string):
   org.allocationId = String(allocation?.allocationId ?? '');
 }
 
-export async function buildWorld(client: ApiClient, runId: string): Promise<RunContext> {
-  const orgA = await buildOrganization(client, runId, 'A');
-  const orgB = await buildOrganization(client, runId, 'B');
+export async function buildWorld(
+  client: ApiClient, runId: string, config: Config,
+): Promise<RunContext> {
+  const orgA = await buildOrganization(client, runId, 'A', config);
+  const orgB = await buildOrganization(client, runId, 'B', config);
   await buildDomain(client, orgA, runId);
   await buildDomain(client, orgB, runId);
 

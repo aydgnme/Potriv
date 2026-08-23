@@ -28,7 +28,7 @@ export async function runCapacityScenarios(
 
   // A fresh employee with no allocations at all.
   const email = identity(ctx.runId, 'capacity', 'A');
-  const registered = await client.post(`/auth/register-employee/${a.inviteToken}`, {
+  const registered = await client.post(`/auth/register-employee/${await a.invite(email)}`, {
     body: { name: 'QA Capacity Target', email, password: DEFAULT_PASSWORD },
   });
   if (!registered.ok) {

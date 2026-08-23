@@ -41,15 +41,26 @@ function minimalBody(operation: Operation): unknown {
   if (path === '/projects') {
     return { name: 'probe', period: 'ONGOING', startDate: '2026-01-01', status: 'NOT_STARTED' };
   }
+  if (path === '/organizations/current/invites') {
+    // A valid address, deliberately. Bean Validation runs before method
+    // security, so a malformed body answers 400 and the probe could not
+    // tell an authorisation refusal from a rejected payload.
+    return { email: 'probe@potriv.test' };
+  }
   if (path === '/auth/logout') return { refreshToken: 'probe' };
   return { name: 'probe' };
 }
 
 /** A path where every template parameter is filled with a real-looking UUID. */
 function resolve(path: string, ctx: RunContext): string {
-  return path
-    .replace('{inviteToken}', ctx.orgA.inviteToken)
-    .replace(/\{[^}]+\}/g, ctx.nonexistentUuid);
+  /*
+    An invite token is deliberately *not* filled with a live one. These probes
+    assert that a caller is refused before the handler runs, so the value only
+    has to be shaped like a path segment — and spending a real invitation here
+    would consume a single-use credential to prove something about
+    authentication.
+  */
+  return path.replace(/\{[^}]+\}/g, ctx.nonexistentUuid);
 }
 
 /**
@@ -122,9 +133,16 @@ const ROLE_CASES: readonly RoleCase[] = [
   { id: 'role:employee-cannot-read-review-queue', method: 'GET',
     template: '/department/project-proposals', url: () => '/department/project-proposals',
     forbiddenActor: (c) => c.orgA.employee },
-  { id: 'role:employee-cannot-rotate-invite', method: 'POST',
-    template: '/organizations/current/invite/rotate',
-    url: () => '/organizations/current/invite/rotate', forbiddenActor: (c) => c.orgA.employee },
+  { id: 'role:employee-cannot-invite', method: 'POST',
+    template: '/organizations/current/invites',
+    url: () => '/organizations/current/invites', forbiddenActor: (c) => c.orgA.employee,
+    // A valid address, deliberately: Bean Validation runs before method
+    // security, so a malformed body answers 400 and this case could not tell an
+    // authorisation refusal from a rejected payload.
+    body: { email: 'probe@potriv.test' } },
+  { id: 'role:employee-cannot-list-invites', method: 'GET',
+    template: '/organizations/current/invites',
+    url: () => '/organizations/current/invites', forbiddenActor: (c) => c.orgA.employee },
   { id: 'role:org-admin-cannot-read-audit-events', method: 'GET',
     template: '/admin/security/audit-events', url: () => '/admin/security/audit-events',
     forbiddenActor: (c) => c.orgA.admin },
@@ -194,6 +212,9 @@ export async function runIsolationMatrix(prober: Prober, ctx: RunContext): Promi
     { id: 'isolation:team-finder-on-foreign-project', method: 'POST',
       template: '/projects/{projectId}/team-finder', url: `/projects/${a.projectId}/team-finder`,
       actor: b.projectManager, body: {} },
+    { id: 'isolation:revoke-foreign-invitation', method: 'DELETE',
+      template: '/organizations/current/invites/{inviteId}',
+      url: `/organizations/current/invites/${a.standingInviteId}`, actor: b.admin },
     { id: 'isolation:propose-onto-foreign-project', method: 'POST',
       template: '/projects/{projectId}/assignment-proposals',
       url: `/projects/${a.projectId}/assignment-proposals`, actor: b.projectManager,
@@ -227,9 +248,10 @@ export async function runProjectVisibilityOracleMatrix(
   const a = ctx.orgA;
   const email = identity(ctx.runId, 'nodeptdm', 'A');
 
-  const created = await client.post(`/auth/register-employee/${a.inviteToken}`, {
-    body: { name: 'QA No-Department DM', email, password: DEFAULT_PASSWORD },
-  });
+  const created = await client.post(
+    `/auth/register-employee/${await a.invite(email)}`, {
+      body: { name: 'QA No-Department DM', email, password: DEFAULT_PASSWORD },
+    });
   if (created.status !== 201) {
     throw new Error(`could not register the no-department manager: HTTP ${created.status}`);
   }

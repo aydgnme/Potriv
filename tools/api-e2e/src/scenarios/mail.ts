@@ -14,7 +14,7 @@ export async function runMailScenarios(
   client: ApiClient, prober: Prober, ctx: RunContext, config: Config,
 ): Promise<void> {
   const email = identity(ctx.runId, 'resetme', 'A');
-  const created = await client.post(`/auth/register-employee/${ctx.orgA.inviteToken}`, {
+  const created = await client.post(`/auth/register-employee/${await ctx.orgA.invite(email)}`, {
     body: { name: 'QA Reset Target', email, password: DEFAULT_PASSWORD },
   });
   if (!created.ok) {
