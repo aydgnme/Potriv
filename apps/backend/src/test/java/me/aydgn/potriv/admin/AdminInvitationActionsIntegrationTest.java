@@ -162,7 +162,7 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         revoke(seed.invitationId());
 
         assertThat(reload(seed.invitationId()).isActive()).isFalse();
-        assertThat(reload(seed.invitationId()).isUsable()).isFalse();
+        assertThat(reload(seed.invitationId()).isPending()).isFalse();
         // The revoked link can no longer be used to join the organization.
         mockMvc.perform(post("/auth/register-employee")
                 .contentType(org.springframework.http.MediaType.APPLICATION_JSON)

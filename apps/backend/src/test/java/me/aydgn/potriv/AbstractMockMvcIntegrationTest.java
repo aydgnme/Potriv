@@ -112,6 +112,17 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
         return objectMapper.readTree(response);
     }
 
+    /** Issues an invite and asserts the status, for the paths that must refuse. */
+    protected void inviteEmployeeExpecting(String adminToken, String email, int expectedStatus)
+        throws Exception {
+
+        mockMvc.perform(post("/organizations/current/invites")
+                .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("email", email))))
+            .andExpect(status().is(expectedStatus));
+    }
+
     /**
      * The raw invite token, taken from the message actually sent to it.
      *

@@ -25,8 +25,36 @@ public interface InviteTokenRepository extends JpaRepository<InviteToken, UUID> 
 
     List<InviteToken> findAllByOrganizationOrderByCreatedAtDesc(Organization organization);
 
-    List<InviteToken> findAllByOrganizationAndInvitedEmailAndActiveTrue(
-        Organization organization, String invitedEmail);
+    /**
+     * The organization's outstanding invitations for one address.
+     *
+     * The predicate is {@link InviteToken#isPending()} expressed in JPQL, and
+     * it must stay that way. The previous finder tested only {@code active},
+     * which meant a spent invitation counted as outstanding — so re-inviting
+     * somebody stamped {@code revokedAt} onto the row recording their completed
+     * registration.
+     */
+    @Query("""
+        select i from InviteToken i
+         where i.organization = :organization
+           and i.invitedEmail = :invitedEmail
+           and i.active = true
+           and i.consumedAt is null
+           and i.expiresAt > CURRENT_TIMESTAMP
+        """)
+    List<InviteToken> findPendingFor(
+        @Param("organization") Organization organization,
+        @Param("invitedEmail") String invitedEmail);
+
+    /** Every outstanding invitation of an organization, by the same predicate. */
+    @Query("""
+        select i from InviteToken i
+         where i.organization = :organization
+           and i.active = true
+           and i.consumedAt is null
+           and i.expiresAt > CURRENT_TIMESTAMP
+        """)
+    List<InviteToken> findPendingFor(@Param("organization") Organization organization);
 
     /**
      * Claims an invite, atomically.
@@ -48,7 +76,8 @@ public interface InviteTokenRepository extends JpaRepository<InviteToken, UUID> 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
         update InviteToken i
-           set i.consumedAt = CURRENT_TIMESTAMP
+           set i.consumedAt = CURRENT_TIMESTAMP,
+               i.active = false
          where i.tokenHash = :tokenHash
            and i.invitedEmail = :invitedEmail
            and i.active = true

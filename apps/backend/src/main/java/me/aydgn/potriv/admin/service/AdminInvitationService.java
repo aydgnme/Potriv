@@ -60,10 +60,15 @@ public class AdminInvitationService {
             invite.getUpdatedAt());
     }
 
+    /**
+     * The same four states the product uses, derived in the same place.
+     *
+     * This function used to answer ACTIVE / EXPIRED / DISABLED from
+     * {@code active} and {@code expiresAt} alone. It had no notion of a spent
+     * invitation, so one that somebody had already accepted was displayed as
+     * ACTIVE and counted as outstanding.
+     */
     private static String status(InviteToken invite) {
-        if (!invite.isActive()) {
-            return "DISABLED";
-        }
-        return invite.isExpired() ? "EXPIRED" : "ACTIVE";
+        return invite.status().name();
     }
 }

@@ -120,18 +120,65 @@ public class InviteToken extends BaseEntity {
     }
 
     /**
-     * Whether the invite would be accepted right now.
+     * The four states an invitation can be in, in the order they are decided.
+     *
+     * {@code ACCEPTED} is tested first and deliberately: it is the only
+     * terminal state that records something a person did, and it must survive
+     * everything that happens to the row afterwards. Deciding {@code REVOKED}
+     * first — which the admin console's own status function used to do — would
+     * relabel somebody's completed registration as an administrative action the
+     * moment the spent row was disabled.
+     */
+    public enum Status {
+        PENDING,
+        ACCEPTED,
+        EXPIRED,
+        REVOKED
+    }
+
+    public Status status() {
+        if (isConsumed()) {
+            return Status.ACCEPTED;
+        }
+        if (!active) {
+            return Status.REVOKED;
+        }
+        if (isExpired()) {
+            return Status.EXPIRED;
+        }
+        return Status.PENDING;
+    }
+
+    /**
+     * The one definition of "outstanding": not yet used, not withdrawn, not
+     * lapsed.
+     *
+     * Every caller that asks "is there an invitation waiting for this person"
+     * — re-inviting, listing, revoking, counting — must ask it here. They used
+     * to each spell out their own predicate, and the ones that only checked
+     * {@code active} counted spent invitations as outstanding.
      *
      * Read-only. The accept path deliberately does not branch on this: two
      * requests arriving together would both pass a check made here before
      * either had written anything. Redemption is a single conditional UPDATE
      * in the database instead.
      */
-    public boolean isUsable() {
+    public boolean isPending() {
         return active && !isExpired() && !isConsumed();
     }
 
+    /**
+     * Withdraws the invitation.
+     *
+     * An accepted invitation is left alone. Its {@code active} flag is already
+     * false — redemption clears it — and writing {@code revokedAt} onto a row
+     * that records a completed registration would turn a person's own action
+     * into an administrative one in the audit trail.
+     */
     public void deactivate() {
+        if (isConsumed()) {
+            return;
+        }
         this.active = false;
         if (this.revokedAt == null) {
             this.revokedAt = OffsetDateTime.now(ZoneOffset.UTC);

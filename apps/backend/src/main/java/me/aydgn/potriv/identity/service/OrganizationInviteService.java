@@ -93,8 +93,11 @@ public class OrganizationInviteService {
             throw new BadRequestException("This address already has an account.");
         }
 
+        // Outstanding only. Sweeping every `active` row would reach a spent
+        // invitation and stamp `revokedAt` onto somebody's completed
+        // registration.
         inviteTokenRepository
-            .findAllByOrganizationAndInvitedEmailAndActiveTrue(organization, normalizedEmail)
+            .findPendingFor(organization, normalizedEmail)
             .forEach(InviteToken::deactivate);
 
         InviteTokenService.IssuedInvite issued =
@@ -168,16 +171,12 @@ public class OrganizationInviteService {
         );
     }
 
+    /**
+     * One derivation, on the entity. This used to be spelled out here and
+     * spelled out differently in the admin console, which is how the two came
+     * to disagree about a spent invitation.
+     */
     private static EmployeeInviteResponse.InviteStatus statusOf(InviteToken invite) {
-        if (invite.isConsumed()) {
-            return EmployeeInviteResponse.InviteStatus.ACCEPTED;
-        }
-        if (!invite.isActive()) {
-            return EmployeeInviteResponse.InviteStatus.REVOKED;
-        }
-        if (invite.isExpired()) {
-            return EmployeeInviteResponse.InviteStatus.EXPIRED;
-        }
-        return EmployeeInviteResponse.InviteStatus.PENDING;
+        return EmployeeInviteResponse.InviteStatus.valueOf(invite.status().name());
     }
 }
