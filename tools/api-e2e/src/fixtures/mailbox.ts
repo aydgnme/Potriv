@@ -37,7 +37,9 @@ async function bodyOf(config: Config, id: string): Promise<string> {
 }
 
 /**
- * The raw invite token from the most recent message sent to an address.
+ * The raw token from the most recent message sent to an address — an
+ * invite, a workspace-registration confirmation, or anything else this
+ * application mails a `token=…` link for; the name predates the second use.
  *
  * The address is compared case-insensitively because the backend normalises it
  * before storing or mailing anything — matching exactly would make this helper

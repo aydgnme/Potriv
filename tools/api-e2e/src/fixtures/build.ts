@@ -34,7 +34,7 @@ async function buildOrganization(
   config: Config,
 ): Promise<Organization> {
   const adminEmail = identity(runId, 'admin', label);
-  const created = await expect(
+  await expect(
     client.post('/auth/register-admin', {
       body: {
         name: `QA API Admin ${label}`,
@@ -44,11 +44,23 @@ async function buildOrganization(
         headquarterAddress: 'Test Address 1',
       },
     }),
-    201,
+    202,
     `register org ${label} admin`,
   );
 
-  const organizationId = field(created.body, 'organizationId', 'register-admin');
+  // 202 only queues the intention: registration is request-then-confirm now,
+  // so nothing exists until the mailed confirmation link is redeemed — read
+  // out of the mailbox the same way an invite token is, for the same reason
+  // (the backend never returns either token to an API caller).
+  const confirmed = await expect(
+    client.post('/auth/register-admin/verify', {
+      body: { token: await inviteTokenFor(config, adminEmail) },
+    }),
+    201,
+    `confirm org ${label} admin registration`,
+  );
+
+  const organizationId = field(confirmed.body, 'organizationId', 'register-admin/verify');
 
   // Registration mints no invitation now, so the admin has to sign in before
   // anybody can be invited into this organization.

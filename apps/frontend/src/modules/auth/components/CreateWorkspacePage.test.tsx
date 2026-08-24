@@ -5,12 +5,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateWorkspacePage } from "./CreateWorkspacePage";
 
 /**
- * Creating a workspace.
+ * Requesting a workspace.
  *
- * The contracts that matter here are about honesty: the form must not claim a
- * workspace exists until the backend says so, and it must not imply the new
- * administrator is signed in — because the backend's registration contract
- * returns no tokens and therefore nobody is.
+ * The contract that matters here is about honesty in the other direction from
+ * what it used to be: the form must never claim a workspace was *created*,
+ * because submitting it no longer creates one — it only queues a confirmation
+ * mail. Nothing here may imply the new administrator is signed in either,
+ * both because the backend's contract returns no tokens and because, at this
+ * point, no account exists yet regardless.
  */
 
 const VALID = {
@@ -30,8 +32,14 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
 function mockFetchOnce(response: Partial<Response> & { json?: () => Promise<unknown> }) {
   const spy = vi.fn().mockResolvedValue({
     ok: true,
-    status: 201,
-    json: async () => ({ created: true, email: VALID["Work email"] }),
+    status: 202,
+    json: async () => ({
+      accepted: true,
+      email: VALID["Work email"],
+      message:
+        "If this email address can be used to create a workspace, "
+        + "a confirmation link has been sent to it.",
+    }),
     ...response,
   });
   vi.stubGlobal("fetch", spy);
@@ -105,7 +113,7 @@ describe("refusing to submit an invalid form", () => {
 });
 
 describe("when the backend accepts", () => {
-  it("reports the workspace as created and names the administrator", async () => {
+  it("says a confirmation link was sent, never that a workspace was created", async () => {
     mockFetchOnce({});
     const user = userEvent.setup();
     render(<CreateWorkspacePage />);
@@ -113,16 +121,18 @@ describe("when the backend accepts", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
-    expect(await screen.findByRole("heading", { name: /workspace is ready/i }))
+    expect(await screen.findByRole("heading", { name: /check your email/i }))
       .toBeInTheDocument();
     expect(screen.getByText(VALID["Work email"], { exact: false })).toBeInTheDocument();
+    expect(screen.queryByText(/were created/i)).toBeNull();
   });
 
   /**
    * The contract this screen exists to keep.
    *
-   * `POST /auth/register-admin` returns no token pair, so the administrator is
-   * not signed in. Anything that implied otherwise would be describing a session
+   * `POST /auth/register-admin` returns no token pair and creates nothing —
+   * confirmation is a separate step — so there is no session and no account
+   * yet either. Anything that implied otherwise would be describing something
    * that does not exist.
    */
   it("does not claim the administrator is signed in", async () => {
@@ -133,11 +143,11 @@ describe("when the backend accepts", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
-    await screen.findByRole("heading", { name: /workspace is ready/i });
+    await screen.findByRole("heading", { name: /check your email/i });
 
-    // It sends them to sign in, rather than to the product.
-    const next = screen.getByRole("link", { name: /sign in/i });
-    expect(next).toHaveAttribute("href", "/login");
+    // A way back to sign in, rather than a way into the product.
+    const back = screen.getByRole("link", { name: /back to sign in/i });
+    expect(back).toHaveAttribute("href", "/login");
     expect(screen.queryByRole("link", { name: /go to (home|dashboard)/i })).toBeNull();
   });
 
@@ -149,7 +159,7 @@ describe("when the backend accepts", () => {
     await fillValidForm(user);
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
-    await screen.findByRole("heading", { name: /workspace is ready/i });
+    await screen.findByRole("heading", { name: /check your email/i });
     const [url] = fetchSpy.mock.calls[0] as [string, RequestInit];
     // A same-origin path: the browser never learns the backend's address.
     expect(url).toBe("/api/auth/register-workspace");
@@ -173,7 +183,7 @@ describe("when the backend refuses", () => {
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/already used/i);
-    expect(screen.queryByRole("heading", { name: /workspace is ready/i })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /check your email/i })).toBeNull();
   });
 
   it("keeps what was typed so the form can be corrected, not retyped", async () => {
@@ -205,7 +215,7 @@ describe("when the backend refuses", () => {
     await user.click(screen.getByRole("button", { name: /create workspace/i }));
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /workspace is ready/i })).toBeNull();
+    expect(screen.queryByRole("heading", { name: /check your email/i })).toBeNull();
   });
 });
 

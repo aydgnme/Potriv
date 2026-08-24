@@ -4,6 +4,7 @@ import {
   GENERIC_SERVER_MESSAGE,
   INVALID_CREDENTIALS_MESSAGE,
   NETWORK_MESSAGE,
+  REGISTER_TOKEN_INVALID_MESSAGE,
   RESET_TOKEN_INVALID_MESSAGE,
   productAuthError,
   type ProductAuthError,
@@ -191,23 +192,15 @@ export async function logoutAll(accessToken: string): Promise<boolean> {
 }
 
 /**
- * Exactly what `RegisterAdminResponse` provides.
- *
- * Note what is absent: no access token, no refresh token. The backend does not
- * sign the new administrator in, so neither does this — the caller cannot invent
- * a session the contract did not grant.
- */
-export type BackendWorkspaceRegistration = {
-  readonly userId: string;
-  readonly organizationId: string;
-};
-
-/**
- * Creates an organization and its first administrator.
+ * Requests a workspace: an organization and a first administrator, pending
+ * confirmation of the email address.
  *
  * `POST /auth/register-admin` is `permitAll` on the backend and takes no
- * credentials, so this touches no cookie and rotates nothing. It is a plain
- * create, and the session boundary is deliberately untouched by it.
+ * credentials, so this touches no cookie and rotates nothing. Nothing is
+ * created yet — the backend answers 202 identically whether or not the
+ * address already has an account, and this function forwards exactly that:
+ * no identifier comes back, because none exists until the address is
+ * confirmed. See `confirmWorkspaceRegistration`.
  */
 export async function registerWorkspace(
   input: {
@@ -218,7 +211,7 @@ export async function registerWorkspace(
     readonly headquarterAddress: string;
   },
   userAgent: string | null,
-): Promise<BackendResult<BackendWorkspaceRegistration>> {
+): Promise<BackendResult<null>> {
   let response: Response;
   try {
     response = await callBackend({
@@ -231,23 +224,12 @@ export async function registerWorkspace(
     return { ok: false, error: productAuthError("NETWORK", NETWORK_MESSAGE) };
   }
 
-  if (response.ok) {
-    const body: unknown = await response.json().catch(() => null);
-    const userId = readId(body, "userId");
-    const organizationId = readId(body, "organizationId");
-    if (!userId || !organizationId) {
-      // A 201 we cannot read is not a success we can report.
-      return { ok: false, error: productAuthError("SERVER", GENERIC_SERVER_MESSAGE) };
-    }
-    return { ok: true, value: { userId, organizationId } };
-  }
+  if (response.ok) return { ok: true, value: null };
 
-  if (response.status === 400 || response.status === 409) {
-    // The backend's own sentence — "Email address is already used." is the
-    // common one — but only when it passes the same leak check every other
-    // forwarded message goes through. Registration necessarily reveals that an
-    // address is taken; that is the endpoint's existing, unavoidable behaviour
-    // for self-service signup, not something added here.
+  if (response.status === 400) {
+    // Field-validation failures only — name/email/password/etc. shape. The
+    // backend no longer answers differently for a taken address; there is no
+    // enumeration signal left in this branch to preserve or to leak.
     const body: unknown = await response.json().catch(() => null);
     const detail = safeBackendMessage(body);
     return {
@@ -256,6 +238,69 @@ export async function registerWorkspace(
         "VALIDATION",
         detail ?? "Check the details and try again.",
       ),
+    };
+  }
+
+  return { ok: false, error: productAuthError("SERVER", GENERIC_SERVER_MESSAGE) };
+}
+
+/** Exactly what `RegisterAdminResponse` provides, at the confirmation step. */
+export type BackendWorkspaceRegistration = {
+  readonly userId: string;
+  readonly organizationId: string;
+};
+
+/**
+ * Confirms a workspace registration and creates the organization and the
+ * administrator account — the only point at which either comes into being.
+ *
+ * `POST /auth/register-admin/verify` is `permitAll` and takes no credentials.
+ * Reached only by presenting the single-use token mailed to the address, so
+ * returning identifiers here does not reopen the enumeration question
+ * `registerWorkspace` closes: proving ownership of the token already proves
+ * ownership of the address.
+ */
+export async function confirmWorkspaceRegistration(
+  token: string,
+): Promise<BackendResult<BackendWorkspaceRegistration>> {
+  let response: Response;
+  try {
+    response = await callBackend({
+      method: "POST",
+      path: "/auth/register-admin/verify",
+      body: { token },
+    });
+  } catch {
+    return { ok: false, error: productAuthError("NETWORK", NETWORK_MESSAGE) };
+  }
+
+  if (response.ok) {
+    const body: unknown = await response.json().catch(() => null);
+    const userId = readId(body, "userId");
+    const organizationId = readId(body, "organizationId");
+    if (!userId || !organizationId) {
+      return { ok: false, error: productAuthError("SERVER", GENERIC_SERVER_MESSAGE) };
+    }
+    return { ok: true, value: { userId, organizationId } };
+  }
+
+  if (response.status === 400) {
+    /*
+      Every way the token can fail to redeem — unknown, expired, already
+      used, or the address is now registered by some other means — collapses
+      to one code, exactly like RESET_TOKEN_INVALID. Distinguishing them
+      would hand back the oracle a single generic message exists to close.
+    */
+    const body: unknown = await response.json().catch(() => null);
+    if (backendErrorCode(body) === "REGISTER_TOKEN_INVALID") {
+      return {
+        ok: false,
+        error: productAuthError("REGISTER_TOKEN_INVALID", REGISTER_TOKEN_INVALID_MESSAGE),
+      };
+    }
+    return {
+      ok: false,
+      error: productAuthError("VALIDATION", "Check the details and try again."),
     };
   }
 

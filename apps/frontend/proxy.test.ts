@@ -85,7 +85,14 @@ describe("which routes the proxy guards", () => {
     request carries. That is the assertion that actually protects the user; the
     matcher entry never was.
   */
-  it.each(["/login", "/forgot-password", "/reset-password", "/invite", "/create-workspace"])(
+  it.each([
+    "/login",
+    "/forgot-password",
+    "/reset-password",
+    "/invite",
+    "/create-workspace",
+    "/create-workspace/verify",
+  ])(
     "runs on %s for the CSP, and never redirects it",
     (path) => {
       expect(matches(path)).toBe(true);

@@ -9,15 +9,19 @@ import { isSameOrigin } from "@/modules/auth/server/sameOrigin";
 export const dynamic = "force-dynamic";
 
 /**
- * Creates an organization and its first administrator.
+ * Requests a workspace: an organization and a first administrator, pending
+ * confirmation of the email address.
  *
  * The narrowest possible boundary over `POST /auth/register-admin`: validate,
- * delegate, answer. It sets no cookie and reads none, because the backend
- * contract returns no tokens — there is no session here to get wrong.
+ * delegate, answer. It sets no cookie and reads none — there is no session
+ * here to get wrong, and nothing is created by this request at all; a
+ * confirmation link is mailed separately, and `POST
+ * /api/auth/register-workspace/verify` is what actually creates anything.
  *
- * The response carries only a flag and the new administrator's email, echoed so
- * the success screen can name the account to sign in with. No identifiers, no
- * invite URL, and nothing the browser did not already send.
+ * The response carries only a fixed message and the email the caller
+ * themselves just submitted — nothing learned from the backend, and nothing
+ * that differs whether or not the address already has an account. See
+ * `registerWorkspace`.
  */
 export async function POST(request: NextRequest) {
   // Same guard as every other state-changing auth route.
@@ -54,15 +58,16 @@ export async function POST(request: NextRequest) {
     return jsonError(outcome.error, outcome.error.code === "VALIDATION" ? 400 : 502);
   }
 
-  /**
-   * Created, and deliberately not signed in.
-   *
-   * `register-admin` returns no token pair, so auto-login would mean either
-   * replaying the password against `/auth/login` or fabricating a session.
-   * Neither is something a registration route should do quietly, so the
-   * administrator is told to sign in — which is what actually happens.
-   */
   return noStore(
-    NextResponse.json({ created: true, email: validated.value.email }, { status: 201 }),
+    NextResponse.json(
+      {
+        accepted: true,
+        email: validated.value.email,
+        message:
+          "If this email address can be used to create a workspace, "
+          + "a confirmation link has been sent to it.",
+      },
+      { status: 202 },
+    ),
   );
 }

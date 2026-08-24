@@ -42,6 +42,7 @@ export const SENSITIVE_ROUTES: readonly string[] = [
   "/forgot-password",
   "/login",
   "/create-workspace",
+  "/create-workspace/verify",
 ];
 
 export function isSensitiveRoute(pathname: string): boolean {

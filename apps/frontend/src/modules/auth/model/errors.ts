@@ -18,6 +18,7 @@ export type ProductAuthErrorCode =
   | "VALIDATION"
   | "UNAUTHENTICATED"
   | "RESET_TOKEN_INVALID"
+  | "REGISTER_TOKEN_INVALID"
   | "NETWORK"
   | "SERVER";
 
@@ -34,6 +35,16 @@ export const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password.";
 /** Shown for any reset token the backend rejects — it does not say which. */
 export const RESET_TOKEN_INVALID_MESSAGE =
   "This password reset link is no longer valid. Request a new one.";
+
+/**
+ * Shown for any registration-verification token the backend rejects — unknown,
+ * expired, already used, or the address is now registered by some other means.
+ * One message for all of them, the same reason RESET_TOKEN_INVALID is: telling
+ * them apart would hand back the account-existence oracle this flow exists to
+ * close.
+ */
+export const REGISTER_TOKEN_INVALID_MESSAGE =
+  "This confirmation link is no longer valid. Start over to create your workspace.";
 
 export const GENERIC_SERVER_MESSAGE = "Something went wrong. Please try again.";
 export const NETWORK_MESSAGE = "Could not reach Potriv. Check your connection and try again.";

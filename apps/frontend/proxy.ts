@@ -164,5 +164,6 @@ export const config = {
     "/forgot-password",
     "/login",
     "/create-workspace",
+    "/create-workspace/verify",
   ],
 };

@@ -18,15 +18,23 @@ export async function runSuccessScenarios(
   const suffix = `${ctx.runId}-s`;
 
   // ---------------------------------------------------------------- auth
+  /*
+    Registration is request-then-confirm now: this endpoint only queues an
+    intention and answers 202 with a fixed message, whether or not the
+    address already has an account — nothing here to assert a UUID on any
+    more. The full request/deliver/confirm round trip, including the
+    resulting organizationId/userId, is covered end to end in
+    bootstrap.ts, which needs the created account for its own scenarios.
+  */
   const freshAdminEmail = identity(ctx.runId, 'admin2', 'A');
   const registered = await prober.run({
     id: 'auth.register-admin.success', kind: 'success', method: 'POST',
-    template: '/auth/register-admin', url: '/auth/register-admin', expect: 201,
+    template: '/auth/register-admin', url: '/auth/register-admin', expect: 202,
     options: { body: {
       name: 'QA Second Admin', email: freshAdminEmail, password: DEFAULT_PASSWORD,
       organizationName: `QA API Org C ${ctx.runId}`, headquarterAddress: 'Test Address 2',
     } },
-    check: (r) => isUuid((r.body as any)?.organizationId) ? null : 'organizationId is not a UUID',
+    check: (r) => typeof (r.body as any)?.message === 'string' ? null : 'message is not a string',
   });
   void registered;
 
