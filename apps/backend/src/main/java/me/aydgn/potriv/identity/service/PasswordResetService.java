@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.config.AuthProperties;
 import me.aydgn.potriv.common.exception.BadRequestException;
+import me.aydgn.potriv.common.exception.ErrorCodes;
+import me.aydgn.potriv.common.ratelimit.RateLimitService;
 import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.dto.PasswordResetConfirmRequest;
 import me.aydgn.potriv.identity.dto.PasswordResetRequest;
@@ -41,6 +43,7 @@ public class PasswordResetService {
     private final PasswordEncoder passwordEncoder;
     private final SecureRandom secureRandom = new SecureRandom();
     private final PasswordResetUrlFactory passwordResetUrlFactory;
+    private final RateLimitService rateLimitService;
     private final long resetTokenMinutes;
 
     public PasswordResetService(
@@ -51,7 +54,8 @@ public class PasswordResetService {
         SecurityAuditService securityAuditService,
         PasswordEncoder passwordEncoder,
         AuthProperties authProperties,
-        PasswordResetUrlFactory passwordResetUrlFactory
+        PasswordResetUrlFactory passwordResetUrlFactory,
+        RateLimitService rateLimitService
     ) {
         this.userRepository = userRepository;
         this.passwordResetTokenRepository = passwordResetTokenRepository;
@@ -60,12 +64,23 @@ public class PasswordResetService {
         this.securityAuditService = securityAuditService;
         this.passwordEncoder = passwordEncoder;
         this.passwordResetUrlFactory = passwordResetUrlFactory;
+        this.rateLimitService = rateLimitService;
         this.resetTokenMinutes = authProperties.passwordResetTokenMinutes();
     }
 
     @Transactional
-    public void requestReset(PasswordResetRequest request) {
+    public void requestReset(PasswordResetRequest request, String clientIp) {
         String normalizedEmail = EmailAddresses.normalize(request.email());
+
+        /*
+          Checked before the lookup below, and on the same two keys — IP and
+          this normalised address — whether or not an account exists for it.
+          The lookup that follows already treats both cases identically, on
+          purpose: branching the rate limit on account existence would open a
+          second way to learn it, on top of the one this method's uniform 202
+          already closes.
+        */
+        rateLimitService.checkPasswordReset(clientIp, normalizedEmail);
 
         userRepository.findByEmail(normalizedEmail).ifPresent(this::createAndSendResetToken);
     }
@@ -140,7 +155,18 @@ public class PasswordResetService {
         }
     }
 
+    /**
+     * The one answer this endpoint gives for every rejection: unknown token,
+     * expired, and already used all produce this — same status, same code,
+     * same body. Distinguishing them would hand back an oracle for guessing
+     * whether a given token ever existed. {@link ErrorCodes#RESET_TOKEN_INVALID}
+     * is what a caller branches on; the message is for a person and is free to
+     * be reworded or translated without changing what the frontend does with
+     * it — see {@link ErrorCodes} for why that split exists.
+     */
     private static BadRequestException invalidTokenException() {
-        return new BadRequestException("Password reset token is invalid, expired, or already used.");
+        return new BadRequestException(
+            "Password reset token is invalid, expired, or already used.",
+            ErrorCodes.RESET_TOKEN_INVALID);
     }
 }

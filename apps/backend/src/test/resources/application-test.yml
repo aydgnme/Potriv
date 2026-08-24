@@ -17,6 +17,45 @@ spring:
   flyway:
     enabled: false
 
+app:
+  rate-limit:
+    # Off by default so the hundreds of tests that call login/invite/register
+    # repeatedly in a loop are not themselves rate-limited. Tests that exercise
+    # BLOCKER-002 directly re-enable it with
+    # @TestPropertySource(properties = "app.rate-limit.enabled=true") and get
+    # the small, fast windows below rather than production-scale ones.
+    enabled: false
+    fail-open: false
+    hmac-secret: test-only-rate-limit-hmac-secret-not-for-production
+    # Windows are 10s, not the ~2s that would be tighter for a fast isolated
+    # run: RateLimitIntegrationTest also runs inside the full `clean verify`
+    # alongside 900+ other tests sharing the same JVM, connection pool and
+    # Testcontainers instance, and a 2s window measurably flaked there —
+    # slower request round-trips under that load crossed the window boundary
+    # between a burst's first and last request. 10s gives real headroom while
+    # still keeping the suite fast.
+    invite:
+      short-window: 10s
+      short-limit: 3
+      daily-window: 24h
+      daily-limit: 6
+      actor-window: 10s
+      actor-limit: 2
+      recipient-cooldown: 10s
+    register:
+      ip-window: 10s
+      ip-limit: 2
+      identity-window: 30s
+      identity-limit: 2
+    password-reset:
+      ip-window: 10s
+      ip-limit: 2
+      identity-window: 30s
+      identity-limit: 2
+    login:
+      ip-window: 10s
+      ip-limit: 3
+
 potriv:
   system-admin:
     email: test-admin@potriv.test

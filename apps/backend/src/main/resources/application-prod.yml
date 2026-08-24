@@ -65,6 +65,19 @@ app:
   mail:
     from: ${MAIL_FROM}
 
+  rate-limit:
+    # No default on purpose, exactly like app.jwt.secret above: production
+    # must fail fast without a real secret rather than hash addresses with the
+    # shared placeholder every clone of this repository starts with.
+    hmac-secret: ${RATE_LIMIT_HMAC_SECRET}
+    # Azure fronts this application with its own reverse proxy; without this,
+    # ClientIpResolver ignores X-Forwarded-For entirely and every IP-scoped
+    # quota below keys on the proxy's own address instead of each caller's —
+    # which still fails closed (one shared bucket, reached sooner) rather than
+    # open, but defeats the per-caller intent of the quota. Set to the
+    # deployment's actual front-door/gateway ranges.
+    trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:}
+
 cors:
   # Comma-separated list of exact origins. Wildcards are refused at boot
   # because CORS responses carry credentials.

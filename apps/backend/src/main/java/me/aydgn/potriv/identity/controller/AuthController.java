@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import me.aydgn.potriv.common.config.OpenApiConfig;
+import me.aydgn.potriv.common.ratelimit.ClientIpResolver;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.dto.CurrentUserResponse;
 import me.aydgn.potriv.identity.dto.LoginRequest;
@@ -39,23 +40,28 @@ public class AuthController {
     private final AuthRegistrationService authRegistrationService;
     private final JwtAuthenticationService jwtAuthenticationService;
     private final PasswordResetService passwordResetService;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(
         AuthRegistrationService authRegistrationService,
         JwtAuthenticationService jwtAuthenticationService,
-        PasswordResetService passwordResetService
+        PasswordResetService passwordResetService,
+        ClientIpResolver clientIpResolver
     ) {
         this.authRegistrationService = authRegistrationService;
         this.jwtAuthenticationService = jwtAuthenticationService;
         this.passwordResetService = passwordResetService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register-admin")
     @ResponseStatus(HttpStatus.CREATED)
     public RegisterAdminResponse registerOrganizationAdmin(
-        @Valid @RequestBody RegisterAdminRequest request
+        @Valid @RequestBody RegisterAdminRequest request,
+        HttpServletRequest httpRequest
     ) {
-        return authRegistrationService.registerOrganizationAdmin(request);
+        return authRegistrationService.registerOrganizationAdmin(
+            request, clientIpResolver.resolve(httpRequest));
     }
 
     /**
@@ -88,7 +94,7 @@ public class AuthController {
         return jwtAuthenticationService.login(
             request,
             httpRequest.getHeader(HttpHeaders.USER_AGENT),
-            httpRequest.getRemoteAddr()
+            clientIpResolver.resolve(httpRequest)
         );
     }
 
@@ -100,9 +106,10 @@ public class AuthController {
     @PostMapping("/password-reset/request")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public MessageResponse requestPasswordReset(
-        @Valid @RequestBody PasswordResetRequest request
+        @Valid @RequestBody PasswordResetRequest request,
+        HttpServletRequest httpRequest
     ) {
-        passwordResetService.requestReset(request);
+        passwordResetService.requestReset(request, clientIpResolver.resolve(httpRequest));
 
         return new MessageResponse(
             "If an account exists for this email, a password reset link has been sent."

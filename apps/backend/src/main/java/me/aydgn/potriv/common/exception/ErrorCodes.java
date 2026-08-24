@@ -22,6 +22,20 @@ public final class ErrorCodes {
      */
     public static final String INVITE_INVALID = "INVITE_INVALID";
 
+    /**
+     * Every way a password reset token can fail to redeem: unknown, expired,
+     * or already used.
+     *
+     * The same reasoning as {@link #INVITE_INVALID}, and the same one code for
+     * all of them: distinguishing "never existed" from "expired" from "already
+     * used" would let a caller probe which one applies, which is the oracle a
+     * single generic message exists to close in the first place.
+     */
+    public static final String RESET_TOKEN_INVALID = "RESET_TOKEN_INVALID";
+
+    /** A rate limit was exceeded. The response's {@code Retry-After} header says how long to wait. */
+    public static final String RATE_LIMITED = "RATE_LIMITED";
+
     private ErrorCodes() {
     }
 }

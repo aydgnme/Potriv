@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 import me.aydgn.potriv.common.exception.ErrorCodes;
 import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.exception.BadRequestException;
+import me.aydgn.potriv.common.ratelimit.RateLimitService;
 import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.dto.RegisterAdminRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminResponse;
@@ -36,6 +37,7 @@ public class AuthRegistrationService {
     private final InviteUrlFactory inviteUrlFactory;
     private final SecurityAuditService securityAuditService;
     private final PasswordEncoder passwordEncoder;
+    private final RateLimitService rateLimitService;
 
     public AuthRegistrationService(
         OrganizationRepository organizationRepository,
@@ -45,7 +47,8 @@ public class AuthRegistrationService {
         InviteTokenService inviteTokenService,
         InviteUrlFactory inviteUrlFactory,
         SecurityAuditService securityAuditService,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        RateLimitService rateLimitService
     ) {
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
@@ -55,11 +58,15 @@ public class AuthRegistrationService {
         this.inviteUrlFactory = inviteUrlFactory;
         this.securityAuditService = securityAuditService;
         this.passwordEncoder = passwordEncoder;
+        this.rateLimitService = rateLimitService;
     }
 
     @Transactional
-    public RegisterAdminResponse registerOrganizationAdmin(RegisterAdminRequest request) {
+    public RegisterAdminResponse registerOrganizationAdmin(
+        RegisterAdminRequest request, String clientIp
+    ) {
         String normalizedEmail = normalizeEmail(request.email());
+        rateLimitService.checkRegisterAdmin(clientIp, normalizedEmail);
         ensureEmailIsAvailable(normalizedEmail);
 
         Organization organization = new Organization(

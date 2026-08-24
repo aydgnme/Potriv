@@ -6,6 +6,7 @@ import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.config.AuthProperties;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.exception.UnauthorizedException;
+import me.aydgn.potriv.common.ratelimit.RateLimitService;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.common.security.JwtService;
 import me.aydgn.potriv.identity.dto.LoginRequest;
@@ -45,6 +46,7 @@ public class JwtAuthenticationService {
     private final JwtService jwtService;
 
     private final SecurityAuditService securityAuditService;
+    private final RateLimitService rateLimitService;
     private final int maxFailedLoginAttempts;
     private final Duration loginLockDuration;
 
@@ -56,6 +58,7 @@ public class JwtAuthenticationService {
         PasswordEncoder passwordEncoder,
         JwtService jwtService,
         SecurityAuditService securityAuditService,
+        RateLimitService rateLimitService,
         AuthProperties authProperties
     ) {
         this.userRepository = userRepository;
@@ -65,6 +68,7 @@ public class JwtAuthenticationService {
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.securityAuditService = securityAuditService;
+        this.rateLimitService = rateLimitService;
         this.maxFailedLoginAttempts = authProperties.maxFailedLoginAttempts();
         this.loginLockDuration = Duration.ofMinutes(authProperties.lockDurationMinutes());
     }
@@ -73,6 +77,15 @@ public class JwtAuthenticationService {
     // request itself is rejected with an exception.
     @Transactional(noRollbackFor = BadRequestException.class)
     public TokenPairResponse login(LoginRequest request, String userAgent, String ipAddress) {
+        /*
+          IP-scoped only, and deliberately checked before anything else here.
+          There is no account-scoped login limit alongside this one: the
+          account already has its own lockout below, keyed on the account, and
+          a second limiter layered on top of it — keyed the same way — would
+          let anyone who merely knows an address lock a real user out of even
+          attempting to sign in, without needing to guess a single password.
+        */
+        rateLimitService.checkLogin(ipAddress);
         String normalizedEmail = EmailAddresses.normalize(request.email());
 
         User user = userRepository.findByEmailForUpdate(normalizedEmail)

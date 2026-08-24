@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.exception.NotFoundException;
+import me.aydgn.potriv.common.ratelimit.RateLimitService;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.dto.EmployeeInviteResponse;
 import me.aydgn.potriv.identity.entity.InviteToken;
@@ -25,10 +26,13 @@ import me.aydgn.potriv.security.service.SecurityAuditService;
  * An invite names the address it was issued to and can be redeemed only by
  * that address, exactly once.
  *
- * The raw token never leaves this class. It is generated, written into one
- * email, and dropped; the store holds a SHA-256 and every response carries
- * metadata only. An administrator's browser therefore never holds a credential
- * it could leak through a screenshot, a copied URL or a browser extension.
+ * This class never generates or sends a token. It records the intention —
+ * {@link InviteTokenService#queueFor} — and stops there: {@code
+ * InviteDeliveryWorker} is the one place a raw token exists, in a later,
+ * separate transaction, so a mail server that is unreachable cannot roll back
+ * an invitation this class has already committed. Every response here carries
+ * metadata only, so an administrator's browser never holds a credential it
+ * could leak through a screenshot, a copied URL or a browser extension.
  */
 @Service
 public class OrganizationInviteService {
@@ -37,25 +41,22 @@ public class OrganizationInviteService {
     private final OrganizationRepository organizationRepository;
     private final UserRepository userRepository;
     private final InviteTokenService inviteTokenService;
-    private final InviteUrlFactory inviteUrlFactory;
-    private final EmployeeInviteMailService inviteMailService;
     private final SecurityAuditService securityAuditService;
+    private final RateLimitService rateLimitService;
 
     public OrganizationInviteService(
         InviteTokenRepository inviteTokenRepository,
         OrganizationRepository organizationRepository,
         UserRepository userRepository,
         InviteTokenService inviteTokenService,
-        InviteUrlFactory inviteUrlFactory,
-        EmployeeInviteMailService inviteMailService,
-        SecurityAuditService securityAuditService
+        SecurityAuditService securityAuditService,
+        RateLimitService rateLimitService
     ) {
         this.inviteTokenRepository = inviteTokenRepository;
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
+        this.rateLimitService = rateLimitService;
         this.inviteTokenService = inviteTokenService;
-        this.inviteUrlFactory = inviteUrlFactory;
-        this.inviteMailService = inviteMailService;
         this.securityAuditService = securityAuditService;
     }
 
@@ -83,11 +84,21 @@ public class OrganizationInviteService {
      */
     @Transactional
     public EmployeeInviteResponse inviteEmployee(AuthenticatedUser currentUser, String email) {
-        Organization organization = organizationRepository
-            .findByIdForUpdate(requireOrganizationId(currentUser))
-            .orElseThrow(() -> new NotFoundException("Organization was not found."));
-
+        UUID organizationId = requireOrganizationId(currentUser);
         String normalizedEmail = InviteTokenService.normalizeEmail(email);
+
+        /*
+          Checked before anything else touches the database — in particular,
+          before the organization row lock below. A rate-limited request
+          should be cheap to reject: it must not contend for a lock, or queue
+          behind other invites for the same organization, on its way to being
+          told no.
+        */
+        rateLimitService.checkInvite(organizationId, currentUser.userId(), normalizedEmail);
+
+        Organization organization = organizationRepository
+            .findByIdForUpdate(organizationId)
+            .orElseThrow(() -> new NotFoundException("Organization was not found."));
 
         /*
           Deliberately no "this address already has an account" branch.
