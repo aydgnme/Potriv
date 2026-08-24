@@ -69,20 +69,6 @@ async function callBackend(options: RequestOptions): Promise<Response> {
   });
 }
 
-/** Reads the backend's error body without letting any of it reach the browser. */
-async function backendMessage(response: Response): Promise<string | null> {
-  try {
-    const body: unknown = await response.json();
-    if (body && typeof body === "object" && "message" in body) {
-      const message = (body as { message?: unknown }).message;
-      return typeof message === "string" ? message : null;
-    }
-  } catch {
-    // A non-JSON error body is not worth reporting; the status is enough.
-  }
-  return null;
-}
-
 export async function login(
   email: string,
   password: string,
@@ -431,11 +417,18 @@ export async function confirmPasswordReset(
   if (response.ok) return { ok: true, value: null };
 
   if (response.status === 400) {
-    // 400 covers both a rejected token and a password outside 8–72. The backend
-    // does not distinguish invalid from expired from used, and neither does the
-    // UI; a password-length failure is told apart by its own message.
-    const message = await backendMessage(response);
-    if (message && message.toLowerCase().includes("password reset token")) {
+    /*
+      400 covers both a rejected token and a password outside 8–72, and they
+      are told apart by `code`, never by prose — the same rule
+      `registerWithInvite` follows below, and for the same reason. This used
+      to match the backend's message against `/password reset token/i`, which
+      worked only because the backend's sentence happened to contain that
+      phrase; rewording or translating it would have silently reclassified a
+      dead token as a validation error, putting the reader back in a form that
+      can never succeed.
+    */
+    const body: unknown = await response.json().catch(() => null);
+    if (backendErrorCode(body) === "RESET_TOKEN_INVALID") {
       return {
         ok: false,
         error: productAuthError("RESET_TOKEN_INVALID", RESET_TOKEN_INVALID_MESSAGE),

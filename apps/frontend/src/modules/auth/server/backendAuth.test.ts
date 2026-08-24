@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { confirmPasswordReset, registerWithInvite } from "./backendAuth";
+import { RESET_TOKEN_INVALID_MESSAGE } from "../model/errors";
 
 /**
  * What this server puts on the wire when it forwards a credential.
@@ -172,5 +173,77 @@ describe("classifying an invitation failure", () => {
 
     expect(JSON.stringify(outcome)).not.toContain("12:04");
     expect(JSON.stringify(outcome)).not.toContain("ada@x");
+  });
+});
+
+describe("classifying a password reset failure", () => {
+  /**
+   * The real envelope `PasswordResetService.invalidTokenException` produces —
+   * same shape and field order as the invite one above, `code` included. A
+   * hand-written body would only prove this test agrees with itself.
+   */
+  function resetError(overrides: Record<string, unknown> = {}) {
+    return {
+      timestamp: "2026-08-24T00:00:00.000+00:00",
+      status: 400,
+      error: "Bad Request",
+      message: "Password reset token is invalid, expired, or already used.",
+      path: "/auth/password-reset/confirm",
+      code: "RESET_TOKEN_INVALID",
+      ...overrides,
+    };
+  }
+
+  async function classifyReset(body: unknown, status = 400) {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => body,
+    }));
+    return confirmPasswordReset(RESET_TOKEN, "correct-horse-battery");
+  }
+
+  it("reads the code, not the sentence", async () => {
+    const outcome = await classifyReset(resetError());
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      error: { code: "RESET_TOKEN_INVALID", message: RESET_TOKEN_INVALID_MESSAGE },
+    });
+  });
+
+  it("still classifies when the sentence is reworded or translated", async () => {
+    /*
+      The regression this guards against: matching the message against
+      /password reset token/i. Any rewording — or a translation, the realistic
+      case — would silently turn a dead token into a validation error and put
+      the reader back into a form that can never succeed.
+    */
+    for (const message of [
+      "Bu şifre sıfırlama bağlantısı artık geçerli değil.",
+      "Dieser Link ist nicht mehr gültig.",
+      "Nope.",
+    ]) {
+      const outcome = await classifyReset(resetError({ message }));
+      expect(outcome).toMatchObject({ ok: false, error: { code: "RESET_TOKEN_INVALID" } });
+    }
+  });
+
+  it("does not classify by prose when the code says otherwise", async () => {
+    // A genuine password-length failure that happens to mention a token.
+    const outcome = await classifyReset(
+      resetError({ code: undefined, message: "The reset token field is required." }),
+    );
+
+    expect(outcome).toMatchObject({
+      ok: false,
+      error: { code: "VALIDATION", message: "Password must be 8–72 characters." },
+    });
+  });
+
+  it("falls back safely when the backend sends no code at all", async () => {
+    const outcome = await classifyReset(resetError({ code: undefined }));
+
+    expect(outcome).toMatchObject({ ok: false, error: { code: "VALIDATION" } });
   });
 });
