@@ -47,6 +47,14 @@ jobs:
         working-directory: tools/api-e2e
         run: npm ci
 
+      # Mirrors frontend-ci.yml's gate: runs before anything else that costs
+      # a build, and fails closed on any high-or-above advisory rather than
+      # only warning. This workspace had no dependency-audit step at all
+      # before.
+      - name: Audit high-severity dependencies
+        working-directory: tools/api-e2e
+        run: npm audit --audit-level=high
+
       - name: Typecheck
         working-directory: tools/api-e2e
         run: npm run typecheck

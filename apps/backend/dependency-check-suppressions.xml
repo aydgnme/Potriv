@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OWASP Dependency-Check suppressions for the backend's dependency tree.
+
+  Empty by design: nothing is suppressed yet because the scan has not
+  produced a reviewed finding to suppress. This file exists so that the day
+  one does, the mechanism and its required shape are already in place and
+  reviewable in a diff, rather than invented under pressure alongside a real
+  CVE.
+
+  Every <suppress> entry added here must carry, inside <notes>, all four of:
+    - the CVE (or vulnerabilityName) being suppressed
+    - why it does not apply to this codebase (unreachable code path, fixed
+      upstream in a way the CVE database has not caught up with, etc.)
+    - the person or team who reviewed and approved the suppression
+    - the review date
+
+  and must set the `until` attribute to an explicit expiry date
+  (yyyy-MM-dd, or yyyy-MM-ddTHH:mm:ss.SSSZ). Dependency-Check itself stops
+  honouring a suppression once `until` has passed — an expired entry reverts
+  to "not suppressed", so a CVE that is still unpatched starts failing the
+  build again automatically rather than staying silenced by an entry nobody
+  revisited. Suppressions without an `until` date, or without all four notes
+  above, must not be merged.
+
+  Example (do not uncomment without a real, reviewed finding):
+
+  <suppress until="2026-12-31">
+     <notes>
+        CVE-2026-XXXXX: reported against transitive dependency X, but the
+        vulnerable code path (Y) is never invoked by this application —
+        Z calls only the unaffected W entry point. Reviewed by
+        <owner/team>, <yyyy-mm-dd>. Re-review before expiry.
+     </notes>
+     <packageUrl regex="true">^pkg:maven/com\.example/vulnerable-lib@.*$</packageUrl>
+     <cve>CVE-2026-XXXXX</cve>
+  </suppress>
+
+  See: https://jeremylong.github.io/DependencyCheck/general/suppression.html
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+</suppressions>
