@@ -1,0 +1,20 @@
+{
+  "name": "@potriv/dependency-scan",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fail-closed NVD preflight, report validation, and cache-freshness checks for the backend's dependency scan. The exact logic the CI workflow runs — tested here, invoked from there, never duplicated.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
+  }
+}
