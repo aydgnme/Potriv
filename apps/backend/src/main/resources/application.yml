@@ -61,6 +61,10 @@ app:
     # Empty: no X-Forwarded-For is trusted unless explicitly configured. See
     # ClientIpResolver.
     trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:}
+    # See application-prod.yml: ProductionConfigGuard requires one of
+    # trusted-proxies or this to be set whenever rate limiting is enabled in
+    # the prod profile. Not enforced outside prod.
+    no-reverse-proxy: ${RATE_LIMIT_NO_REVERSE_PROXY:false}
     invite:
       short-window: ${RATE_LIMIT_INVITE_ORG_SHORT_WINDOW:60s}
       short-limit: ${RATE_LIMIT_INVITE_ORG_SHORT_LIMIT:20}

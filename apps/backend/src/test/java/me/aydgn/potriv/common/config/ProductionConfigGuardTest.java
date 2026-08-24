@@ -22,7 +22,7 @@ class ProductionConfigGuardTest {
     private static void validate(String jwtSecret, List<String> corsOrigins,
         String datasourceUrl, String ddlAuto) {
         ProductionConfigGuard.validate(jwtSecret, corsOrigins, datasourceUrl, ddlAuto,
-            false, "", "", false, "");
+            false, "", "", false, "", "", false);
     }
 
     @Test
@@ -81,7 +81,7 @@ class ProductionConfigGuardTest {
     void adminConsoleDisabledIsAlwaysAllowed() {
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                false, "", "", false, ""))
+                false, "", "", false, "", "", false))
             .doesNotThrowAnyException();
     }
 
@@ -89,12 +89,12 @@ class ProductionConfigGuardTest {
     void adminConsoleEnabledRequiresSystemAdminEmailAndPassword() {
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "", "a-strong-admin-password", false, ""))
+                true, "", "a-strong-admin-password", false, "", "", false))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("email");
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "", false, ""))
+                true, "admin@potriv.aydgn.me", "", false, "", "", false))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("password");
     }
@@ -103,20 +103,20 @@ class ProductionConfigGuardTest {
     void adminConsoleEnabledRejectsPlaceholderOrShortSystemAdminPassword() {
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "ChangeMe123!", false, ""))
+                true, "admin@potriv.aydgn.me", "ChangeMe123!", false, "", "", false))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("placeholder");
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "replace-me", false, ""))
+                true, "admin@potriv.aydgn.me", "replace-me", false, "", "", false))
             .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "short", false, ""))
+                true, "admin@potriv.aydgn.me", "short", false, "", "", false))
             .isInstanceOf(IllegalStateException.class);
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "a-strong-admin-password", false, ""))
+                true, "admin@potriv.aydgn.me", "a-strong-admin-password", false, "", "", false))
             .doesNotThrowAnyException();
     }
 
@@ -124,11 +124,12 @@ class ProductionConfigGuardTest {
     void rateLimitDisabledIsAlwaysAllowedWhateverTheSecret() {
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                false, "", "", false, ""))
+                false, "", "", false, "", "", false))
             .doesNotThrowAnyException();
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                false, "", "", false, "change-this-secret-in-production-change-this-secret"))
+                false, "", "", false, "change-this-secret-in-production-change-this-secret",
+                "", false))
             .doesNotThrowAnyException();
     }
 
@@ -136,13 +137,13 @@ class ProductionConfigGuardTest {
     void rateLimitEnabledRejectsMissingOrPlaceholderHmacSecret() {
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                false, "", "", true, ""))
+                false, "", "", true, "", "", false))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("rate-limit");
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
                 false, "", "", true,
-                "change-this-secret-in-production-change-this-secret"))
+                "change-this-secret-in-production-change-this-secret", "", false))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("rate-limit");
     }
@@ -151,7 +152,51 @@ class ProductionConfigGuardTest {
     void rateLimitEnabledAcceptsAStrongSecret() {
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                false, "", "", true, "a-strong-rate-limit-secret-0123456789"))
+                false, "", "", true, "a-strong-rate-limit-secret-0123456789",
+                "10.0.0.0/8", false))
             .doesNotThrowAnyException();
+    }
+
+    @Test
+    void trustedProxyCheckIsSkippedWhenRateLimitDisabled() {
+        assertThatCode(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", false, "", "", false))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rateLimitEnabledRejectsEmptyTrustedProxiesWithoutNoReverseProxyOptOut() {
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", true, "a-strong-rate-limit-secret-0123456789",
+                "", false))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("RATE_LIMIT_TRUSTED_PROXIES");
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", true, "a-strong-rate-limit-secret-0123456789",
+                "   ", false))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("RATE_LIMIT_TRUSTED_PROXIES");
+    }
+
+    @Test
+    void rateLimitEnabledAcceptsNoReverseProxyOptOutWithEmptyTrustedProxies() {
+        assertThatCode(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", true, "a-strong-rate-limit-secret-0123456789",
+                "", true))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rateLimitEnabledRejectsBothTrustedProxiesAndNoReverseProxyTogether() {
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", true, "a-strong-rate-limit-secret-0123456789",
+                "10.0.0.0/8", true))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("contradictory");
     }
 }

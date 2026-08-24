@@ -11,9 +11,10 @@ import org.springframework.stereotype.Component;
  * Fail-fast validation of security-critical configuration for the {@code prod}
  * profile. The application refuses to boot instead of silently running with
  * development defaults: a placeholder JWT secret, wildcard CORS origins next to
- * credentialed requests, a non-PostgreSQL (in-memory) datasource, or a
- * destructive Hibernate DDL mode that would bypass the Flyway migration
- * strategy.
+ * credentialed requests, a non-PostgreSQL (in-memory) datasource, a destructive
+ * Hibernate DDL mode that would bypass the Flyway migration strategy, or an
+ * unconfigured trusted-proxy boundary that would quietly collapse every
+ * IP-scoped rate limit into one shared bucket.
  */
 @Component
 @Profile("prod")
@@ -34,11 +35,14 @@ public class ProductionConfigGuard {
         @Value("${potriv.system-admin.email:}") String systemAdminEmail,
         @Value("${potriv.system-admin.password:}") String systemAdminPassword,
         @Value("${app.rate-limit.enabled:false}") boolean rateLimitEnabled,
-        @Value("${app.rate-limit.hmac-secret:}") String rateLimitHmacSecret
+        @Value("${app.rate-limit.hmac-secret:}") String rateLimitHmacSecret,
+        @Value("${app.rate-limit.trusted-proxies:}") String rateLimitTrustedProxies,
+        @Value("${app.rate-limit.no-reverse-proxy:false}") boolean rateLimitNoReverseProxy
     ) {
         validate(jwtSecret, corsAllowedOrigins, datasourceUrl, hibernateDdlAuto,
             adminConsoleEnabled, systemAdminEmail, systemAdminPassword,
-            rateLimitEnabled, rateLimitHmacSecret);
+            rateLimitEnabled, rateLimitHmacSecret,
+            rateLimitTrustedProxies, rateLimitNoReverseProxy);
     }
 
     static void validate(
@@ -50,7 +54,9 @@ public class ProductionConfigGuard {
         String systemAdminEmail,
         String systemAdminPassword,
         boolean rateLimitEnabled,
-        String rateLimitHmacSecret
+        String rateLimitHmacSecret,
+        String rateLimitTrustedProxies,
+        boolean rateLimitNoReverseProxy
     ) {
         if (jwtSecret == null
             || jwtSecret.toLowerCase(Locale.ROOT).contains(PLACEHOLDER_SECRET_MARKER)) {
@@ -69,6 +75,29 @@ public class ProductionConfigGuard {
                 "Production refuses the placeholder rate-limit HMAC secret. Set "
                     + "RATE_LIMIT_HMAC_SECRET to a strong random value, or set "
                     + "RATE_LIMIT_ENABLED=false if rate limiting is deliberately off.");
+        }
+
+        // IP-scoped quotas are only as good as the address ClientIpResolver hands
+        // back. Left unconfigured, RATE_LIMIT_TRUSTED_PROXIES silently degrades
+        // into "every caller behind the real reverse proxy shares one bucket
+        // keyed on the proxy's own address" — it does not fail open, but it
+        // defeats the per-caller intent of every quota below without anything
+        // ever saying so. An operator must say, on purpose, which of the two
+        // topologies this deployment actually has.
+        boolean hasTrustedProxies = rateLimitTrustedProxies != null
+            && !rateLimitTrustedProxies.isBlank();
+        if (rateLimitEnabled && hasTrustedProxies && rateLimitNoReverseProxy) {
+            throw new IllegalStateException(
+                "Production rate limiting cannot have both RATE_LIMIT_TRUSTED_PROXIES set "
+                    + "and RATE_LIMIT_NO_REVERSE_PROXY=true: these describe contradictory "
+                    + "deployment topologies. Set exactly one.");
+        }
+        if (rateLimitEnabled && !hasTrustedProxies && !rateLimitNoReverseProxy) {
+            throw new IllegalStateException(
+                "Production rate limiting is enabled but RATE_LIMIT_TRUSTED_PROXIES is not "
+                    + "set. Set it to this deployment's real front-door/gateway CIDR ranges, "
+                    + "or set RATE_LIMIT_NO_REVERSE_PROXY=true if this backend is deliberately "
+                    + "reachable directly from the internet with no reverse proxy in front.");
         }
 
         // CORS responses carry credentials, so a wildcard origin is never safe.
