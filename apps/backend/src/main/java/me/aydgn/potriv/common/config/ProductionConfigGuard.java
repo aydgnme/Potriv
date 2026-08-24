@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 public class ProductionConfigGuard {
 
     // The shared-default secret shipped in application.yml must never sign
-    // production tokens.
+    // production tokens, or key production's rate-limit buckets.
     private static final String PLACEHOLDER_SECRET_MARKER = "change-this-secret";
 
     private static final List<String> ALLOWED_DDL_MODES = List.of("validate", "none");
@@ -32,10 +32,13 @@ public class ProductionConfigGuard {
         @Value("${spring.jpa.hibernate.ddl-auto:validate}") String hibernateDdlAuto,
         @Value("${potriv.backend-console.enabled:false}") boolean adminConsoleEnabled,
         @Value("${potriv.system-admin.email:}") String systemAdminEmail,
-        @Value("${potriv.system-admin.password:}") String systemAdminPassword
+        @Value("${potriv.system-admin.password:}") String systemAdminPassword,
+        @Value("${app.rate-limit.enabled:false}") boolean rateLimitEnabled,
+        @Value("${app.rate-limit.hmac-secret:}") String rateLimitHmacSecret
     ) {
         validate(jwtSecret, corsAllowedOrigins, datasourceUrl, hibernateDdlAuto,
-            adminConsoleEnabled, systemAdminEmail, systemAdminPassword);
+            adminConsoleEnabled, systemAdminEmail, systemAdminPassword,
+            rateLimitEnabled, rateLimitHmacSecret);
     }
 
     static void validate(
@@ -45,13 +48,27 @@ public class ProductionConfigGuard {
         String hibernateDdlAuto,
         boolean adminConsoleEnabled,
         String systemAdminEmail,
-        String systemAdminPassword
+        String systemAdminPassword,
+        boolean rateLimitEnabled,
+        String rateLimitHmacSecret
     ) {
         if (jwtSecret == null
             || jwtSecret.toLowerCase(Locale.ROOT).contains(PLACEHOLDER_SECRET_MARKER)) {
             throw new IllegalStateException(
                 "Production refuses the placeholder JWT secret. Set JWT_SECRET to a "
                     + "strong random value of at least 32 bytes.");
+        }
+
+        // A disabled limiter is itself a deliberately reachable state — see the
+        // fail-open/fail-closed note on RateLimitProperties — but a placeholder
+        // secret protecting nobody's inbox address is not.
+        if (rateLimitEnabled
+            && (rateLimitHmacSecret == null || rateLimitHmacSecret.isBlank()
+                || rateLimitHmacSecret.toLowerCase(Locale.ROOT).contains(PLACEHOLDER_SECRET_MARKER))) {
+            throw new IllegalStateException(
+                "Production refuses the placeholder rate-limit HMAC secret. Set "
+                    + "RATE_LIMIT_HMAC_SECRET to a strong random value, or set "
+                    + "RATE_LIMIT_ENABLED=false if rate limiting is deliberately off.");
         }
 
         // CORS responses carry credentials, so a wildcard origin is never safe.

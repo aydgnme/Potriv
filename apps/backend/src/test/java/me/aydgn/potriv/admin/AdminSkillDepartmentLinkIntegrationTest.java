@@ -54,7 +54,8 @@ class AdminSkillDepartmentLinkIntegrationTest extends AbstractAdminIntegrationTe
     private Skill skill;
 
     private UUID org() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("LinkOrg"), uniqueEmail("linkorg"), "Password123!");
+        String adminEmail = uniqueEmail("linkorg");
+        JsonNode admin = registerAdmin(uniqueName("LinkOrg"), adminEmail, "Password123!");
         return UUID.fromString(admin.get("organizationId").asText());
     }
 

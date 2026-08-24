@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 /**
  * Registers an employee from an invitation.
  *
- * The narrowest boundary over `POST /auth/register-employee/{token}`: validate,
+ * The narrowest boundary over `POST /auth/register-employee`: validate,
  * delegate, answer. It sets no cookie and reads none, because that contract
  * returns no tokens — there is no session here to get wrong.
  *

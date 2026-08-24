@@ -86,7 +86,7 @@ class PasswordResetIntegrationTest extends AbstractMockMvcIntegrationTest {
         // this repository serves, and so it defended a broken link instead of a
         // working one.
         assertThat(Objects.requireNonNull(message.getText()))
-            .contains(frontendUrl + "/reset-password?token=");
+            .contains(frontendUrl + "/reset-password#token=");
     }
 
     @Test
@@ -120,14 +120,18 @@ class PasswordResetIntegrationTest extends AbstractMockMvcIntegrationTest {
             .andExpect(status().isBadRequest());
         login(email, "NewPassword1!");
 
-        // The token cannot be reused.
-        confirmReset(rawToken, "AnotherPassword1!").andExpect(status().isBadRequest());
+        // The token cannot be reused, and the response is identical in shape
+        // to an unknown or expired one — same status, same code.
+        confirmReset(rawToken, "AnotherPassword1!")
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("RESET_TOKEN_INVALID"));
     }
 
     @Test
     void invalidTokenIsRejected() throws Exception {
         confirmReset("never-issued-token", "NewPassword1!")
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("RESET_TOKEN_INVALID"));
     }
 
     @Test
@@ -144,7 +148,9 @@ class PasswordResetIntegrationTest extends AbstractMockMvcIntegrationTest {
             OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(1)
         ));
 
-        confirmReset(rawToken, "NewPassword1!").andExpect(status().isBadRequest());
+        confirmReset(rawToken, "NewPassword1!")
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("RESET_TOKEN_INVALID"));
 
         // The password must remain unchanged: the original still logs in.
         login(email, "OldPassword1!");

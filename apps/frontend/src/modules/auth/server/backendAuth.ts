@@ -69,20 +69,6 @@ async function callBackend(options: RequestOptions): Promise<Response> {
   });
 }
 
-/** Reads the backend's error body without letting any of it reach the browser. */
-async function backendMessage(response: Response): Promise<string | null> {
-  try {
-    const body: unknown = await response.json();
-    if (body && typeof body === "object" && "message" in body) {
-      const message = (body as { message?: unknown }).message;
-      return typeof message === "string" ? message : null;
-    }
-  } catch {
-    // A non-JSON error body is not worth reporting; the status is enough.
-  }
-  return null;
-}
-
 export async function login(
   email: string,
   password: string,
@@ -214,12 +200,6 @@ export async function logoutAll(accessToken: string): Promise<boolean> {
 export type BackendWorkspaceRegistration = {
   readonly userId: string;
   readonly organizationId: string;
-  /**
-   * The backend builds this from its own `app.frontend-url`, which currently
-   * points at an origin this app does not serve. It is therefore accepted and
-   * discarded rather than shown — see the V2-02 note in the migration doc.
-   */
-  readonly employeeInviteUrl?: string;
 };
 
 /**
@@ -310,9 +290,10 @@ export type BackendInviteRegistration = {
 /**
  * Registers an employee against an invite token.
  *
- * `POST /auth/register-employee/{token}` is `permitAll`, takes no credentials
+ * `POST /auth/register-employee` is `permitAll`, takes no credentials
  * and returns no token pair — so this sets no cookie and creates no session.
- * The token is path-encoded here and never returned to the caller.
+ * The token travels as a body field, alongside the password, and is never
+ * returned to the caller.
  */
 export async function registerWithInvite(
   inviteToken: string,
@@ -326,10 +307,17 @@ export async function registerWithInvite(
   try {
     response = await callBackend({
       method: "POST",
-      // Encoded so a token containing URL-significant characters cannot alter
-      // the path it is addressed to.
-      path: `/auth/register-employee/${encodeURIComponent(inviteToken)}`,
-      body: input,
+      /*
+        A fixed path. The token used to be a segment of it, which meant this
+        server's outbound URL — and every log, proxy and trace between here and
+        the backend — carried a live credential. Encoding it made the path safe
+        to *parse*; it did nothing about the path being recorded.
+
+        It travels in the body now, beside the password, which is the only part
+        of a request nothing here writes down.
+      */
+      path: "/auth/register-employee",
+      body: { token: inviteToken, ...input },
       userAgent,
     });
   } catch {
@@ -346,27 +334,47 @@ export async function registerWithInvite(
     return { ok: true, value: { userId, organizationId } };
   }
 
-  // An unknown token. Never distinguished from an expired one.
+  /*
+    Classified by code, never by prose.
+
+    This used to match the backend's message against `/invite/i`. The backend's
+    sentence is "This invitation is not valid." — which happens to contain
+    "invit", so the match worked by luck — and any rewording or translation
+    would have silently reclassified a dead invitation as a validation error,
+    putting the reader back in a form that can never succeed. A message is
+    written for a person; a code is written for this branch.
+  */
   if (response.status === 404) {
     return { ok: false, failure: "INVITE_INVALID", message: INVITE_INVALID_MESSAGE };
   }
 
   if (response.status === 400) {
     const body: unknown = await response.json().catch(() => null);
-    const detail = safeBackendMessage(body);
-    // The backend uses 400 both for a dead token and for a taken email. Only the
-    // email case may be reported specifically; anything token-shaped collapses.
-    if (detail && /invite/i.test(detail)) {
+    if (backendErrorCode(body) === "INVITE_INVALID") {
       return { ok: false, failure: "INVITE_INVALID", message: INVITE_INVALID_MESSAGE };
     }
     return {
       ok: false,
       failure: "VALIDATION",
-      message: detail ?? "Check the details and try again.",
+      message: safeBackendMessage(body) ?? "Check the details and try again.",
     };
   }
 
   return { ok: false, failure: "SERVER", message: GENERIC_SERVER_MESSAGE };
+}
+
+/**
+ * The backend's stable failure identifier, if it sent one.
+ *
+ * Read defensively: this crosses a service boundary, so the field may be
+ * absent, null, or not a string, and none of those is an error worth
+ * reporting — they simply mean "no code", which falls through to the generic
+ * branch.
+ */
+function backendErrorCode(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const code = (body as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
 }
 
 /** One sentence for every dead invite, whatever killed it. */
@@ -410,11 +418,18 @@ export async function confirmPasswordReset(
   if (response.ok) return { ok: true, value: null };
 
   if (response.status === 400) {
-    // 400 covers both a rejected token and a password outside 8–72. The backend
-    // does not distinguish invalid from expired from used, and neither does the
-    // UI; a password-length failure is told apart by its own message.
-    const message = await backendMessage(response);
-    if (message && message.toLowerCase().includes("password reset token")) {
+    /*
+      400 covers both a rejected token and a password outside 8–72, and they
+      are told apart by `code`, never by prose — the same rule
+      `registerWithInvite` follows below, and for the same reason. This used
+      to match the backend's message against `/password reset token/i`, which
+      worked only because the backend's sentence happened to contain that
+      phrase; rewording or translating it would have silently reclassified a
+      dead token as a validation error, putting the reader back in a form that
+      can never succeed.
+    */
+    const body: unknown = await response.json().catch(() => null);
+    if (backendErrorCode(body) === "RESET_TOKEN_INVALID") {
       return {
         ok: false,
         error: productAuthError("RESET_TOKEN_INVALID", RESET_TOKEN_INVALID_MESSAGE),

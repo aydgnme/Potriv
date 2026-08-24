@@ -27,7 +27,8 @@ class AdminOrganizationFormIntegrationTest extends AbstractAdminIntegrationTest 
     private OrganizationRepository organizationRepository;
 
     private UUID seedOrganization() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("OrgForm"), uniqueEmail("orgform"), "Password123!");
+        String adminEmail = uniqueEmail("orgform");
+        JsonNode admin = registerAdmin(uniqueName("OrgForm"), adminEmail, "Password123!");
         return UUID.fromString(admin.get("organizationId").asText());
     }
 

@@ -18,7 +18,21 @@ export type Organization = {
   readonly label: 'A' | 'B';
   readonly organizationId: string;
   readonly admin: Person;
-  readonly inviteToken: string;
+  /**
+   * Issues a fresh invitation to one address and returns its raw token.
+   *
+   * There is no reusable organization invite any more: an invitation is
+   * addressed to a person and spent once. A scenario that needs somebody to
+   * register asks for a token for that address, which is what the product
+   * itself now requires.
+   */
+  readonly invite: (email: string) => Promise<string>;
+  /**
+   * An invitation issued to an address that is never registered, kept so the
+   * isolation matrix has a real identifier belonging to this organization to
+   * aim another organization's administrator at.
+   */
+  readonly standingInviteId: string;
   employee: Person;
   departmentManager: Person;
   projectManager: Person;
@@ -70,6 +84,13 @@ export function field(body: unknown, name: string, where: string): string {
   return value;
 }
 
+/**
+ * The token out of an invite URL.
+ *
+ * The token lives in the URL *fragment* now (`/invite#token=…`), which browsers
+ * never send to a server. Parsing is the same either way; what changed is that
+ * everything before the `#` is all a server ever sees.
+ */
 export function inviteTokenFrom(inviteUrl: string): string {
   const index = inviteUrl.indexOf('token=');
   if (index < 0) throw new Error('invite URL did not contain a token parameter');

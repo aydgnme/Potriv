@@ -61,7 +61,8 @@ class AdminUserRoleManagementIntegrationTest extends AbstractAdminIntegrationTes
     private PasswordEncoder passwordEncoder;
 
     private UUID orgId() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("RoleOrg"), uniqueEmail("roleorg"), "Password123!");
+        String adminEmail = uniqueEmail("roleorg");
+        JsonNode admin = registerAdmin(uniqueName("RoleOrg"), adminEmail, "Password123!");
         return UUID.fromString(admin.get("organizationId").asText());
     }
 

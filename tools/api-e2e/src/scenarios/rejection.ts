@@ -158,8 +158,8 @@ async function freshDepartmentMember(
   client: ApiClient, prober: Prober, ctx: RunContext,
 ): Promise<string | null> {
   const email = identity(ctx.runId, 'rejection', 'A');
-  const registered = await client.post(`/auth/register-employee/${ctx.orgA.inviteToken}`, {
-    body: { name: 'QA Rejection Target', email, password: DEFAULT_PASSWORD },
+  const registered = await client.post('/auth/register-employee', {
+    body: { token: await ctx.orgA.invite(email), name: 'QA Rejection Target', email, password: DEFAULT_PASSWORD },
   });
   if (!registered.ok) {
     prober.record({

@@ -3,6 +3,7 @@ package me.aydgn.potriv.security;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -136,11 +137,12 @@ class SecurityAuditRegressionIntegrationTest extends AbstractMockMvcIntegrationT
 
     @Test
     void roleChangeIsAuditedWithActorAndTarget() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("Org"), uniqueEmail("admin"), "Password123!");
+        String adminEmail = uniqueEmail("admin");
+        JsonNode admin = registerAdmin(uniqueName("Org"), adminEmail, "Password123!");
         String employeeEmail = uniqueEmail("employee");
-        JsonNode employee = registerEmployee(
-            extractInviteToken(admin.get("employeeInviteUrl").asText()),
-            employeeEmail, "Password123!");
+        JsonNode employee = inviteAndRegisterEmployee(
+loginForAccessToken(adminEmail, "Password123!"),
+employeeEmail, "Password123!");
         UUID employeeId = UUID.fromString(employee.get("userId").asText());
 
         String systemAdminToken = systemAdminAccessToken();
@@ -161,7 +163,8 @@ class SecurityAuditRegressionIntegrationTest extends AbstractMockMvcIntegrationT
 
     @Test
     void statusChangeIsAuditedWithActorAndTarget() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("Org"), uniqueEmail("admin"), "Password123!");
+        String adminEmail = uniqueEmail("admin");
+        JsonNode admin = registerAdmin(uniqueName("Org"), adminEmail, "Password123!");
         UUID targetId = UUID.fromString(admin.get("userId").asText());
 
         String systemAdminToken = systemAdminAccessToken();
@@ -180,18 +183,30 @@ class SecurityAuditRegressionIntegrationTest extends AbstractMockMvcIntegrationT
     }
 
     @Test
-    void inviteRotationIsAudited() throws Exception {
+    void invitingAndRevokingAreAudited() throws Exception {
         String email = uniqueEmail("admin");
         JsonNode admin = registerAdmin(uniqueName("Org"), email, "Password123!");
         UUID adminId = UUID.fromString(admin.get("userId").asText());
         String token = loginForAccessToken(email, "Password123!");
 
-        mockMvc.perform(post("/organizations/current/invite/rotate")
-                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
-            .andExpect(status().isOk());
+        JsonNode invite = inviteEmployee(token, uniqueEmail("employee"));
+        String inviteId = invite.get("inviteId").asText();
 
-        assertThat(eventsFor(adminId, SecurityAuditEventType.EMPLOYEE_INVITE_ROTATED))
+        mockMvc.perform(delete("/organizations/current/invites/" + inviteId)
+                .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+            .andExpect(status().isNoContent());
+
+        assertThat(eventsFor(adminId, SecurityAuditEventType.EMPLOYEE_INVITE_ISSUED))
             .isNotEmpty();
+        assertThat(eventsFor(adminId, SecurityAuditEventType.EMPLOYEE_INVITE_REVOKED))
+            .isNotEmpty();
+
+        // The audit names the invitation; it never carries the credential.
+        for (SecurityAuditEvent event : eventsFor(adminId, SecurityAuditEventType.EMPLOYEE_INVITE_ISSUED)) {
+            assertThat(event.getDetails()).contains(inviteId);
+            assertThat(event.getDetails()).doesNotContain("token=");
+            assertThat(event.getDetails()).doesNotMatch(".*[A-Za-z0-9_-]{43}.*");
+        }
     }
 
     @Test
@@ -225,9 +240,11 @@ class SecurityAuditRegressionIntegrationTest extends AbstractMockMvcIntegrationT
         assertThat(page.get("totalElements").asLong()).isPositive();
 
         String employeeEmail = uniqueEmail("employee");
-        JsonNode admin = registerAdmin(uniqueName("Org"), uniqueEmail("admin"), "Password123!");
-        registerEmployee(extractInviteToken(admin.get("employeeInviteUrl").asText()),
-            employeeEmail, "Password123!");
+        String adminEmail = uniqueEmail("admin");
+        JsonNode admin = registerAdmin(uniqueName("Org"), adminEmail, "Password123!");
+        inviteAndRegisterEmployee(
+loginForAccessToken(adminEmail, "Password123!"),
+employeeEmail, "Password123!");
         String employeeToken = loginForAccessToken(employeeEmail, "Password123!");
 
         mockMvc.perform(get("/admin/security/audit-events")

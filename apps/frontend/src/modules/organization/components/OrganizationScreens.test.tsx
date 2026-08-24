@@ -31,14 +31,18 @@ type ManagerAction = (
   state: ManagerActionState,
   formData: FormData,
 ) => Promise<ManagerActionState>;
-type InviteAction = (state: InviteActionState) => Promise<InviteActionState>;
+type InviteAction = (
+  state: InviteActionState,
+  formData: FormData,
+) => Promise<InviteActionState>;
 
 const createDepartment = vi.fn<DepartmentAction>(async () => ({}));
 const updateDepartment = vi.fn<DepartmentAction>(async () => ({}));
 const deleteDepartment = vi.fn<DepartmentAction>(async () => ({}));
 const assignManager = vi.fn<ManagerAction>(async () => ({}));
 const removeManager = vi.fn<ManagerAction>(async () => ({}));
-const rotateInvite = vi.fn<InviteAction>(async () => ({}));
+const inviteEmployee = vi.fn<InviteAction>(async () => ({}));
+const revokeInvite = vi.fn<InviteAction>(async () => ({}));
 
 vi.mock("../server/actions/departmentActions", () => ({
   createDepartmentAction: (s: DepartmentActionState, f: FormData) => createDepartment(s, f),
@@ -50,7 +54,8 @@ vi.mock("../server/actions/managerActions", () => ({
   removeDepartmentManagerAction: (s: ManagerActionState, f: FormData) => removeManager(s, f),
 }));
 vi.mock("../server/actions/inviteActions", () => ({
-  rotateOrganizationInviteAction: (s: InviteActionState) => rotateInvite(s),
+  inviteEmployeeAction: (s: InviteActionState, f: FormData) => inviteEmployee(s, f),
+  revokeInviteAction: (s: InviteActionState, f: FormData) => revokeInvite(s, f),
 }));
 
 const PLATFORM = "3e38e3cc-140c-4b89-a51d-a184c6e85700";
@@ -406,111 +411,116 @@ describe("deleting a department", () => {
 });
 
 /**
- * jsdom exposes `navigator.clipboard` as a getter with no setter, so assigning to
- * it throws. Defining the property replaces it outright.
+ * Invitations, after the shared organization link was retired.
+ *
+ * The panel used to show a URL and a Copy button. It cannot any more: the
+ * backend mails the credential to the invited address and returns only
+ * metadata, so there is no link on this screen to display, copy, or leak. These
+ * tests hold that line — nothing here may render anything redeemable.
  */
-function stubClipboard(writeText: (text: string) => Promise<void>) {
-  Object.defineProperty(navigator, "clipboard", {
-    value: { writeText },
-    configurable: true,
-  });
-}
-
-describe("the invite link", () => {
-  const invite = {
+describe("invitations", () => {
+  const pending = {
     inviteId: "686fcfea-14c7-493f-9c7a-2aa31267723a",
-    inviteUrl: "http://localhost:5173/invite?token=example-token",
-    active: true,
+    maskedEmail: "ad****@example.com",
+    status: "PENDING" as const,
+    delivery: "SENT" as const,
     createdAt: "2026-08-11T13:02:36Z",
-    expiresAt: null,
+    expiresAt: "2026-08-14T13:02:36Z",
   };
+  const accepted = { ...pending, inviteId: "0f6b6cf1-3a6c-4b32-8b0e-2f5d0f2f9a11", status: "ACCEPTED" as const };
 
-  it("shows the whole link, selectable, and never the bare token", () => {
-    render(<InvitePanel invite={{ kind: "ready", invite }} />);
+  it("shows no link, no token, and no way to copy one", () => {
+    render(<InvitePanel invite={{ kind: "ready", invites: [pending] }} />);
 
-    const field = screen.getByLabelText("Organization invite link") as HTMLInputElement;
-    expect(field.value).toBe(invite.inviteUrl);
-    expect(field.readOnly).toBe(true);
-
-    // The token alone is a credential with no context; nothing displays it.
+    expect(screen.queryByRole("button", { name: /copy/i })).toBeNull();
     const visible = document.body.textContent ?? "";
-    expect(visible).not.toContain("example-token");
+    expect(visible).not.toContain("token=");
+    expect(visible).not.toContain("/invite#");
   });
 
-  it("invents no expiry for a contract that has none", () => {
-    render(<InvitePanel invite={{ kind: "ready", invite }} />);
+  it("shows the masked address and never a full one", () => {
+    render(<InvitePanel invite={{ kind: "ready", invites: [pending] }} />);
 
-    const text = document.body.textContent ?? "";
-    for (const forbidden of ["Expires", "expiry", "Valid until", "days left", "Countdown"]) {
-      expect(text).not.toContain(forbidden);
-    }
+    expect(screen.getByText("ad****@example.com")).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toContain("ada@example.com");
   });
 
-  it("copies without calling the backend", async () => {
-    const writeText = vi.fn(async () => {});
-    // After setup, which installs a clipboard stub of its own.
+  it("invites nobody until an address is submitted", async () => {
     const user = userEvent.setup();
-    stubClipboard(writeText);
-    render(<InvitePanel invite={{ kind: "ready", invite }} />);
+    render(<InvitePanel invite={{ kind: "ready", invites: [] }} />);
 
-    await user.click(screen.getByRole("button", { name: "Copy link" }));
+    await user.type(screen.getByLabelText("Work email"), "ada@example.com");
+    expect(inviteEmployee).not.toHaveBeenCalled();
 
-    expect(writeText).toHaveBeenCalledWith(invite.inviteUrl);
-    expect(rotateInvite).not.toHaveBeenCalled();
-    expect(await screen.findByText("Link copied.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Send invitation" }));
+    expect(inviteEmployee).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps the link usable when the clipboard refuses", async () => {
-    const user = userEvent.setup();
-    stubClipboard(async () => {
-      throw new Error("denied");
-    });
-    render(<InvitePanel invite={{ kind: "ready", invite }} />);
+  it("offers withdrawal only for an invitation that could still be used", () => {
+    render(<InvitePanel invite={{ kind: "ready", invites: [pending, accepted] }} />);
 
-    await user.click(screen.getByRole("button", { name: "Copy link" }));
-
-    expect(await screen.findByText(/Select the link and copy it manually/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Organization invite link")).toBeInTheDocument();
+    // One row is still redeemable; the other is spent.
+    expect(screen.getAllByRole("button", { name: /Withdraw invitation for/ })).toHaveLength(1);
   });
 
-  it("rotates nothing until the consequence is confirmed", async () => {
+  it("withdraws nothing until the consequence is confirmed", async () => {
     const user = userEvent.setup();
-    render(<InvitePanel invite={{ kind: "ready", invite }} />);
+    render(<InvitePanel invite={{ kind: "ready", invites: [pending] }} />);
 
-    await user.click(screen.getByRole("button", { name: "Rotate link" }));
-    expect(rotateInvite).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: /Withdraw invitation for/ }));
+    expect(revokeInvite).not.toHaveBeenCalled();
 
-    expect(screen.getByText("Rotate organization invite link?")).toBeInTheDocument();
+    expect(screen.getByText("Withdraw this invitation?")).toBeInTheDocument();
     expect(screen.getByText(/stop working immediately/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(rotateInvite).not.toHaveBeenCalled();
+    expect(revokeInvite).not.toHaveBeenCalled();
   });
 
-  it("rotates once when confirmed", async () => {
+  it("withdraws once when confirmed", async () => {
     const user = userEvent.setup();
-    render(<InvitePanel invite={{ kind: "ready", invite }} />);
+    render(<InvitePanel invite={{ kind: "ready", invites: [pending] }} />);
 
-    await user.click(screen.getByRole("button", { name: "Rotate link" }));
+    await user.click(screen.getByRole("button", { name: /Withdraw invitation for/ }));
     const dialog = document.querySelector("dialog")!;
-    await user.click(within(dialog).getByRole("button", { name: "Rotate link" }));
+    await user.click(within(dialog).getByRole("button", { name: "Withdraw invitation" }));
 
-    expect(rotateInvite).toHaveBeenCalledTimes(1);
+    expect(revokeInvite).toHaveBeenCalledTimes(1);
   });
 
-  it("offers to create one when none is active", () => {
-    render(<InvitePanel invite={{ kind: "none" }} />);
-
-    expect(screen.getByText("No active employee invite is available.")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Create a new invite link" }),
-    ).toBeInTheDocument();
-  });
-
-  it("keeps an outage distinct from having no invite", () => {
+  it("keeps an outage distinct from having invited nobody", () => {
     render(<InvitePanel invite={{ kind: "error" }} />);
 
-    expect(screen.getByText(/Could not load the invite link/)).toBeInTheDocument();
-    expect(screen.queryByText("No active employee invite is available.")).toBeNull();
+    expect(screen.getByText(/Could not load invitations/)).toBeInTheDocument();
+    expect(screen.queryByText("Nobody has been invited yet.")).toBeNull();
+  });
+
+  it("reports delivery separately from status, so a failed send is visible", () => {
+    /*
+      The state the old flow could not express: outstanding, and never
+      delivered. It reported "sent" from a request that had only tried, so an
+      administrator waiting for somebody to accept had no way to learn the
+      message had bounced off a refused connection.
+    */
+    const undelivered = { ...pending, delivery: "FAILED" as const };
+    render(<InvitePanel invite={{ kind: "ready", invites: [undelivered] }} />);
+
+    expect(screen.getByText("Could not be delivered")).toBeInTheDocument();
+    // Still outstanding: the invitation is fine, the delivery is not.
+    expect(screen.getByText("Waiting to be accepted")).toBeInTheDocument();
+  });
+
+  it("says a queued invitation is still sending rather than claiming it was sent", () => {
+    const queued = { ...pending, delivery: "QUEUED" as const };
+    render(<InvitePanel invite={{ kind: "ready", invites: [queued] }} />);
+
+    expect(screen.getByText("Sending…")).toBeInTheDocument();
+    expect(document.body.textContent ?? "").not.toContain("Delivered");
+  });
+
+  it("says so plainly when nobody has been invited", () => {
+    render(<InvitePanel invite={{ kind: "ready", invites: [] }} />);
+
+    expect(screen.getByText("Nobody has been invited yet.")).toBeInTheDocument();
   });
 });

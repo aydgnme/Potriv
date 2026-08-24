@@ -8,7 +8,10 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.mail.SimpleMailMessage;
+import me.aydgn.potriv.support.RecordingMailSender;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -35,6 +38,20 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
         return prefix + " " + UUID.randomUUID();
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    protected RecordingMailSender recordingMailSender;
+
+    /**
+     * Invitation mail is delivered by a worker, not by the request that creates
+     * the invitation.
+     *
+     * Tests drive one pass explicitly rather than waiting for the scheduler:
+     * sleeping would make them slow when they pass and flaky when they fail,
+     * and it would blur the ordering these tests exist to pin.
+     */
+    @org.springframework.beans.factory.annotation.Autowired
+    protected me.aydgn.potriv.identity.service.InviteDeliveryWorker inviteDeliveryWorker;
+
     protected JsonNode registerAdmin(String organizationName, String email, String password)
         throws Exception {
 
@@ -60,19 +77,102 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
         throws Exception {
 
         String body = objectMapper.writeValueAsString(Map.of(
-            "name", "Employee " + email,
+            "token", inviteToken,
+            // Bounded: the name field stops at 120, and an address can be 180,
+            // so deriving one from the other has to be trimmed or the helper
+            // fails validation instead of exercising the path under test.
+            "name", ("Employee " + email).substring(0, Math.min(120, 9 + email.length())),
             "email", email,
             "password", password
         ));
 
         String response = mockMvc
-            .perform(post("/auth/register-employee/" + inviteToken)
+            .perform(post("/auth/register-employee")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isCreated())
             .andReturn().getResponse().getContentAsString();
 
         return objectMapper.readTree(response);
+    }
+
+    /**
+     * Invites an address and registers it, which is now the only way an
+     * employee account comes into being.
+     *
+     * The token is read out of the email, because that is the only place it
+     * exists: the invite response carries metadata and a masked address, never
+     * a link. Tests going through the mail is not a workaround — it is the same
+     * path a real recipient takes, and it would fail loudly if the token ever
+     * started appearing in the API response instead.
+     */
+    protected JsonNode inviteAndRegisterEmployee(
+        String adminToken, String email, String password
+    ) throws Exception {
+        inviteEmployee(adminToken, email);
+        return registerEmployee(inviteTokenFromMailTo(email), email, password);
+    }
+
+    /** Issues an invite and returns the administrator-visible metadata. */
+    protected JsonNode inviteEmployee(String adminToken, String email) throws Exception {
+        String response = mockMvc
+            .perform(post("/organizations/current/invites")
+                .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("email", email))))
+            .andExpect(status().isAccepted())
+            .andReturn().getResponse().getContentAsString();
+
+        // 202 means queued. Delivering it is a separate step, here as in
+        // production; a helper that hid that would let a test pass while the
+        // recipient received nothing.
+        inviteDeliveryWorker.runOnce();
+
+        return objectMapper.readTree(response);
+    }
+
+    /** Issues an invite and asserts the status, for the paths that must refuse. */
+    protected void inviteEmployeeExpecting(String adminToken, String email, int expectedStatus)
+        throws Exception {
+
+        mockMvc.perform(post("/organizations/current/invites")
+                .header(HttpHeaders.AUTHORIZATION, bearer(adminToken))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("email", email))))
+            .andExpect(status().is(expectedStatus));
+    }
+
+    /**
+     * The raw invite token, taken from the message actually sent to it.
+     *
+     * The comparison is case-insensitive because the backend normalises the
+     * address before it stores or mails anything, so a caller that invited
+     * {@code Sam@…} is looked up against a message addressed to {@code sam@…}.
+     * Matching exactly would make this helper disagree with the system it is
+     * testing, over the very normalisation the invite's security depends on.
+     */
+    protected String inviteTokenFromMailTo(String email) {
+        String wanted = email.trim().toLowerCase(java.util.Locale.ROOT);
+        SimpleMailMessage latest = null;
+        for (SimpleMailMessage message : recordingMailSender.getSentMessages()) {
+            if (message.getTo() == null) continue;
+            for (String recipient : message.getTo()) {
+                if (recipient != null
+                    && recipient.trim().toLowerCase(java.util.Locale.ROOT).equals(wanted)) {
+                    latest = message;
+                }
+            }
+        }
+        String body = java.util.Objects.requireNonNull(
+            java.util.Objects.requireNonNull(latest, "No invite email captured for " + email)
+                .getText());
+
+        java.util.regex.Matcher matcher =
+            java.util.regex.Pattern.compile("token=([A-Za-z0-9_-]+)").matcher(body);
+        if (!matcher.find()) {
+            throw new IllegalStateException("No invite token in the email sent to " + email);
+        }
+        return matcher.group(1);
     }
 
     protected JsonNode login(String email, String password) throws Exception {

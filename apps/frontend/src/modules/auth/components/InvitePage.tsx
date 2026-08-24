@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Alert } from "@/shared/ui/Alert";
 import { Button } from "@/shared/ui/Button";
@@ -9,6 +10,7 @@ import { FormErrorSummary } from "@/shared/ui/FormErrorSummary";
 import { Input } from "@/shared/ui/Input";
 
 import { registerWithInvite } from "../api/authClient";
+import { scrubLocation, tokenFromFragment } from "../model/credentialUrl";
 import {
   INVITE_PASSWORD_MAX,
   INVITE_PASSWORD_MIN,
@@ -22,12 +24,16 @@ import styles from "./AuthPage.module.css";
 /**
  * Join a workspace by invitation.
  *
- * The token stays in the URL. Only a boolean saying whether one is present
- * crosses the server/client boundary, because a prop handed to a client
- * component is serialised into the RSC payload embedded in the HTML — which
- * would put the token in the document as well as the address bar. It is read
- * from `window.location` at submit time, sent once, and never rendered, stored,
- * or echoed in an error.
+ * The token arrives in the URL **fragment**, which the browser never sends to
+ * any server. It therefore never crosses the server/client boundary at all:
+ * nothing about it is in the RSC payload, because the server never saw it.
+ *
+ * On mount the fragment is read once into a ref and then removed from the
+ * address bar with `history.replaceState`. After that the token exists in
+ * exactly one place — a variable in this component — and disappears when the
+ * page does. It is never rendered, never put in a form field, never written to
+ * `localStorage`, `sessionStorage`, a cookie or an analytics call, and never
+ * echoed back in an error.
  *
  * There is **no way to check a token before submitting**: the backend exposes no
  * endpoint that reports whether an invite is usable, and inventing one would
@@ -42,18 +48,53 @@ import styles from "./AuthPage.module.css";
  */
 
 /**
- * Reads the invite token from the address bar at the moment it is spent.
- *
- * Deliberately not a prop, not state and not a ref: anything held in React would
- * be serialised into the page payload or survive past the one request that needs
- * it. Read, sent, forgotten.
+ * Whether the fragment has been read yet. The first render happens before the
+ * effect runs, and the token is not knowable then — rendering "this invite is
+ * no longer valid" during that gap would tell every legitimate recipient their
+ * link is broken for one frame.
  */
-function readTokenFromUrl(): string {
-  if (typeof window === "undefined") return "";
-  return new URLSearchParams(window.location.search).get("token") ?? "";
-}
+type TokenState = "reading" | "present" | "absent";
 
-export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
+export function InvitePage({ authenticated }: { readonly authenticated: boolean }) {
+  const router = useRouter();
+
+  /* Not state: this value must never cause a render, appear in a snapshot, or
+     be read by anything except the submit handler. */
+  const tokenRef = useRef("");
+  /**
+   * Reading the fragment is destructive — the next line erases it — so it must
+   * happen exactly once. An effect is not guaranteed to run once: React invokes
+   * it twice in development to surface exactly this class of bug, and any
+   * unstable dependency re-runs it in production. A second run would read an
+   * empty fragment and conclude the link was broken.
+   */
+  const consumed = useRef(false);
+  const [tokenState, setTokenState] = useState<TokenState>("reading");
+
+  useEffect(() => {
+    if (consumed.current) return;
+    consumed.current = true;
+
+    tokenRef.current = tokenFromFragment(window.location.hash);
+    setTokenState(tokenRef.current ? "present" : "absent");
+
+    /**
+     * Out of the address bar immediately — the fragment and any credential in
+     * the query string, whether or not this page would have accepted it.
+     *
+     * Not because a fragment travels; it does not. Because an address bar is
+     * shared in ways a request never is: a screenshot, a screen share, a
+     * bookmark, browser sync, someone reading over a shoulder.
+     */
+    scrubLocation();
+
+    /*
+      Only now is it safe to send a signed-in reader on. Redirecting before this
+      point — which is what the server used to do — carries the fragment to the
+      destination, because a browser reattaches it when the target has none.
+    */
+    if (authenticated) router.replace("/home");
+  }, [authenticated, router]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -78,7 +119,7 @@ export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
 
     setSubmitting(true);
     const outcome = await registerWithInvite({
-      token: readTokenFromUrl(),
+      token: tokenRef.current,
       ...validated.value,
     });
     setSubmitting(false);
@@ -104,7 +145,29 @@ export function InvitePage({ hasToken }: { readonly hasToken: boolean }) {
     topology: "invite",
   } as const;
 
-  if (inviteDead || !hasToken) {
+  if (authenticated) {
+    /*
+      Already signed in, and on the way to /home. The form is never rendered
+      here: registering would create a second account, and the backend would
+      reject the address anyway. This state exists so the redirect has something
+      to show rather than a flash of an invitation form.
+    */
+    return (
+      <PublicAuthShell title="You are already signed in" {...context}>
+        <p className={styles.intro}>Taking you to your workspace…</p>
+      </PublicAuthShell>
+    );
+  }
+
+  if (tokenState === "reading") {
+    return (
+      <PublicAuthShell title="Join a Potriv workspace" {...context}>
+        <p className={styles.intro}>Checking your invitation…</p>
+      </PublicAuthShell>
+    );
+  }
+
+  if (inviteDead || tokenState === "absent") {
     return (
       <PublicAuthShell title="This invite is no longer valid" {...context}>
         <Alert tone="danger">

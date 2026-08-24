@@ -5,3 +5,12 @@ out
 .env*.local
 next-env.d.ts
 *.tsbuildinfo
+
+# Playwright output. Recording is off in playwright.config.ts (trace/video/
+# screenshot all "off") specifically because these tests navigate to
+# /invite#token=… and /reset-password#token=…, and any recording would be a
+# second place a token — even a fake test one — could end up committed.
+# Ignored regardless, as the second layer.
+test-results
+playwright-report
+blob-report

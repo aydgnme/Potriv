@@ -14,8 +14,8 @@ export async function runMailScenarios(
   client: ApiClient, prober: Prober, ctx: RunContext, config: Config,
 ): Promise<void> {
   const email = identity(ctx.runId, 'resetme', 'A');
-  const created = await client.post(`/auth/register-employee/${ctx.orgA.inviteToken}`, {
-    body: { name: 'QA Reset Target', email, password: DEFAULT_PASSWORD },
+  const created = await client.post('/auth/register-employee', {
+    body: { token: await ctx.orgA.invite(email), name: 'QA Reset Target', email, password: DEFAULT_PASSWORD },
   });
   if (!created.ok) {
     prober.record({ id: 'mail.setup', kind: 'mail', description: 'create reset target',
@@ -58,7 +58,7 @@ export async function runMailScenarios(
     expected: email, actual: recipients.join(','),
   });
 
-  const link = /https?:\/\/\S+\/reset-password\?token=\S+/.exec(body);
+  const link = /https?:\/\/\S+\/reset-password#token=\S+/.exec(body);
   prober.record({
     id: 'mail.reset.link-shape', kind: 'mail',
     description: 'reset link uses the configured frontend base URL',

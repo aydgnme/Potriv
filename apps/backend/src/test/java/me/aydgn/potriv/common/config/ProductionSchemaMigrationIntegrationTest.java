@@ -56,6 +56,7 @@ class ProductionSchemaMigrationIntegrationTest {
         "projects", "project_allocations", "project_assignment_proposals",
         "project_assignment_proposal_roles", "project_deallocation_proposals",
         "project_status_history", "project_team_role_requirements", "project_technologies",
+        "rate_limit_windows", "rate_limit_cooldowns",
         "refresh_tokens", "security_audit_events", "skills", "skill_categories",
         "skill_department_links", "team_roles", "users", "user_roles", "user_sessions");
 
@@ -73,6 +74,8 @@ class ProductionSchemaMigrationIntegrationTest {
         // Values the prod profile requires but that carry no schema meaning.
         registry.add("app.jwt.secret",
             () -> "test-only-production-schema-secret-with-plenty-of-entropy-0123456789");
+        registry.add("app.rate-limit.hmac-secret",
+            () -> "test-only-production-schema-rate-limit-secret-0123456789");
         registry.add("cors.allowed-origins", () -> "https://potriv.aydgn.me");
         registry.add("app.mail.from", () -> "no-reply@potriv.test");
         registry.add("spring.mail.host", () -> "localhost");

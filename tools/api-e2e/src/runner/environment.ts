@@ -72,10 +72,23 @@ export class TestEnvironment {
             `jdbc:postgresql://127.0.0.1:${this.config.dbPort}/potriv_e2e`,
           SPRING_DATASOURCE_USERNAME: 'potriv_e2e',
           SPRING_DATASOURCE_PASSWORD: DATABASE_PASSWORD,
+          // Invitation mail is delivered by a worker on a schedule. The
+          // suite reads tokens out of Mailpit, so the interval has to be
+          // short enough that a mailbox poll finds the message.
+          APP_INVITE_DELIVERY_INTERVAL_MS: '500',
           SPRING_MAIL_HOST: '127.0.0.1',
           SPRING_MAIL_PORT: String(this.config.smtpPort),
           // The embedded console is part of the surface under test.
           BACKEND_CONSOLE_ENABLED: process.env.E2E_CONSOLE_ENABLED ?? 'true',
+          // This suite exercises functional and security-matrix coverage by
+          // calling login/invite/register-admin/password-reset far more times,
+          // far faster, than any real caller would — that is what a coverage
+          // suite is. Rate limiting defaults to on in every other profile
+          // precisely so nobody has to remember to enable it; here it would
+          // reject scenario traffic as abuse, which is a false positive this
+          // harness exists to avoid, not a finding. RateLimitIntegrationTest
+          // already covers the feature itself, against real PostgreSQL.
+          RATE_LIMIT_ENABLED: 'false',
           SYSTEM_ADMIN_EMAIL,
           SYSTEM_ADMIN_PASSWORD,
           SYSTEM_ADMIN_NAME: 'E2E System Admin',

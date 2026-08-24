@@ -13,7 +13,7 @@ const resolveProductSession = vi.fn();
 const getDepartments = vi.fn();
 const getDepartment = vi.fn();
 const getOrganizationMembers = vi.fn();
-const getOrganizationInvite = vi.fn();
+const getOrganizationInvites = vi.fn();
 const redirect = vi.fn();
 
 vi.mock("@/modules/auth/server/productSession", () => ({ resolveProductSession }));
@@ -21,7 +21,7 @@ vi.mock("@/modules/organization/server/organizationDataSources", () => ({
   getDepartments,
   getDepartment,
   getOrganizationMembers,
-  getOrganizationInvite,
+  getOrganizationInvites,
 }));
 vi.mock("next/navigation", () => ({
   redirect: (path: string) => {
@@ -53,7 +53,7 @@ beforeEach(() => {
   getDepartments.mockResolvedValue({ ok: true, value: [] });
   getDepartment.mockResolvedValue({ ok: false, reason: "NOT_FOUND" });
   getOrganizationMembers.mockResolvedValue({ ok: true, value: [] });
-  getOrganizationInvite.mockResolvedValue({ ok: false, reason: "NOT_FOUND" });
+  getOrganizationInvites.mockResolvedValue({ ok: true, value: [] });
 });
 
 async function renderAll() {
@@ -72,7 +72,7 @@ describe("an organization admin", () => {
     await renderAll();
 
     expect(getDepartments).toHaveBeenCalled();
-    expect(getOrganizationInvite).toHaveBeenCalled();
+    expect(getOrganizationInvites).toHaveBeenCalled();
     expect(getDepartment).toHaveBeenCalledWith(DEPARTMENT);
   });
 });
@@ -92,7 +92,7 @@ describe("everybody else", () => {
       expect(getDepartments).not.toHaveBeenCalled();
       expect(getDepartment).not.toHaveBeenCalled();
       expect(getOrganizationMembers).not.toHaveBeenCalled();
-      expect(getOrganizationInvite).not.toHaveBeenCalled();
+      expect(getOrganizationInvites).not.toHaveBeenCalled();
     });
   }
 
@@ -113,6 +113,6 @@ describe("an expired session", () => {
 
     expect(redirect).toHaveBeenCalledWith("/login?session=expired");
     expect(getDepartments).not.toHaveBeenCalled();
-    expect(getOrganizationInvite).not.toHaveBeenCalled();
+    expect(getOrganizationInvites).not.toHaveBeenCalled();
   });
 });

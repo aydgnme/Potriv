@@ -53,17 +53,18 @@ class RoleManagementIntegrationTest extends AbstractMockMvcIntegrationTest {
         adminAUserId = UUID.fromString(adminA.get("userId").asText());
 
         String employeeAEmail = uniqueEmail("employee-a");
-        JsonNode employeeA = registerEmployee(
-            extractInviteToken(adminA.get("employeeInviteUrl").asText()),
-            employeeAEmail,
+        JsonNode employeeA = inviteAndRegisterEmployee(
+loginForAccessToken(adminAEmail, "Password123!"),
+employeeAEmail,
             "Password123!"
         );
         employeeAUserId = UUID.fromString(employeeA.get("userId").asText());
 
-        JsonNode adminB = registerAdmin(uniqueName("Org B"), uniqueEmail("admin-b"), "Password123!");
-        JsonNode employeeB = registerEmployee(
-            extractInviteToken(adminB.get("employeeInviteUrl").asText()),
-            uniqueEmail("employee-b"),
+        String adminBEmail = uniqueEmail("admin-b");
+        JsonNode adminB = registerAdmin(uniqueName("Org B"), adminBEmail, "Password123!");
+        JsonNode employeeB = inviteAndRegisterEmployee(
+loginForAccessToken(adminBEmail, "Password123!"),
+uniqueEmail("employee-b"),
             "Password123!"
         );
         employeeBUserId = UUID.fromString(employeeB.get("userId").asText());

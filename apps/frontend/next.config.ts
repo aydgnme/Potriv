@@ -20,6 +20,49 @@ const DEVELOPMENT_ONLY_EXTENSIONS = ROUTABLE_EXTENSIONS.map(
 );
 
 /**
+ * Headers every route gets, whatever it renders.
+ *
+ * These are deliberately *not* in `middleware.ts`. The middleware runs only on
+ * the credential-bearing routes, and a transport or sniffing protection that
+ * covers five pages covers nothing: an HTML response mislabelled as
+ * `text/plain` is as dangerous on `/product` as on `/login`.
+ *
+ * The Content-Security-Policy is the exception and stays in the middleware,
+ * because it is nonce-based and a nonce cannot come from a static config.
+ */
+const BASELINE_SECURITY_HEADERS = [
+  /* Stops a browser from second-guessing a declared Content-Type — the step
+     that turns an uploaded or reflected file into executable script. */
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  /*
+    Two years, subdomains included, preload-eligible.
+
+    Emitted unconditionally: browsers ignore it on plain http, so there is no
+    localhost hazard, and making it conditional on a runtime "are we behind
+    TLS" guess is how a deployment ends up shipping without it.
+  */
+  {
+    key: "Strict-Transport-Security",
+    value: "max-age=63072000; includeSubDomains; preload",
+  },
+  /* Nothing here uses a camera, a microphone, a location or a payment handler.
+     Denying them outright means an injected script cannot prompt for one. */
+  {
+    key: "Permissions-Policy",
+    value:
+      "accelerometer=(), autoplay=(), camera=(), display-capture=(), " +
+      "encrypted-media=(), fullscreen=(self), geolocation=(), gyroscope=(), " +
+      "magnetometer=(), microphone=(), midi=(), payment=(), " +
+      "picture-in-picture=(), publickey-credentials-get=(), " +
+      "screen-wake-lock=(), usb=(), xr-spatial-tracking=()",
+  },
+  /* `frame-ancestors 'none'` in the CSP is the real control and covers the
+     sensitive routes; this covers every other route and the browsers that
+     still only read the older header. */
+  { key: "X-Frame-Options", value: "DENY" },
+];
+
+/**
  * The developer console (`app/(dev)/`, `/console`) is development-only, and the
  * build is where that is enforced.
  *
@@ -48,11 +91,45 @@ export default function nextConfig(phase: string): NextConfig {
     pageExtensions: isDevelopmentServer
       ? [...DEVELOPMENT_ONLY_EXTENSIONS, ...ROUTABLE_EXTENSIONS]
       : ROUTABLE_EXTENSIONS,
+    /* `X-Powered-By: Next.js` names the framework and, with it, the CVE list
+       worth trying. It buys nothing. */
+    poweredByHeader: false,
+    headers: async () => [
+      { source: "/:path*", headers: BASELINE_SECURITY_HEADERS },
+      {
+        /**
+         * The invite page carries a credential in its URL fragment.
+         *
+         * A fragment is never sent to a server and browsers already strip it
+         * from `Referer`, so this is not what keeps the token out of other
+         * origins' logs — the fragment itself does that. What this removes is
+         * the remaining signal: without it, following any link from this page
+         * would tell the destination that this person is mid-invite, which is
+         * an account they do not have yet and a workspace they have not joined.
+         *
+         * The page clears the fragment on mount regardless. This is the header
+         * that holds while the page is still loading.
+         */
+        source: "/invite",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+      {
+        /* The reset link carries the same kind of credential, and a worse one:
+           it takes over an account that already exists. Same rule. */
+        source: "/reset-password",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+    ],
   };
 }
 
 /**
- * Exported for the contract test, which asserts the two lists stay disjoint and
- * that `app/(dev)/**` is named only by the development-only one.
+ * Exported for the contract tests: that the two extension lists stay disjoint
+ * and `app/(dev)/**` is named only by the development-only one, and that the
+ * baseline header set keeps the entries the security review requires.
  */
-export { DEVELOPMENT_ONLY_EXTENSIONS, ROUTABLE_EXTENSIONS };
+export {
+  BASELINE_SECURITY_HEADERS,
+  DEVELOPMENT_ONLY_EXTENSIONS,
+  ROUTABLE_EXTENSIONS,
+};

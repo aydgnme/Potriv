@@ -22,7 +22,7 @@ class ProductionConfigGuardTest {
     private static void validate(String jwtSecret, List<String> corsOrigins,
         String datasourceUrl, String ddlAuto) {
         ProductionConfigGuard.validate(jwtSecret, corsOrigins, datasourceUrl, ddlAuto,
-            false, "", "");
+            false, "", "", false, "");
     }
 
     @Test
@@ -81,7 +81,7 @@ class ProductionConfigGuardTest {
     void adminConsoleDisabledIsAlwaysAllowed() {
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                false, "", ""))
+                false, "", "", false, ""))
             .doesNotThrowAnyException();
     }
 
@@ -89,12 +89,12 @@ class ProductionConfigGuardTest {
     void adminConsoleEnabledRequiresSystemAdminEmailAndPassword() {
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "", "a-strong-admin-password"))
+                true, "", "a-strong-admin-password", false, ""))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("email");
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", ""))
+                true, "admin@potriv.aydgn.me", "", false, ""))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("password");
     }
@@ -103,20 +103,55 @@ class ProductionConfigGuardTest {
     void adminConsoleEnabledRejectsPlaceholderOrShortSystemAdminPassword() {
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "ChangeMe123!"))
+                true, "admin@potriv.aydgn.me", "ChangeMe123!", false, ""))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("placeholder");
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "replace-me"))
+                true, "admin@potriv.aydgn.me", "replace-me", false, ""))
             .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "short"))
+                true, "admin@potriv.aydgn.me", "short", false, ""))
             .isInstanceOf(IllegalStateException.class);
         assertThatCode(() -> ProductionConfigGuard.validate(
                 STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
-                true, "admin@potriv.aydgn.me", "a-strong-admin-password"))
+                true, "admin@potriv.aydgn.me", "a-strong-admin-password", false, ""))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rateLimitDisabledIsAlwaysAllowedWhateverTheSecret() {
+        assertThatCode(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", false, ""))
+            .doesNotThrowAnyException();
+        assertThatCode(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", false, "change-this-secret-in-production-change-this-secret"))
+            .doesNotThrowAnyException();
+    }
+
+    @Test
+    void rateLimitEnabledRejectsMissingOrPlaceholderHmacSecret() {
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", true, ""))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("rate-limit");
+        assertThatThrownBy(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", true,
+                "change-this-secret-in-production-change-this-secret"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("rate-limit");
+    }
+
+    @Test
+    void rateLimitEnabledAcceptsAStrongSecret() {
+        assertThatCode(() -> ProductionConfigGuard.validate(
+                STRONG_SECRET, EXPLICIT_ORIGINS, POSTGRES_URL, "validate",
+                false, "", "", true, "a-strong-rate-limit-secret-0123456789"))
             .doesNotThrowAnyException();
     }
 }

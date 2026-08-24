@@ -65,7 +65,6 @@ class AdminPathVariableHardeningIntegrationTest extends AbstractAdminIntegration
             "/admin/departments/" + BAD + "/edit",
             "/admin/departments/" + BAD + "/delete",
             "/admin/invitations/" + BAD + "/revoke",
-            "/admin/invitations/" + BAD + "/regenerate",
             "/admin/skills/" + BAD + "/edit",
             "/admin/skills/" + BAD + "/deactivate",
             "/admin/skills/" + BAD + "/reactivate",

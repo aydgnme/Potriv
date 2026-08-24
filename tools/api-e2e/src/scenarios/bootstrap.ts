@@ -1,5 +1,7 @@
 import type { ApiClient } from '../http/client.js';
-import { DEFAULT_PASSWORD, inviteTokenFrom, login, type RunContext } from '../fixtures/context.js';
+import type { Config } from '../config/env.js';
+import { DEFAULT_PASSWORD, login, type RunContext } from '../fixtures/context.js';
+import { inviteTokenFor } from '../fixtures/mailbox.js';
 import { Prober } from './probe.js';
 
 /**
@@ -11,7 +13,7 @@ import { Prober } from './probe.js';
  * ordinary organization built by the fixtures still refuses a self-role rewrite.
  */
 export async function runBootstrapScenarios(
-  client: ApiClient, prober: Prober, ctx: RunContext,
+  client: ApiClient, prober: Prober, ctx: RunContext, config: Config,
 ): Promise<void> {
   const founderEmail = `${ctx.runId}-solo-founder@potriv.test`.toLowerCase();
 
@@ -34,7 +36,6 @@ export async function runBootstrapScenarios(
 
   const body = created.body as Record<string, unknown>;
   const founderId = String(body.userId ?? '');
-  const inviteToken = inviteTokenFrom(String(body.employeeInviteUrl ?? ''));
   const founder = await login(client, {
     email: founderEmail, as: 'soloFounder', role: 'ORGANIZATION_ADMIN',
   });
@@ -136,15 +137,31 @@ export async function runBootstrapScenarios(
   });
 
   // Once a second person exists the exception closes, even for the same founder.
+  // The founder has to invite them by address first: registering an organization
+  // mints no invitation, and an invitation is redeemable only by its recipient.
+  const secondEmail = `${ctx.runId}-solo-second@potriv.test`.toLowerCase();
+  const invited = await client.post('/organizations/current/invites', {
+    actor: founder, body: { email: secondEmail },
+  });
+  if (invited.status !== 202) {
+    prober.record({
+      id: 'bootstrap.setup.invite', kind: 'success',
+      description: 'invite a second person into the solo organization',
+      passed: false, message: `HTTP ${invited.status}`,
+    });
+    return;
+  }
+
   await prober.run({
     id: 'bootstrap.setup.second', kind: 'success', method: 'POST',
-    template: '/auth/register-employee/{inviteToken}',
-    url: `/auth/register-employee/${inviteToken}`,
+    template: '/auth/register-employee',
+    url: '/auth/register-employee',
     expect: 201,
     options: {
       body: {
+        token: await inviteTokenFor(config, secondEmail),
         name: 'QA Solo Second',
-        email: `${ctx.runId}-solo-second@potriv.test`.toLowerCase(),
+        email: secondEmail,
         password: DEFAULT_PASSWORD,
       },
     },

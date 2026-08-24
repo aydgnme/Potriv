@@ -73,7 +73,7 @@ class PasswordResetMailDeliveryIntegrationTest extends AbstractMockMvcIntegratio
         String body = recordingMailSender.getSentMessages().get(0).getText();
         // The link must come from app.frontend-url, never from a request header —
         // a request-derived host would turn this into a phishing vector.
-        assertThat(body).containsPattern("https?://[^/\\s]+/reset-password\\?token=\\S+");
+        assertThat(body).containsPattern("https?://[^/\\s]+/reset-password#token=\\S+");
     }
 
     @Test

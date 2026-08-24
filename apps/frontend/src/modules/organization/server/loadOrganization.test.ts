@@ -4,20 +4,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * What each Organization screen is given.
  *
  * The landing asks two unrelated questions of two unrelated endpoints, so one
- * failing must not blank the other. And a missing invite is an ordinary state
+ * failing must not blank the other. And an empty invitation list is a state
  * with an obvious next step — not an error to apologise for.
  */
 
 const getDepartments = vi.fn();
 const getDepartment = vi.fn();
 const getOrganizationMembers = vi.fn();
-const getOrganizationInvite = vi.fn();
+const getOrganizationInvites = vi.fn();
 
 vi.mock("./organizationDataSources", () => ({
   getDepartments,
   getDepartment,
   getOrganizationMembers,
-  getOrganizationInvite,
+  getOrganizationInvites,
 }));
 
 const { loadOrganizationOverview, loadInviteState, loadDepartmentDetail } = await import(
@@ -39,10 +39,11 @@ function department(departmentId: string, name: string, manager: unknown = null)
 
 const INVITE = {
   inviteId: "686fcfea-14c7-493f-9c7a-2aa31267723a",
-  inviteUrl: "http://localhost:5173/invite?token=example",
-  active: true,
+  maskedEmail: "ad****@example.com",
+  status: "PENDING",
+  delivery: "SENT",
   createdAt: "2026-08-11T13:02:36Z",
-  expiresAt: null,
+  expiresAt: "2026-08-14T13:02:36Z",
 };
 
 beforeEach(() => {
@@ -50,12 +51,12 @@ beforeEach(() => {
   getDepartments.mockResolvedValue({ ok: true, value: [department(PLATFORM, "Platform")] });
   getDepartment.mockResolvedValue({ ok: true, value: department(PLATFORM, "Platform") });
   getOrganizationMembers.mockResolvedValue({ ok: true, value: [] });
-  getOrganizationInvite.mockResolvedValue({ ok: true, value: INVITE });
+  getOrganizationInvites.mockResolvedValue({ ok: true, value: [INVITE] });
 });
 
 describe("the organization landing", () => {
   it("keeps departments usable when the invite fails", async () => {
-    getOrganizationInvite.mockResolvedValue({ ok: false, reason: "ERROR" });
+    getOrganizationInvites.mockResolvedValue({ ok: false, reason: "ERROR" });
 
     const overview = await loadOrganizationOverview();
 
@@ -76,28 +77,29 @@ describe("the organization landing", () => {
     await loadOrganizationOverview();
 
     expect(getDepartments).toHaveBeenCalledTimes(1);
-    expect(getOrganizationInvite).toHaveBeenCalledTimes(1);
+    expect(getOrganizationInvites).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("the invite state", () => {
-  it("treats a missing invite as a state, not a failure", async () => {
-    // 404 here means "none is active", which has an obvious next step.
-    getOrganizationInvite.mockResolvedValue({ ok: false, reason: "NOT_FOUND" });
+  it("treats nobody having been invited as a state, not a failure", async () => {
+    // An empty list, not a 404: the endpoint always answers, and having
+    // invited nobody yet has an obvious next step.
+    getOrganizationInvites.mockResolvedValue({ ok: true, value: [] });
 
-    expect(await loadInviteState()).toEqual({ kind: "none" });
+    expect(await loadInviteState()).toEqual({ kind: "ready", invites: [] });
   });
 
-  it("keeps an outage distinct from having no invite", async () => {
-    getOrganizationInvite.mockResolvedValue({ ok: false, reason: "ERROR" });
+  it("keeps an outage distinct from having invited nobody", async () => {
+    getOrganizationInvites.mockResolvedValue({ ok: false, reason: "ERROR" });
 
     expect(await loadInviteState()).toEqual({ kind: "error" });
   });
 
-  it("passes the invite through unchanged", async () => {
+  it("passes the invitations through unchanged", async () => {
     const state = await loadInviteState();
 
-    expect(state).toEqual({ kind: "ready", invite: INVITE });
+    expect(state).toEqual({ kind: "ready", invites: [INVITE] });
   });
 });
 

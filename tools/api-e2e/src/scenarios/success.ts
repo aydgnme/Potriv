@@ -1,7 +1,7 @@
 import type { ApiClient } from '../http/client.js';
 import { Prober, isUuid } from './probe.js';
 import {
-  DEFAULT_PASSWORD, identity, inviteTokenFrom, plusDays, type RunContext,
+  DEFAULT_PASSWORD, identity, plusDays, type RunContext,
 } from '../fixtures/context.js';
 
 /**
@@ -28,14 +28,21 @@ export async function runSuccessScenarios(
     } },
     check: (r) => isUuid((r.body as any)?.organizationId) ? null : 'organizationId is not a UUID',
   });
-  const secondInvite = inviteTokenFrom(String((registered.body as any).employeeInviteUrl));
+  void registered;
 
+  /*
+    Registering an organization no longer mints an invitation, so this covers
+    the endpoint the way the product now reaches it: the address is invited
+    first, and the token comes back through the invited person's mailbox.
+  */
+  const invitedEmail = identity(ctx.runId, 'invited', 'A');
   await prober.run({
     id: 'auth.register-employee.success', kind: 'success', method: 'POST',
-    template: '/auth/register-employee/{inviteToken}',
-    url: `/auth/register-employee/${secondInvite}`, expect: 201,
+    template: '/auth/register-employee',
+    url: '/auth/register-employee', expect: 201,
     options: { body: {
-      name: 'QA Invited', email: identity(ctx.runId, 'invited', 'C'), password: DEFAULT_PASSWORD,
+      token: await a.invite(invitedEmail),
+      name: 'QA Invited', email: invitedEmail, password: DEFAULT_PASSWORD,
     } },
   });
 
@@ -85,10 +92,11 @@ export async function runSuccessScenarios(
   // logout-all revokes every session of that account, so it gets a throwaway
   // identity of its own — running it against a shared actor would silently
   // unauthenticate half the suite.
-  const disposable = await client.post(`/auth/register-employee/${a.inviteToken}`, {
-    body: { name: 'QA Logout', email: identity(ctx.runId, 'logout', 'A'),
-      password: DEFAULT_PASSWORD },
-  });
+  const logoutEmail = identity(ctx.runId, 'logout', 'A');
+  const disposable = await client.post(
+    '/auth/register-employee', {
+      body: { token: await a.invite(logoutEmail), name: 'QA Logout', email: logoutEmail, password: DEFAULT_PASSWORD },
+    });
   void disposable;
   const logoutSession = await client.post('/auth/login',
     { body: { email: identity(ctx.runId, 'logout', 'A'), password: DEFAULT_PASSWORD } });
@@ -112,21 +120,36 @@ export async function runSuccessScenarios(
 
   // -------------------------------------------------------- organization
   await prober.run({
-    id: 'organization.invite.read.success', kind: 'success', method: 'GET',
-    template: '/organizations/current/invite', url: '/organizations/current/invite',
+    id: 'organization.invites.list.success', kind: 'success', method: 'GET',
+    template: '/organizations/current/invites', url: '/organizations/current/invites',
     expect: 200, actor: a.admin,
   });
-  // Rotation invalidates the organization's current link, so the run adopts the
-  // replacement immediately — otherwise every later registration would 400.
-  const rotated2 = await prober.run({
-    id: 'organization.invite.rotate.success', kind: 'success', method: 'POST',
-    template: '/organizations/current/invite/rotate', url: '/organizations/current/invite/rotate',
-    expect: 200, actor: a.admin,
+
+  /*
+    Issued to an address that is never registered, so revoking it below cannot
+    disturb anything else the run depends on. The response is checked for the
+    one property the whole invite change exists to create: it carries metadata,
+    never a credential.
+  */
+  const withdrawn = await prober.run({
+    id: 'organization.invites.create.success', kind: 'success', method: 'POST',
+    template: '/organizations/current/invites', url: '/organizations/current/invites',
+    expect: 202, actor: a.admin,
+    options: { body: { email: identity(ctx.runId, 'withdrawn', 'A') } },
+    check: (r) => {
+      const body = JSON.stringify(r.body ?? {});
+      if (body.includes('token=')) return 'the invite response carried a link';
+      if (/[A-Za-z0-9_-]{43}/.test(body)) return 'the invite response carried a token';
+      return isUuid((r.body as any)?.inviteId) ? null : 'inviteId is not a UUID';
+    },
   });
-  const rotatedUrl = (rotated2.body as any)?.inviteUrl;
-  if (typeof rotatedUrl === 'string' && rotatedUrl.includes('token=')) {
-    (a as { inviteToken: string }).inviteToken = inviteTokenFrom(rotatedUrl);
-  }
+
+  await prober.run({
+    id: 'organization.invites.revoke.success', kind: 'success', method: 'DELETE',
+    template: '/organizations/current/invites/{inviteId}',
+    url: `/organizations/current/invites/${String((withdrawn.body as any)?.inviteId)}`,
+    expect: 204, actor: a.admin,
+  });
 
   // --------------------------------------------------------------- users
   await prober.run({
@@ -178,9 +201,11 @@ export async function runSuccessScenarios(
   });
 
   // Membership add/remove on the throwaway department keeps the main one stable.
-  const invitee = await client.post(`/auth/register-employee/${a.inviteToken}`, {
-    body: { name: 'QA Mover', email: identity(ctx.runId, 'mover', 'A'), password: DEFAULT_PASSWORD },
-  });
+  const moverEmail = identity(ctx.runId, 'mover', 'A');
+  const invitee = await client.post(
+    '/auth/register-employee', {
+      body: { token: await a.invite(moverEmail), name: 'QA Mover', email: moverEmail, password: DEFAULT_PASSWORD },
+    });
   const moverId = String((invitee.body as any).userId);
   await prober.run({
     id: 'departments.member.add.success', kind: 'success', method: 'POST',
@@ -486,10 +511,11 @@ export async function runSuccessScenarios(
     template: '/admin/security/audit-events', url: '/admin/security/audit-events',
     expect: 200, actor: ctx.systemAdmin,
   });
-  const statusTarget = await client.post(`/auth/register-employee/${a.inviteToken}`, {
-    body: { name: 'QA Status', email: identity(ctx.runId, 'status', 'A'),
-      password: DEFAULT_PASSWORD },
-  });
+  const statusEmail = identity(ctx.runId, 'status', 'A');
+  const statusTarget = await client.post(
+    '/auth/register-employee', {
+      body: { token: await a.invite(statusEmail), name: 'QA Status', email: statusEmail, password: DEFAULT_PASSWORD },
+    });
   await prober.run({
     id: 'admin.user-status.success', kind: 'success', method: 'PATCH',
     template: '/admin/users/{userId}/status',

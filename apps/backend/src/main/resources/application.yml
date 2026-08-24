@@ -12,7 +12,8 @@ server:
 
 app:
   # Where the product frontend is served, and therefore the base of every link
-  # this backend emails out: `/invite?token=…` and `/reset-password?token=…`.
+  # this backend emails out: `/invite#token=…` and `/reset-password#token=…`.
+  # The token is in the fragment, which browsers never send to a server.
   #
   # This was http://localhost:5173, an origin no application in this repository
   # serves — `apps/` contains only `backend` and the Next frontend, which runs
@@ -30,10 +31,63 @@ app:
     refresh-token-days: 7
   auth:
     password-reset-token-minutes: 30
+    # 72 hours. Long enough to reach somebody across a weekend, short enough
+    # that a link found later in a mailbox or a proxy log is already dead.
+    invite-token-hours: ${INVITE_TOKEN_HOURS:72}
     max-failed-login-attempts: 5
     lock-duration-minutes: 15
   mail:
     from: no-reply@potriv.local
+
+  # Shared, database-backed rate limiting. See RateLimitService and the
+  # migration V10__rate_limiting.sql for what "database-backed" costs and why
+  # it is the interim store rather than a dedicated one.
+  #
+  # Every window/limit pair below is independently overridable, because there
+  # is no value here that is obviously correct for every deployment — it
+  # depends on how large a legitimate onboarding burst looks for a given
+  # customer base. Durations accept the same suffixed form Spring already
+  # parses elsewhere (`60s`, `24h`, `5m`).
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    # false = fail closed: if the store itself errors, deny the request rather
+    # than silently letting every quota through on every instance at once.
+    # See RateLimitProperties#failOpen for the reasoning.
+    fail-open: ${RATE_LIMIT_FAIL_OPEN:false}
+    # A placeholder, exactly like app.jwt.secret above: fine for a local
+    # database only you can reach, refused in the prod profile by
+    # ProductionConfigGuard if left unchanged.
+    hmac-secret: ${RATE_LIMIT_HMAC_SECRET:change-this-secret-in-production-change-this-secret}
+    # Empty: no X-Forwarded-For is trusted unless explicitly configured. See
+    # ClientIpResolver.
+    trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:}
+    invite:
+      short-window: ${RATE_LIMIT_INVITE_ORG_SHORT_WINDOW:60s}
+      short-limit: ${RATE_LIMIT_INVITE_ORG_SHORT_LIMIT:20}
+      daily-window: ${RATE_LIMIT_INVITE_ORG_DAILY_WINDOW:24h}
+      daily-limit: ${RATE_LIMIT_INVITE_ORG_DAILY_LIMIT:200}
+      actor-window: ${RATE_LIMIT_INVITE_ACTOR_WINDOW:60s}
+      actor-limit: ${RATE_LIMIT_INVITE_ACTOR_LIMIT:10}
+      # How soon the same address may be re-invited. Not "per organization":
+      # one inbox, one cooldown, whichever admin or organization is inviting it.
+      recipient-cooldown: ${RATE_LIMIT_INVITE_RECIPIENT_COOLDOWN:5m}
+    register:
+      ip-window: ${RATE_LIMIT_REGISTER_IP_WINDOW:60s}
+      ip-limit: ${RATE_LIMIT_REGISTER_IP_LIMIT:5}
+      identity-window: ${RATE_LIMIT_REGISTER_IDENTITY_WINDOW:1h}
+      identity-limit: ${RATE_LIMIT_REGISTER_IDENTITY_LIMIT:3}
+    password-reset:
+      ip-window: ${RATE_LIMIT_PASSWORD_RESET_IP_WINDOW:60s}
+      ip-limit: ${RATE_LIMIT_PASSWORD_RESET_IP_LIMIT:10}
+      identity-window: ${RATE_LIMIT_PASSWORD_RESET_IDENTITY_WINDOW:15m}
+      identity-limit: ${RATE_LIMIT_PASSWORD_RESET_IDENTITY_LIMIT:3}
+    login:
+      # IP only. Never account-scoped — see RateLimitService#checkLogin.
+      ip-window: ${RATE_LIMIT_LOGIN_IP_WINDOW:60s}
+      ip-limit: ${RATE_LIMIT_LOGIN_IP_LIMIT:15}
+    # How often expired rows are purged from rate_limit_windows and
+    # rate_limit_cooldowns. See RateLimitCleanupJob.
+    cleanup-interval-ms: ${RATE_LIMIT_CLEANUP_INTERVAL_MS:3600000}
 
 potriv:
   # Embedded read-only administration console (/api/admin/**). Disabled by

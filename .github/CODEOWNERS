@@ -1,0 +1,66 @@
+# Code owners.
+#
+# WHAT THIS FILE DOES TODAY: it requests a review. Nothing more.
+#
+# It is not a merge gate here, and describing it as one would be worse than
+# having no file at all — a control that is believed to exist is not audited.
+# The repository's ruleset, verified read-only rather than assumed:
+#
+#   required_approving_review_count = 0
+#   require_code_owner_review       = false
+#
+# Both are 0/false because the repository has one human account. GitHub does
+# not count a pull request author's own approval, so requiring one review would
+# make every change unmergeable by the only person who can make it. Turning
+# these on needs a second GitHub account or an organization team with at least
+# one other member; until that exists, this file marks the paths worth looking
+# at, and looking at them is a habit rather than an enforced step.
+#
+# The paths below are still the right ones — that judgement does not depend on
+# whether a rule enforces it.
+#
+# Owner resolved from the repository's GitHub metadata, not assumed:
+#   gh api repos/aydgnme/Potriv --jq .owner.login  ->  aydgnme
+
+# Everything, as the fallback. Later matches win, so the specific entries
+# below still apply where they overlap.
+*                                                   @aydgnme
+
+# ---- CI and release automation -------------------------------------------
+# A workflow change can disable a required check or exfiltrate a secret, so it
+# is reviewed even when the rest of the change looks routine.
+/.github/                                           @aydgnme
+/.github/workflows/                                 @aydgnme
+
+# ---- Authentication, authorization and session handling ------------------
+# The JWT filter, the security filter chains, the role annotations and the
+# tenant resolver. A quiet edit here changes who can reach what.
+/apps/backend/src/main/java/me/aydgn/potriv/common/security/      @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/admin/security/       @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/identity/service/     @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/identity/entity/      @aydgnme
+/apps/backend/src/main/java/me/aydgn/potriv/security/             @aydgnme
+# The BFF's cookie, session and same-origin boundary.
+/apps/frontend/src/modules/auth/server/             @aydgnme
+
+# ---- Database migrations --------------------------------------------------
+# Flyway files are append-only in effect: once applied they cannot be edited,
+# only followed by another migration.
+/apps/backend/src/main/resources/db/migration/      @aydgnme
+
+# ---- Production and deployment configuration ------------------------------
+/apps/backend/src/main/resources/application-prod.yml   @aydgnme
+/apps/backend/Dockerfile                                @aydgnme
+/docker-compose.prod.yml                                @aydgnme
+/docker-compose.yml                                     @aydgnme
+/docker-compose.mail.yml                                @aydgnme
+/.env.prod.example                                      @aydgnme
+/.env.mail.example                                      @aydgnme
+
+# ---- Dependency lockfiles -------------------------------------------------
+# The supply chain. A lockfile edit can pull in code nobody reviewed.
+/apps/backend/pom.xml                               @aydgnme
+/apps/frontend/package-lock.json                    @aydgnme
+/apps/frontend/package.json                         @aydgnme
+/tools/api-e2e/package-lock.json                    @aydgnme
+/tools/api-e2e/package.json                         @aydgnme

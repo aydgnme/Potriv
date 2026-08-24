@@ -1,6 +1,7 @@
 package me.aydgn.potriv.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -12,6 +13,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import java.time.OffsetDateTime;
 import java.util.stream.Collectors;
 
+import me.aydgn.potriv.common.ratelimit.RateLimitExceededException;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -20,7 +23,7 @@ public class GlobalExceptionHandler {
         BadRequestException exception,
         HttpServletRequest request
     ) {
-        return build(HttpStatus.BAD_REQUEST, exception.getMessage(), request);
+        return build(HttpStatus.BAD_REQUEST, exception.getMessage(), request, exception.getCode());
     }
 
     @ExceptionHandler(UnauthorizedException.class)
@@ -53,6 +56,23 @@ public class GlobalExceptionHandler {
         HttpServletRequest request
     ) {
         return build(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleRateLimited(
+        RateLimitExceededException exception,
+        HttpServletRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+            .header(HttpHeaders.RETRY_AFTER, Long.toString(exception.retryAfterSeconds()))
+            .body(new ApiErrorResponse(
+                OffsetDateTime.now(),
+                HttpStatus.TOO_MANY_REQUESTS.value(),
+                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+                "Too many requests. Try again later.",
+                request.getRequestURI(),
+                ErrorCodes.RATE_LIMITED
+            ));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -94,13 +114,23 @@ public class GlobalExceptionHandler {
         String message,
         HttpServletRequest request
     ) {
+        return build(status, message, request, null);
+    }
+
+    private ResponseEntity<ApiErrorResponse> build(
+        HttpStatus status,
+        String message,
+        HttpServletRequest request,
+        String code
+    ) {
         return ResponseEntity.status(status).body(
             new ApiErrorResponse(
                 OffsetDateTime.now(),
                 status.value(),
                 status.getReasonPhrase(),
                 message,
-                request.getRequestURI()
+                request.getRequestURI(),
+                code
             )
         );
     }

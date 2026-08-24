@@ -39,7 +39,8 @@ class AdminUserFormIntegrationTest extends AbstractAdminIntegrationTest {
     private PasswordEncoder passwordEncoder;
 
     private UUID normalUser() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("UserOrg"), uniqueEmail("normal"), "Password123!");
+        String adminEmail = uniqueEmail("normal");
+        JsonNode admin = registerAdmin(uniqueName("UserOrg"), adminEmail, "Password123!");
         return UUID.fromString(admin.get("userId").asText());
     }
 

@@ -49,7 +49,8 @@ class AdminDepartmentFormIntegrationTest extends AbstractAdminIntegrationTest {
     }
 
     private Seed seed() throws Exception {
-        JsonNode admin = registerAdmin(uniqueName("DeptForm"), uniqueEmail("deptform"), "Password123!");
+        String adminEmail = uniqueEmail("deptform");
+        JsonNode admin = registerAdmin(uniqueName("DeptForm"), adminEmail, "Password123!");
         return new Seed(
             UUID.fromString(admin.get("organizationId").asText()),
             UUID.fromString(admin.get("userId").asText()));

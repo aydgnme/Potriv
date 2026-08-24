@@ -4,7 +4,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +15,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import me.aydgn.potriv.common.config.OpenApiConfig;
+import me.aydgn.potriv.common.ratelimit.ClientIpResolver;
 import me.aydgn.potriv.common.security.AuthenticatedUser;
 import me.aydgn.potriv.identity.dto.CurrentUserResponse;
 import me.aydgn.potriv.identity.dto.LoginRequest;
@@ -40,32 +40,50 @@ public class AuthController {
     private final AuthRegistrationService authRegistrationService;
     private final JwtAuthenticationService jwtAuthenticationService;
     private final PasswordResetService passwordResetService;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(
         AuthRegistrationService authRegistrationService,
         JwtAuthenticationService jwtAuthenticationService,
-        PasswordResetService passwordResetService
+        PasswordResetService passwordResetService,
+        ClientIpResolver clientIpResolver
     ) {
         this.authRegistrationService = authRegistrationService;
         this.jwtAuthenticationService = jwtAuthenticationService;
         this.passwordResetService = passwordResetService;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register-admin")
     @ResponseStatus(HttpStatus.CREATED)
     public RegisterAdminResponse registerOrganizationAdmin(
-        @Valid @RequestBody RegisterAdminRequest request
+        @Valid @RequestBody RegisterAdminRequest request,
+        HttpServletRequest httpRequest
     ) {
-        return authRegistrationService.registerOrganizationAdmin(request);
+        return authRegistrationService.registerOrganizationAdmin(
+            request, clientIpResolver.resolve(httpRequest));
     }
 
-    @PostMapping("/register-employee/{inviteToken}")
+    /**
+     * The route is fixed and carries no token.
+     *
+     * It used to be {@code /register-employee/{inviteToken}}, which put a live
+     * credential into the request target — and a request target is recorded
+     * everywhere: the servlet container's access log, any reverse proxy in
+     * front of it, platform request traces, and this application's own error
+     * responses, which name the path that failed. None of that was reachable
+     * by the caller's choice; it happened simply because the token was in the
+     * URL.
+     *
+     * The token is now a field of the request body, like the password beside
+     * it. Nothing in this application writes a request body anywhere.
+     */
+    @PostMapping("/register-employee")
     @ResponseStatus(HttpStatus.CREATED)
     public RegisterEmployeeResponse registerEmployee(
-        @PathVariable String inviteToken,
         @Valid @RequestBody RegisterEmployeeRequest request
     ) {
-        return authRegistrationService.registerEmployee(inviteToken, request);
+        return authRegistrationService.registerEmployee(request);
     }
 
     @PostMapping("/login")
@@ -76,7 +94,7 @@ public class AuthController {
         return jwtAuthenticationService.login(
             request,
             httpRequest.getHeader(HttpHeaders.USER_AGENT),
-            httpRequest.getRemoteAddr()
+            clientIpResolver.resolve(httpRequest)
         );
     }
 
@@ -88,9 +106,10 @@ public class AuthController {
     @PostMapping("/password-reset/request")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public MessageResponse requestPasswordReset(
-        @Valid @RequestBody PasswordResetRequest request
+        @Valid @RequestBody PasswordResetRequest request,
+        HttpServletRequest httpRequest
     ) {
-        passwordResetService.requestReset(request);
+        passwordResetService.requestReset(request, clientIpResolver.resolve(httpRequest));
 
         return new MessageResponse(
             "If an account exists for this email, a password reset link has been sent."

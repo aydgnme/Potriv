@@ -4,8 +4,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import me.aydgn.potriv.common.exception.ErrorCodes;
+import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.exception.BadRequestException;
-import me.aydgn.potriv.common.exception.NotFoundException;
+import me.aydgn.potriv.common.ratelimit.RateLimitService;
+import me.aydgn.potriv.common.security.TokenDigest;
 import me.aydgn.potriv.identity.dto.RegisterAdminRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminResponse;
 import me.aydgn.potriv.identity.dto.RegisterEmployeeRequest;
@@ -31,8 +34,10 @@ public class AuthRegistrationService {
     private final UserRoleRepository userRoleRepository;
     private final InviteTokenRepository inviteTokenRepository;
     private final InviteTokenService inviteTokenService;
+    private final InviteUrlFactory inviteUrlFactory;
     private final SecurityAuditService securityAuditService;
     private final PasswordEncoder passwordEncoder;
+    private final RateLimitService rateLimitService;
 
     public AuthRegistrationService(
         OrganizationRepository organizationRepository,
@@ -40,21 +45,28 @@ public class AuthRegistrationService {
         UserRoleRepository userRoleRepository,
         InviteTokenRepository inviteTokenRepository,
         InviteTokenService inviteTokenService,
+        InviteUrlFactory inviteUrlFactory,
         SecurityAuditService securityAuditService,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        RateLimitService rateLimitService
     ) {
         this.organizationRepository = organizationRepository;
         this.userRepository = userRepository;
         this.userRoleRepository = userRoleRepository;
         this.inviteTokenRepository = inviteTokenRepository;
         this.inviteTokenService = inviteTokenService;
+        this.inviteUrlFactory = inviteUrlFactory;
         this.securityAuditService = securityAuditService;
         this.passwordEncoder = passwordEncoder;
+        this.rateLimitService = rateLimitService;
     }
 
     @Transactional
-    public RegisterAdminResponse registerOrganizationAdmin(RegisterAdminRequest request) {
+    public RegisterAdminResponse registerOrganizationAdmin(
+        RegisterAdminRequest request, String clientIp
+    ) {
         String normalizedEmail = normalizeEmail(request.email());
+        rateLimitService.checkRegisterAdmin(clientIp, normalizedEmail);
         ensureEmailIsAvailable(normalizedEmail);
 
         Organization organization = new Organization(
@@ -74,7 +86,6 @@ public class AuthRegistrationService {
         userRoleRepository.save(new UserRole(admin, AccessRole.EMPLOYEE));
         userRoleRepository.save(new UserRole(admin, AccessRole.ORGANIZATION_ADMIN));
 
-        InviteToken inviteToken = inviteTokenService.createForOrganization(organization);
 
         securityAuditService.record(
             SecurityAuditEvent.builder(
@@ -85,23 +96,54 @@ public class AuthRegistrationService {
                 .build()
         );
 
+        /*
+          No invite is minted here any more. An invite is addressed to a person,
+          and at this point there is nobody to address: the admin invites each
+          employee by email afterwards.
+        */
         return new RegisterAdminResponse(
             organization.getId(),
-            admin.getId(),
-            inviteTokenService.buildInviteUrl(inviteToken)
+            admin.getId()
         );
     }
 
+    /**
+     * Registers an employee against an invite.
+     *
+     * Two things about the order here are deliberate.
+     *
+     * The invite is claimed before the directory is consulted. The previous
+     * version checked email availability first, so a request carrying a garbage
+     * token still answered 400 for a registered address and 404 for an
+     * unregistered one — an unauthenticated way to test whether somebody has an
+     * account.
+     *
+     * The claim is a conditional UPDATE, not a read followed by a write. Two
+     * requests arriving together with the same token would both pass a Java
+     * check before either had saved anything, and both would register.
+     * `claim` returns the number of rows it changed, so exactly one wins.
+     */
     @Transactional
-    public RegisterEmployeeResponse registerEmployee(String inviteTokenValue, RegisterEmployeeRequest request) {
+    public RegisterEmployeeResponse registerEmployee(RegisterEmployeeRequest request) {
         String normalizedEmail = normalizeEmail(request.email());
-        ensureEmailIsAvailable(normalizedEmail);
+        // Hashed immediately. The raw value is never assigned to a field, never
+        // logged, and never put back into a response.
+        String tokenHash = TokenDigest.sha256Base64Url(request.token());
 
-        InviteToken inviteToken = inviteTokenRepository.findByToken(inviteTokenValue)
-            .orElseThrow(() -> new NotFoundException("Employee invite token was not found."));
+        if (inviteTokenRepository.claim(tokenHash, normalizedEmail) != 1) {
+            throw invalidInviteException();
+        }
 
-        if (!inviteToken.isUsable()) {
-            throw new BadRequestException("Employee invite token is not active or has expired.");
+        InviteToken inviteToken = inviteTokenRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow(AuthRegistrationService::invalidInviteException);
+
+        if (userRepository.existsByEmail(normalizedEmail)) {
+            // Same exception as every other failure here, which is what closes
+            // the enumeration: a caller cannot tell a taken address from a bad
+            // token. The transaction rolls back, so the claim is undone and a
+            // second attempt with a corrected address still works.
+            throw invalidInviteException();
         }
 
         Organization organization = inviteToken.getOrganization();
@@ -130,13 +172,33 @@ public class AuthRegistrationService {
         );
     }
 
+    /**
+     * The one answer this endpoint gives for every rejection.
+     *
+     * Unknown token, expired, already used, revoked, an address that does not
+     * match the one invited, and an address that is already registered all
+     * produce this. Distinguishing them is what let an
+     * anonymous caller enumerate accounts; the reason is recorded internally
+     * through the audit trail instead.
+     */
+    private static BadRequestException invalidInviteException() {
+        return new BadRequestException("This invitation is not valid.", ErrorCodes.INVITE_INVALID);
+    }
+
     private void ensureEmailIsAvailable(String email) {
         if (userRepository.existsByEmail(email)) {
             throw new BadRequestException("Email address is already used.");
         }
     }
 
+    /**
+     * Delegates, and must keep delegating. This used to lower-case with the
+     * JVM's default locale while the invite path used {@code Locale.ROOT}, so
+     * the two disagreed about any address containing an {@code I} on a
+     * Turkish-locale JVM — and an invitation that cannot be matched cannot be
+     * redeemed.
+     */
     private String normalizeEmail(String email) {
-        return email.trim().toLowerCase();
+        return EmailAddresses.normalize(email);
     }
 }

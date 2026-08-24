@@ -63,9 +63,15 @@ export function getOrganizationMembers(): Promise<Loaded<readonly OrganizationMe
   return load<readonly OrganizationMember[]>("/users");
 }
 
-/** `GET /organizations/current/invite` — 404 when no active invite exists. */
-export function getOrganizationInvite(): Promise<Loaded<OrganizationInvite>> {
-  return load<OrganizationInvite>("/organizations/current/invite");
+/**
+ * `GET /organizations/current/invites` — the caller's own organization only.
+ *
+ * A list, not a link. An organization has one outstanding invitation per
+ * invited address, so there is nothing single to fetch, and nothing here
+ * carries a token.
+ */
+export function getOrganizationInvites(): Promise<Loaded<readonly OrganizationInvite[]>> {
+  return load<readonly OrganizationInvite[]>("/organizations/current/invites");
 }
 
 /** `POST /departments` — 201. The body carries a name and nothing else. */
@@ -125,16 +131,38 @@ export async function removeDepartmentManager(
 }
 
 /**
- * `POST /organizations/current/invite/rotate` — 200 with the new invite.
+ * `POST /organizations/current/invites` — 201 with the invitation's metadata.
  *
- * Destructive in effect: every active invite is deactivated first, so the old
- * link stops working the moment this succeeds.
+ * The address goes out; no credential comes back. The backend generates the
+ * token, stores only its hash, and mails the link itself — so this browser, this
+ * server, and everything between them only ever handle metadata.
+ *
+ * Inviting an address that already has an outstanding invitation replaces it:
+ * the previous one is revoked before the new one is issued.
  */
-export async function rotateOrganizationInvite(): Promise<MutationOutcome<OrganizationInvite>> {
+export async function createOrganizationInvite(
+  email: string,
+): Promise<MutationOutcome<OrganizationInvite>> {
   const outcome = await backendPost<OrganizationInvite>(
-    "/organizations/current/invite/rotate",
-    {},
+    "/organizations/current/invites",
+    { email },
   );
   if (outcome.ok) return { ok: true, value: outcome.value };
+  return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
+}
+
+/**
+ * `DELETE /organizations/current/invites/{id}` — 204.
+ *
+ * Another organization's invitation answers 404 rather than 403, so a probe
+ * cannot confirm that an identifier belongs to a real invitation elsewhere.
+ */
+export async function revokeOrganizationInvite(
+  inviteId: string,
+): Promise<MutationOutcome<void>> {
+  const outcome = await backendDelete(
+    `/organizations/current/invites/${encodeURIComponent(inviteId)}`,
+  );
+  if (outcome.ok) return { ok: true, value: undefined };
   return { ok: false, status: outcome.error.status, detail: outcome.error.detail };
 }
