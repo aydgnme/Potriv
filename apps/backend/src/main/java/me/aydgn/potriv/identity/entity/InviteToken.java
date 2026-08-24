@@ -2,6 +2,7 @@ package me.aydgn.potriv.identity.entity;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.UUID;
 
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.EnumType;
@@ -90,6 +91,20 @@ public class InviteToken extends BaseEntity {
 
     @Column(name = "next_attempt_at")
     private OffsetDateTime nextAttemptAt;
+
+    /**
+     * Who owns the in-flight attempt, while there is one.
+     *
+     * Generated fresh by the worker for every claim and cleared on every exit
+     * from {@link DeliveryStatus#DELIVERING}. Its only job is to appear in the
+     * {@code WHERE} clause of every write a worker makes while it believes it
+     * holds this job, so that a worker whose lease has already expired — and
+     * been reclaimed by somebody else — updates zero rows instead of
+     * overwriting a claim it no longer holds. See
+     * {@code InviteTokenRepository#claimDelivery}.
+     */
+    @Column(name = "lease_owner")
+    private UUID leaseOwner;
 
     /** The last failure, for an operator. Never the token, never the link. */
     @Column(name = "last_error", length = 500)
@@ -180,16 +195,32 @@ public class InviteToken extends BaseEntity {
     }
 
     /**
-     * QUEUED until a worker has mailed it, then SENT, or FAILED once the
-     * attempts are exhausted.
+     * QUEUED until a worker claims it, DELIVERING for the length of one
+     * attempt, then SENT, or back to QUEUED — or FAILED once attempts are
+     * exhausted.
      *
-     * There is no SENDING state. A worker claims a job with a conditional
-     * UPDATE that moves `next_attempt_at` forward, so a claimed job is simply
-     * not due again until its lease expires — which needs no extra state and
-     * cannot strand a job if the worker dies mid-attempt.
+     * DELIVERING exists because an attempt has three separate transactions —
+     * claim, commit the hash, record the send — and none of them may be
+     * allowed to roll back another. A row sits in DELIVERING for the whole of
+     * that: from the moment a worker claims it until the moment it is either
+     * marked SENT or handed back to QUEUED/FAILED by the recovery transaction.
+     * A hash committed while a row is DELIVERING exists in the database and is
+     * still not redeemable — {@link #isRedeemable()} and the claim query in
+     * {@code InviteTokenRepository} both require SENT — which is what keeps a
+     * token that has been minted but not yet mailed from being usable if the
+     * send that follows never happens.
+     *
+     * A claimed job is not due again until its lease — {@code next_attempt_at},
+     * reused as an expiry while a row is DELIVERING — elapses. That needs no
+     * separate cleanup sweep and cannot strand a job if the worker holding it
+     * dies mid-attempt: the same claim query that picks up QUEUED work also
+     * reclaims DELIVERING work whose lease has passed, and
+     * {@link #leaseOwner} is what stops that reclaiming worker's predecessor
+     * from writing SENT after losing the race.
      */
     public enum DeliveryStatus {
         QUEUED,
+        DELIVERING,
         SENT,
         FAILED
     }
@@ -228,13 +259,17 @@ public class InviteToken extends BaseEntity {
     /**
      * Whether a token exists that somebody could actually redeem.
      *
-     * A queued invitation is outstanding but not yet redeemable — nothing has
-     * been minted or mailed. The distinction matters to the accept path, which
-     * looks up by hash and would simply not find these rows, and to any code
-     * asking "can this person join right now".
+     * Requires {@code deliveryStatus == SENT}, not merely a non-null hash. A
+     * hash is committed to the database the moment a worker mints it — before
+     * the SMTP call — so that the commit and the send are separate
+     * transactions and neither can roll back the other. For the whole of that
+     * window the row is DELIVERING and this must say false, or a token nobody
+     * has received yet would already be usable. A queued invitation is
+     * outstanding but not yet redeemable for the same reason one step earlier:
+     * nothing has been minted or mailed at all.
      */
     public boolean isRedeemable() {
-        return isPending() && tokenHash != null;
+        return isPending() && tokenHash != null && deliveryStatus == DeliveryStatus.SENT;
     }
 
     // ---- delivery ----
@@ -255,27 +290,45 @@ public class InviteToken extends BaseEntity {
         return lastError;
     }
 
-    /** Records the token about to be mailed. Only ever the hash. */
+    public UUID getLeaseOwner() {
+        return leaseOwner;
+    }
+
+    /**
+     * Records the token about to be mailed, and moves the row to DELIVERING.
+     *
+     * The worker itself does not call this: it performs the same transition as
+     * a guarded conditional UPDATE (claim, then commit-hash), so that a worker
+     * whose lease has already expired updates zero rows instead of overwriting
+     * a claim it no longer holds. This entity-level version exists for direct
+     * seeding — tests that need an invitation already mid-delivery without
+     * going through the worker's transactions.
+     */
     public void prepareAttempt(String tokenHash, OffsetDateTime expiresAt) {
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
         this.attemptCount = this.attemptCount + 1;
+        this.deliveryStatus = DeliveryStatus.DELIVERING;
     }
 
     public void markSent() {
         this.deliveryStatus = DeliveryStatus.SENT;
         this.nextAttemptAt = null;
         this.lastError = null;
+        this.leaseOwner = null;
     }
 
     /**
      * The attempt failed: the token it minted is discarded so nothing
-     * redeemable is left behind, and the job is due again after the backoff.
+     * redeemable is left behind, the row returns to QUEUED, and the job is due
+     * again after the backoff.
      */
     public void markAttemptFailed(String reason, OffsetDateTime retryAt) {
         this.tokenHash = null;
+        this.deliveryStatus = DeliveryStatus.QUEUED;
         this.nextAttemptAt = retryAt;
         this.lastError = truncate(reason);
+        this.leaseOwner = null;
     }
 
     /** Attempts exhausted. The invitation is dead and never redeemable. */
@@ -285,6 +338,7 @@ public class InviteToken extends BaseEntity {
         this.nextAttemptAt = null;
         this.lastError = truncate(reason);
         this.active = false;
+        this.leaseOwner = null;
     }
 
     private static String truncate(String reason) {

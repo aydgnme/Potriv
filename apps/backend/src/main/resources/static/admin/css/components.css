@@ -320,6 +320,7 @@
 .signal--warn,
 .badge--pending,
 .badge--queued,
+.badge--delivering,
 .badge--starting,
 .badge--closing {
     background: var(--warn-tint);

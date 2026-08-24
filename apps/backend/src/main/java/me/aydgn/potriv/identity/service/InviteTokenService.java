@@ -41,13 +41,23 @@ public class InviteTokenService {
     }
 
     /**
-     * A token about to be mailed, and the invitation it belongs to.
+     * The values one delivery attempt needs, and nothing that ties it to a
+     * managed entity.
      *
-     * The raw value is carried out of here in memory and dropped. It is not on
-     * the entity, so nothing downstream can log it, audit it or serialise it
-     * into an error — the only ways it previously escaped.
+     * {@link #mintFor} does not take an {@code InviteToken} and does not
+     * return one: the worker commits {@code tokenHash} and {@code expiresAt}
+     * through a lease-guarded conditional UPDATE, not through {@code save()},
+     * so that a worker whose lease has already expired updates zero rows
+     * instead of overwriting a claim it no longer holds. Handing back a
+     * mutated managed entity here would invite exactly the direct
+     * {@code save()} that guard exists to prevent.
+     *
+     * {@code rawToken} is carried out of here in memory and dropped once the
+     * worker has used it to build the mail. It is never assigned to an entity
+     * field, so nothing downstream can log it, audit it or serialise it into an
+     * error — the only ways it previously escaped.
      */
-    public record IssuedInvite(InviteToken invite, String rawToken) {
+    public record IssuedInvite(String tokenHash, OffsetDateTime expiresAt, String rawToken) {
     }
 
     /**
@@ -79,13 +89,16 @@ public class InviteTokenService {
      * The expiry restarts here too: the clock the recipient experiences begins
      * when the link is sent, not when the intention was recorded behind a
      * broken mail server.
+     *
+     * Pure — nothing is written or persisted here. The caller decides how and
+     * whether the result reaches the database.
      */
-    public IssuedInvite mintFor(InviteToken invite) {
+    public IssuedInvite mintFor() {
         String rawToken = generateToken();
-        invite.prepareAttempt(
+        return new IssuedInvite(
             TokenDigest.sha256Base64Url(rawToken),
-            OffsetDateTime.now(ZoneOffset.UTC).plusHours(inviteTokenHours));
-        return new IssuedInvite(invite, rawToken);
+            OffsetDateTime.now(ZoneOffset.UTC).plusHours(inviteTokenHours),
+            rawToken);
     }
 
     /** The one place an invited address is normalised. */

@@ -36,6 +36,7 @@ public record EmployeeInviteResponse(
      */
     public enum DeliveryStatus {
         QUEUED,
+        DELIVERING,
         SENT,
         FAILED
     }
