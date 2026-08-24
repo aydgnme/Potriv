@@ -64,14 +64,30 @@ public class AdminInvitationService {
     }
 
     /**
-     * The same four states the product uses, derived in the same place.
+     * The same four states the product uses, derived in the same place — with
+     * one admin-console-only refinement.
      *
-     * This function used to answer ACTIVE / EXPIRED / DISABLED from
-     * {@code active} and {@code expiresAt} alone. It had no notion of a spent
-     * invitation, so one that somebody had already accepted was displayed as
-     * ACTIVE and counted as outstanding.
+     * {@link InviteToken#status()} answers REVOKED for {@code active == false}
+     * regardless of why: an administrator withdrawing the invitation is one
+     * way to reach that, and exhausting every delivery attempt —
+     * {@link InviteToken#markDeliveryFailed} — is the other, and the entity
+     * does not distinguish them because the product's own contract
+     * ({@code EmployeeInviteResponse.InviteStatus}) has no fifth state for it.
+     * Collapsing the two is fine for that contract; it is actively misleading
+     * on this page, which shows an admin the invitation's {@code revokedAt}
+     * timestamp — null for the second case — directly under a badge reading
+     * "REVOKED" that says withdrawn happened.
+     *
+     * So here, and only here: a row that reports REVOKED but was never
+     * actually withdrawn is relabelled DELIVERY_FAILED. Nothing about the
+     * entity's own state changes, and every other caller of
+     * {@link InviteToken#status()} — the product API included — is unaffected.
      */
     private static String status(InviteToken invite) {
-        return invite.status().name();
+        InviteToken.Status status = invite.status();
+        if (status == InviteToken.Status.REVOKED && invite.getRevokedAt() == null) {
+            return "DELIVERY_FAILED";
+        }
+        return status.name();
     }
 }

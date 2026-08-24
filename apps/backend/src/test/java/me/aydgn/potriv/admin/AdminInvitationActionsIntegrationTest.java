@@ -27,10 +27,13 @@ import me.aydgn.potriv.security.repository.SecurityAuditEventRepository;
 /**
  * Invitation administration actions.
  *
- * <p>A Potriv invitation is an organization-wide join link — there is no
- * recipient address and no "used" state — so the meaningful admin actions are
- * revoking a link and replacing it. These tests exercise that model rather than
- * a per-recipient one.
+ * <p>A Potriv invitation is addressed to one person and redeems once: it
+ * carries {@code invitedEmail} and is consumed by exactly the registration it
+ * permits. The meaningful admin actions follow from that — withdrawing one
+ * invitation, and seeing its delivery and acceptance state — never a
+ * shared-link model, which this schema stopped supporting when invites moved
+ * from a single organization-wide token to one hashed, expiring, per-recipient
+ * row each.
  */
 class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest {
 
@@ -42,6 +45,8 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
     private UserRepository userRepository;
     @Autowired
     private SecurityAuditEventRepository auditEventRepository;
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     /** An organization with one outstanding invitation, addressed to one person. */
     private record Seed(UUID organizationId, UUID invitationId, String invitedEmail,
@@ -188,6 +193,81 @@ class AdminInvitationActionsIntegrationTest extends AbstractAdminIntegrationTest
         revoke(seed.invitationId());
 
         assertThat(reload(seed.invitationId()).isActive()).isFalse();
+    }
+
+    /**
+     * {@code InviteToken#status()} answers REVOKED for any inactive,
+     * non-consumed invitation, whether an administrator withdrew it or
+     * delivery simply exhausted every attempt — the product's own status
+     * contract has no fifth state for the second case. The admin console
+     * relabels that second case DELIVERY_FAILED, because the same page shows
+     * {@code revokedAt}, and a null timestamp under a "REVOKED" badge tells an
+     * administrator withdrawal happened when nobody withdrew anything.
+     */
+    @Test
+    void permanentDeliveryFailureIsShownAsDeliveryFailedNotRevoked() throws Exception {
+        String adminEmail = uniqueEmail("faildeliveryorg");
+        registerAdmin(uniqueName("FailDeliveryOrg"), adminEmail, "Password123!");
+        String adminToken = loginForAccessToken(adminEmail, "Password123!");
+        String invitedEmail = uniqueEmail("neverdelivered");
+
+        recordingMailSender.setFailing(true);
+        try {
+            mockMvc.perform(post("/organizations/current/invites")
+                    .header(org.springframework.http.HttpHeaders.AUTHORIZATION, bearer(adminToken))
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(
+                        java.util.Map.of("email", invitedEmail))))
+                .andExpect(status().isAccepted());
+
+            UUID invitationId = inviteTokenRepository.findAll().stream()
+                .filter(invite -> invite.getInvitedEmail().equals(invitedEmail))
+                .findFirst().orElseThrow().getId();
+
+            // Exhausts MAX_ATTEMPTS the same way InviteDeliveryIntegrationTest
+            // does: bring the backoff forward and run the worker, repeatedly.
+            for (int attempt = 0; attempt < 6; attempt++) {
+                jdbcTemplate.update(
+                    "update invite_tokens set next_attempt_at = ? where id = ?",
+                    java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).minusMinutes(1),
+                    invitationId);
+                inviteDeliveryWorker.runOnce();
+            }
+
+            InviteToken failed = reload(invitationId);
+            assertThat(failed.getDeliveryStatus()).isEqualTo(InviteToken.DeliveryStatus.FAILED);
+            assertThat(failed.isActive()).isFalse();
+            assertThat(failed.getRevokedAt())
+                .as("nobody withdrew this invitation; delivery failed on its own")
+                .isNull();
+
+            String detail = adminGet("/admin/invitations/" + invitationId)
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+            assertThat(detail).contains("badge--delivery_failed");
+            assertThat(detail).doesNotContain("badge--revoked");
+            // The field is still on the page — and still empty, which is the
+            // whole point: a populated "Withdrawn" date is what would actually
+            // mean an administrator acted.
+            assertThat(detail).contains("Withdrawn");
+        } finally {
+            recordingMailSender.setFailing(false);
+        }
+    }
+
+    /** The other half of the distinction: a genuine withdrawal still reads as REVOKED. */
+    @Test
+    void administratorWithdrawalIsStillShownAsRevoked() throws Exception {
+        Seed seed = seed();
+        revoke(seed.invitationId());
+
+        String detail = adminGet("/admin/invitations/" + seed.invitationId())
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+
+        assertThat(detail).contains("badge--revoked");
+        assertThat(detail).doesNotContain("badge--delivery_failed");
     }
 
     /**

@@ -331,6 +331,7 @@
 .signal--fail,
 .badge--rejected,
 .badge--failed,
+.badge--delivery_failed,
 .badge--disabled,
 .badge--expired,
 .badge--revoked,

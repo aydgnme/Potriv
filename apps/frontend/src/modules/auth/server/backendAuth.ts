@@ -292,7 +292,8 @@ export type BackendInviteRegistration = {
  *
  * `POST /auth/register-employee` is `permitAll`, takes no credentials
  * and returns no token pair — so this sets no cookie and creates no session.
- * The token is path-encoded here and never returned to the caller.
+ * The token travels as a body field, alongside the password, and is never
+ * returned to the caller.
  */
 export async function registerWithInvite(
   inviteToken: string,

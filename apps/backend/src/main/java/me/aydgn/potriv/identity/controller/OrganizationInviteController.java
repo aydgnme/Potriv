@@ -48,8 +48,13 @@ public class OrganizationInviteController {
     }
 
     /**
-     * Invites one person. The response is the only place the link appears, and
-     * the same link is emailed to the address it was issued to.
+     * Invites one person.
+     *
+     * The response never carries the link — see {@link EmployeeInviteResponse}.
+     * Nothing is minted or mailed by this request at all: it records the
+     * intention, and {@code InviteDeliveryWorker} mints the token and mails the
+     * one link it produces, in a later transaction, to the address the
+     * invitation was issued to.
      */
     @PostMapping
     /*
