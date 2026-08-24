@@ -192,11 +192,17 @@ export async function runOperationalScenarios(
     });
   }
 
+  // The interactive Swagger UI dependency was removed (springdoc's -api
+  // starter, not -ui — apps/backend/pom.xml) specifically to drop its
+  // bundled static assets, including a vendored DOMPurify copy that was a
+  // real source of unrelated CVEs, from the runtime. This route proving
+  // 404 is the running-application-level confirmation that the removal
+  // actually took effect, not just that the POM text changed.
   const swagger = await client.get('/swagger-ui/index.html', { accept: 'text/html' });
   prober.record({
-    id: 'operations:swagger-ui', kind: 'operations',
-    description: 'Swagger UI entry route responds in development',
-    passed: swagger.status === 200 || swagger.status === 302,
+    id: 'operations:swagger-ui-absent', kind: 'operations',
+    description: 'Swagger UI is not present in the runtime (dependency removed)',
+    passed: swagger.status === 404,
     actual: String(swagger.status),
   });
   void config;
