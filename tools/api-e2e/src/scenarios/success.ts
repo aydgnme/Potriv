@@ -1,4 +1,6 @@
+import type { Config } from '../config/env.js';
 import type { ApiClient } from '../http/client.js';
+import { inviteTokenFor } from '../fixtures/mailbox.js';
 import { Prober, isUuid } from './probe.js';
 import {
   DEFAULT_PASSWORD, identity, plusDays, type RunContext,
@@ -12,19 +14,23 @@ import {
  * use it, with a body the contract accepts.
  */
 export async function runSuccessScenarios(
-  client: ApiClient, prober: Prober, ctx: RunContext,
+  client: ApiClient, prober: Prober, ctx: RunContext, config: Config,
 ): Promise<void> {
   const a = ctx.orgA;
   const suffix = `${ctx.runId}-s`;
 
   // ---------------------------------------------------------------- auth
   /*
-    Registration is request-then-confirm now: this endpoint only queues an
+    Registration is request-then-confirm now: the request only queues an
     intention and answers 202 with a fixed message, whether or not the
-    address already has an account — nothing here to assert a UUID on any
-    more. The full request/deliver/confirm round trip, including the
-    resulting organizationId/userId, is covered end to end in
-    bootstrap.ts, which needs the created account for its own scenarios.
+    address already has an account — nothing here to assert a UUID on. The
+    confirmation step is what actually creates anything, so it is tracked
+    here too, through the same prober.run coverage mechanism, rather than
+    only exercised as an untracked side effect of building fixtures
+    (fixtures/build.ts and bootstrap.ts both confirm real registrations for
+    their own reasons, but neither call goes through the registry — an
+    earlier version of this suite reported this operation's Success column
+    as unproven even though every run in fact exercised it successfully).
   */
   const freshAdminEmail = identity(ctx.runId, 'admin2', 'A');
   const registered = await prober.run({
@@ -37,6 +43,52 @@ export async function runSuccessScenarios(
     check: (r) => typeof (r.body as any)?.message === 'string' ? null : 'message is not a string',
   });
   void registered;
+
+  // The confirmation link is mailed by a worker, not the request above; the
+  // token is read out of the recipient's own mailbox, exactly like an
+  // invite token — the backend never returns either in an API response.
+  const confirmToken = await inviteTokenFor(config, freshAdminEmail);
+  const confirmed = await prober.run({
+    id: 'auth.register-admin.verify.success', kind: 'success', method: 'POST',
+    template: '/auth/register-admin/verify', url: '/auth/register-admin/verify', expect: 201,
+    options: { body: { token: confirmToken } },
+    check: (r) => {
+      const body = r.body as Record<string, unknown> | null;
+      if (!isUuid(body?.organizationId)) return 'organizationId is not a UUID';
+      if (!isUuid(body?.userId)) return 'userId is not a UUID';
+      return null;
+    },
+  });
+  void confirmed;
+
+  /*
+    Every rejection this endpoint gives is the identical, generic
+    REGISTER_TOKEN_INVALID — proving that is the point, not distinguishing
+    "never existed" from "already used". An expired token is deliberately
+    not exercised here: it is already covered, fast and deterministically,
+    by RegistrationVerificationDeliveryIntegrationTest#expiredTokenIsRejected
+    against real PostgreSQL, which can move a row's expires_at directly
+    instead of a black-box suite waiting out a real 60-minute TTL.
+  */
+  await prober.run({
+    id: 'auth.register-admin.verify.unknown-token', kind: 'validation', method: 'POST',
+    template: '/auth/register-admin/verify', url: '/auth/register-admin/verify', expect: 400,
+    options: { body: { token: `qa-unknown-registration-token-${ctx.runId}` } },
+    check: (r) => {
+      const code = (r.body as { code?: unknown } | null)?.code;
+      return code === 'REGISTER_TOKEN_INVALID' ? null : `unexpected error code: ${String(code)}`;
+    },
+  });
+  await prober.run({
+    id: 'auth.register-admin.verify.reused-token', kind: 'validation', method: 'POST',
+    template: '/auth/register-admin/verify', url: '/auth/register-admin/verify', expect: 400,
+    // The same token the success probe above already redeemed.
+    options: { body: { token: confirmToken } },
+    check: (r) => {
+      const code = (r.body as { code?: unknown } | null)?.code;
+      return code === 'REGISTER_TOKEN_INVALID' ? null : `unexpected error code: ${String(code)}`;
+    },
+  });
 
   /*
     Registering an organization no longer mints an invitation, so this covers
