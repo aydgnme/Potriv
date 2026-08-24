@@ -18,12 +18,14 @@ function fixture(name: string): string {
 }
 
 function reportWithVulnerability(overrides: {
+  readonly cvssv4?: number;
   readonly cvssv3?: number;
   readonly cvssv2?: number;
   readonly noScore?: boolean;
   readonly nonNumericScore?: boolean;
 }): string {
   const vulnerability: Record<string, unknown> = { name: 'CVE-2099-MATRIX' };
+  if (overrides.cvssv4 !== undefined) vulnerability.cvssv4 = { baseScore: overrides.cvssv4 };
   if (overrides.cvssv3 !== undefined) vulnerability.cvssv3 = { baseScore: overrides.cvssv3 };
   if (overrides.cvssv2 !== undefined) vulnerability.cvssv2 = { score: overrides.cvssv2 };
   if (overrides.nonNumericScore) vulnerability.cvssv3 = { baseScore: 'critical' };
@@ -81,7 +83,7 @@ describe('a real-shaped report', () => {
     const result = validateReportContent(fixture('critical-cve-report.json'), MAX_CVSS);
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.reason).toBe('critical-findings');
+      expect(result.reason).toBe('threshold-exceeded');
       expect(result.findings).toEqual([
         expect.stringContaining('CVE-2099-00002'),
         expect.stringContaining('CVE-2099-00003'),
@@ -103,7 +105,9 @@ describe('a real-shaped report', () => {
  * above), because a 9.0 threshold let real HIGH-severity findings
  * (CVSS 7.0-8.9) through a gate meant to block them. Every point below is
  * checked against the actual production default, not a value chosen to make
- * the test convenient.
+ * the test convenient. The rejection reason is `threshold-exceeded`, not
+ * `critical-findings` — this gate fires at HIGH severity too, and the
+ * threshold itself is a configurable value, not a fixed CRITICAL-only cut.
  */
 describe(`CVSS threshold matrix at the production default (${DEFAULT_MAX_CVSS})`, () => {
   it.each([
@@ -115,23 +119,123 @@ describe(`CVSS threshold matrix at the production default (${DEFAULT_MAX_CVSS})`
   ])('a CVSS v3 score of %s is accepted=%s', (score, expectedOk) => {
     const result = validateReportContent(reportWithVulnerability({ cvssv3: score }), MAX_CVSS);
     expect(result.ok).toBe(expectedOk);
-    if (!expectedOk && !result.ok) expect(result.reason).toBe('critical-findings');
+    if (!expectedOk && !result.ok) expect(result.reason).toBe('threshold-exceeded');
   });
 
   it('a CVSS v2 HIGH score (7.5) fails', () => {
     const result = validateReportContent(reportWithVulnerability({ cvssv2: 7.5 }), MAX_CVSS);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('critical-findings');
+    if (!result.ok) expect(result.reason).toBe('threshold-exceeded');
   });
 
   it('a CVSS v3 HIGH score (7.8) fails', () => {
     const result = validateReportContent(reportWithVulnerability({ cvssv3: 7.8 }), MAX_CVSS);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe('critical-findings');
+    if (!result.ok) expect(result.reason).toBe('threshold-exceeded');
   });
 
   it('a CVSS v2 score just under the threshold (6.9) passes', () => {
     const result = validateReportContent(reportWithVulnerability({ cvssv2: 6.9 }), MAX_CVSS);
+    expect(result.ok).toBe(true);
+  });
+});
+
+/**
+ * ISSUE — the validator previously modeled only cvssv3/cvssv2 and had no
+ * concept of generation precedence. Real NVD data proved this matters: NVD
+ * re-scores CVEs under CVSS v4 as that generation matures, and the v4 score
+ * is the more accurate current assessment — not a number to be combined
+ * with (e.g. maxed against) the older v3/v2 score for the same CVE. Two
+ * real findings from this repository's own dependency tree drove the exact
+ * shape of these cases: PostgreSQL JDBC (v4 8.2 / v3 5.9 — v4 is the higher,
+ * newer number) and log4j-api (v4 6.9 / v3 7.5 — v4 is the LOWER, newer
+ * number, and must still win).
+ */
+describe('CVSS v4 score precedence (v4 > v3 > v2, latest generation authoritative)', () => {
+  it('1. a v4-only score >= 7.0 fails', () => {
+    const result = validateReportContent(reportWithVulnerability({ cvssv4: 8.1 }), MAX_CVSS);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('threshold-exceeded');
+  });
+
+  it('2. v4 high, v3 medium: fails on v4, not saved by the lower v3 number', () => {
+    const result = validateReportContent(
+      reportWithVulnerability({ cvssv4: 8.5, cvssv3: 4.0 }),
+      MAX_CVSS,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('threshold-exceeded');
+      expect(result.findings?.[0]).toContain('v4 score 8.5');
+    }
+  });
+
+  it('3. v4 medium, v3 high: uses v4 and does NOT classify as threshold-exceeding', () => {
+    const result = validateReportContent(
+      reportWithVulnerability({ cvssv4: 5.0, cvssv3: 8.5 }),
+      MAX_CVSS,
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('4. no v4, v3 high: falls back to v3 and fails', () => {
+    const result = validateReportContent(reportWithVulnerability({ cvssv3: 8.0 }), MAX_CVSS);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('threshold-exceeded');
+      expect(result.findings?.[0]).toContain('v3 score 8');
+    }
+  });
+
+  it('5a. a v4 baseScore that is present but not a number falls back to v3, then fails closed if that is also unusable', () => {
+    const report = JSON.stringify({
+      dependencies: [
+        {
+          fileName: 'malformed-v4-fixture.jar',
+          vulnerabilities: [{ name: 'CVE-2099-BADV4', cvssv4: { baseScore: 'high' } }],
+        },
+      ],
+    });
+    const result = validateReportContent(report, MAX_CVSS);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('unscored-findings');
+  });
+
+  it('5b. missing scores in every generation fails closed as unscored', () => {
+    const result = validateReportContent(reportWithVulnerability({ noScore: true }), MAX_CVSS);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe('unscored-findings');
+  });
+
+  /**
+   * The real PostgreSQL JDBC finding from this repository's dependency
+   * tree: CVE-2026-54291 carries CVSS v4 8.2 and v3 5.9. v4 is authoritative
+   * and 8.2 >= 7.0, so this must fail regardless of the lower v3 number.
+   */
+  it('6. PostgreSQL-shaped fixture (v4 8.2 / v3 5.9) fails on the v4 score', () => {
+    const result = validateReportContent(
+      reportWithVulnerability({ cvssv4: 8.2, cvssv3: 5.9 }),
+      MAX_CVSS,
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe('threshold-exceeded');
+      expect(result.findings?.[0]).toContain('v4 score 8.2');
+    }
+  });
+
+  /**
+   * The real log4j-api finding: CVE-2026-34479 carries CVSS v4 6.9 and v3
+   * 7.5. This is the case that proves the policy is "latest generation
+   * authoritative," not "maximum score": v4 (6.9) is lower than v3 (7.5)
+   * but must still be the one used, so this specific finding does not by
+   * itself cross the 7.0 threshold.
+   */
+  it('7. log4j-shaped fixture (v4 6.9 / v3 7.5) is treated according to v4, not the higher v3', () => {
+    const result = validateReportContent(
+      reportWithVulnerability({ cvssv4: 6.9, cvssv3: 7.5 }),
+      MAX_CVSS,
+    );
     expect(result.ok).toBe(true);
   });
 });
@@ -155,7 +259,7 @@ describe('a vulnerability whose severity cannot be read', () => {
     if (!result.ok) expect(result.reason).toBe('unscored-findings');
   });
 
-  it('a definite critical finding is still reported even alongside an unscored one', () => {
+  it('a definite threshold-exceeding finding is still reported even alongside an unscored one', () => {
     const report = JSON.stringify({
       dependencies: [
         {
@@ -169,8 +273,8 @@ describe('a vulnerability whose severity cannot be read', () => {
     });
     const result = validateReportContent(report, MAX_CVSS);
     expect(result.ok).toBe(false);
-    // The definite, scored critical finding takes priority in the reported reason.
-    if (!result.ok) expect(result.reason).toBe('critical-findings');
+    // The definite, scored finding takes priority in the reported reason.
+    if (!result.ok) expect(result.reason).toBe('threshold-exceeded');
   });
 });
 

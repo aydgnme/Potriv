@@ -12,6 +12,17 @@
  * cannot distinguish: no report at all, an empty one, one that is not valid
  * JSON, or one that lists a vulnerability whose severity could not even be
  * read.
+ *
+ * Score selection follows CVSS generation precedence, latest first: v4 when
+ * present and valid, else v3, else v2, else the finding fails closed as
+ * unscored. This is deliberately NOT "the maximum across all generations" —
+ * NVD re-scores a CVE under a newer generation because the newer generation
+ * is considered the more accurate assessment, so a v4 score supersedes an
+ * older v3/v2 score for that same CVE rather than being combined with it.
+ * A real case this matters for: CVE-2026-34479 (log4j-api) carries v4 6.9
+ * and v3 7.5 — under a "use the latest generation" policy this is 6.9 (not
+ * threshold-exceeding at 7.0); under a "use the max" policy it would wrongly
+ * stay flagged on the older, superseded number.
  */
 
 export type ReportRejectionReason =
@@ -20,7 +31,7 @@ export type ReportRejectionReason =
   | 'empty'
   | 'invalid-threshold'
   | 'unscored-findings'
-  | 'critical-findings';
+  | 'threshold-exceeded';
 
 export type ReportValidation =
   | { readonly ok: true; readonly dependencyCount: number }
@@ -33,6 +44,7 @@ export type ReportValidation =
 
 type DependencyCheckVulnerability = {
   readonly name?: string;
+  readonly cvssv4?: { readonly baseScore?: number };
   readonly cvssv3?: { readonly baseScore?: number };
   readonly cvssv2?: { readonly score?: number };
 };
@@ -48,6 +60,36 @@ type DependencyCheckReport = {
 
 /** CVSS has no score above 10 — a configured value outside (0, 10] cannot be a real threshold. */
 const MAX_POSSIBLE_CVSS = 10;
+
+type ScoreGeneration = 'v4' | 'v3' | 'v2';
+
+/**
+ * The authoritative score for one vulnerability entry: the newest CVSS
+ * generation that carries a valid (finite, 0-10) number, ignoring any older
+ * generation's score once a newer one is present — even if the newer one is
+ * lower. `undefined` means no generation on this entry parses as a usable
+ * score at all.
+ */
+function selectAuthoritativeScore(
+  vulnerability: DependencyCheckVulnerability,
+): { readonly score: number; readonly generation: ScoreGeneration } | undefined {
+  const candidates: ReadonlyArray<{ readonly score: unknown; readonly generation: ScoreGeneration }> = [
+    { score: vulnerability.cvssv4?.baseScore, generation: 'v4' },
+    { score: vulnerability.cvssv3?.baseScore, generation: 'v3' },
+    { score: vulnerability.cvssv2?.score, generation: 'v2' },
+  ];
+  for (const candidate of candidates) {
+    if (
+      typeof candidate.score === 'number'
+      && Number.isFinite(candidate.score)
+      && candidate.score >= 0
+      && candidate.score <= MAX_POSSIBLE_CVSS
+    ) {
+      return { score: candidate.score, generation: candidate.generation };
+    }
+  }
+  return undefined;
+}
 
 export function validateReportContent(
   rawContent: string | undefined,
@@ -96,25 +138,23 @@ export function validateReportContent(
   const unscored: string[] = [];
   for (const dependency of dependencies) {
     for (const vulnerability of dependency.vulnerabilities ?? []) {
-      const v3 = vulnerability.cvssv3?.baseScore;
-      const v2 = vulnerability.cvssv2?.score;
-      const score = typeof v3 === 'number' ? v3 : typeof v2 === 'number' ? v2 : undefined;
+      const selected = selectAuthoritativeScore(vulnerability);
 
-      if (score === undefined) {
+      if (selected === undefined) {
         // A vulnerability entry that exists but carries no parseable score
-        // is not evidence of safety — it is evidence the report could not
-        // be fully checked. Treated as a fail-closed finding of its own
-        // rather than silently skipped as "not a match."
+        // in any CVSS generation is not evidence of safety — it is evidence
+        // the report could not be fully checked. Treated as a fail-closed
+        // finding of its own rather than silently skipped as "not a match."
         unscored.push(
           `${vulnerability.name ?? 'unknown-cve'} in `
-            + `${dependency.fileName ?? 'unknown-dependency'} has no parseable CVSS v2 or v3 score`,
+            + `${dependency.fileName ?? 'unknown-dependency'} has no parseable CVSS v4, v3, or v2 score`,
         );
         continue;
       }
 
-      if (score >= maxCvss) {
+      if (selected.score >= maxCvss) {
         findings.push(
-          `${vulnerability.name ?? 'unknown-cve'} (score ${score}) in `
+          `${vulnerability.name ?? 'unknown-cve'} (${selected.generation} score ${selected.score}) in `
             + `${dependency.fileName ?? 'unknown-dependency'}`,
         );
       }
@@ -124,8 +164,8 @@ export function validateReportContent(
   if (findings.length > 0) {
     return {
       ok: false,
-      reason: 'critical-findings',
-      detail: `${findings.length} finding(s) at or above CVSS ${maxCvss}.`,
+      reason: 'threshold-exceeded',
+      detail: `${findings.length} finding(s) at or above CVSS ${maxCvss} (latest available generation).`,
       findings,
     };
   }

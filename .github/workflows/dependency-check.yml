@@ -186,7 +186,19 @@ jobs:
       # goal above — carry no finding at or above the same CVSS threshold.
       # This is what a plugin update, a changed default, or an environment
       # quirk exiting 0 without a real scan cannot slip past.
+      #
+      # if: always() so this also runs when the Maven goal above already
+      # failed (-DfailBuildOnCVSS) rather than being skipped: the JSON
+      # report is written before Maven evaluates the threshold, so it still
+      # exists, and re-checking it here surfaces the same findings through
+      # this tool's own diagnostics (CVE, generation, score, dependency)
+      # instead of only Maven's console output. This cannot turn a failed
+      # scan into a green job: the job's conclusion is already "failure"
+      # from the step above the moment it exits non-zero, and this step's
+      # own exit code independently agrees in every real case, since it
+      # reads the same report against the same threshold.
       - name: Validate the Dependency-Check report
+        if: always()
         working-directory: tools/dependency-scan
         run: >
           npx tsx src/cli.ts validate-report
