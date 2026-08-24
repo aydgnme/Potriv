@@ -466,10 +466,38 @@ this repository's commits**:
   `EMPLOYEE_INVITE_ROTATED`. *Storing the token raw is accepted for now;* hashing
   it, with lookup by hash, remains a cheap hardening step whenever invite handling
   is next touched.
-- **No rate limiting** beyond the login lockout. A reverse proxy or gateway
-  should provide it before public exposure.
 - **No TLS in the compose stack**; it publishes plain HTTP on 8080 for local
   smoke testing and expects TLS termination in front of it.
+- **Rate limiting is PostgreSQL-backed, not a dedicated store.** `invite`,
+  `register-admin`, `password-reset/request` and `login` are all rate-limited
+  (`RateLimitService`, `V10__rate_limiting.sql`) with atomic, cross-instance
+  quotas — safe on Azure's multi-instance deployment — but every check is a
+  write to the primary database rather than to Redis or an equivalent. Under
+  exactly the traffic a limiter exists to absorb (bursts, retries, abuse) this
+  adds load to the same datastore every other request already depends on. A
+  dedicated in-memory store remains the better long-term choice; `RETENTION`
+  in `RateLimitCleanupJob` and the narrow, indexed shape of
+  `rate_limit_windows`/`rate_limit_cooldowns` keep the interim cost bounded,
+  not eliminated.
+- **The URL fragment survives in `performance.getEntriesByType('navigation')`
+  after `history.replaceState`.** `/invite` and `/reset-password` clear the
+  address bar and every application-level record of the credential on mount
+  (`scrubLocation`, `credentialUrl.ts`) — but a browser's own Navigation Timing
+  entry for the initial load is written once, when the page is requested, and
+  `replaceState` rewrites session-history entries, not that record. A script
+  running on the page, or a devtools/extension inspection of that page, can
+  therefore still read the original `#token=…` back out of
+  `performance.getEntriesByType('navigation')[0].name` for as long as the page
+  remains open. This is normal, documented browser behaviour, not a bug in
+  this application, and no code or comment here should claim the token is
+  "completely removed" — only that it is removed from the address bar, from
+  session history, and from every place this application's own code writes it.
+  Closing it fully would mean not carrying the credential in the URL at all:
+  trading the fragment for a short-lived, HttpOnly, Secure, SameSite=Strict,
+  path-scoped capability-exchange cookie set by a hard navigation, with the
+  token never appearing in a URL a browser records anywhere. That is a
+  larger, separate change and is intentionally not part of this hardening
+  pass.
 
 ## 9. Known non-acceptable findings
 

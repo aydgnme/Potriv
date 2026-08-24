@@ -61,15 +61,76 @@ describe("which routes the proxy guards", () => {
   );
 
   it.each([
-    ["/login", "guarding it would lock out the people who need it"],
-    ["/forgot-password", "same"],
-    ["/reset-password", "same"],
     ["/console", "a developer tool with its own token, and dev-only in the build"],
     ["/api/auth/refresh", "the recovery path itself — guarding it would loop"],
     ["/api/auth/login", "same"],
     ["/", "the entry redirector"],
   ])("leaves %s alone — %s", (path) => {
     expect(matches(path)).toBe(false);
+  });
+
+  /*
+    The credential-bearing pages are matched now, and it is worth being precise
+    about what changed and what did not.
+
+    They were outside the matcher because the proxy's only job was the
+    session-recovery redirect, and redirecting somebody away from `/login`
+    locks out exactly the person who needs it. The proxy has a second job now —
+    putting a strict Content-Security-Policy on the pages that hold a token or
+    a password — and that job has to run on those pages, so they are in the
+    matcher.
+
+    The old guarantee is unchanged and is asserted below as behaviour rather
+    than as routing: these paths are never redirected, whatever cookies the
+    request carries. That is the assertion that actually protects the user; the
+    matcher entry never was.
+  */
+  it.each(["/login", "/forgot-password", "/reset-password", "/invite", "/create-workspace"])(
+    "runs on %s for the CSP, and never redirects it",
+    (path) => {
+      expect(matches(path)).toBe(true);
+
+      const jars: Record<string, string>[] = [{}, { [REFRESH]: "stale" }, { [ACCESS]: "any" }];
+      for (const cookies of jars) {
+        const response = proxy(request(path, cookies));
+        expect(response.status).toBe(200);
+        expect(response.headers.get("location")).toBeNull();
+      }
+    },
+  );
+
+  it("serves the credential-bearing pages under a nonce policy", () => {
+    const policy = proxy(request("/invite")).headers.get("content-security-policy");
+
+    expect(policy).toContain("script-src 'self' 'nonce-");
+    expect(policy).toContain("object-src 'none'");
+    expect(policy).toContain("frame-ancestors 'none'");
+  });
+
+  it("gives every request its own nonce", () => {
+    // A reused nonce is an allow-list entry an injected script can copy.
+    const first = proxy(request("/login")).headers.get("content-security-policy");
+    const second = proxy(request("/login")).headers.get("content-security-policy");
+
+    expect(first).not.toBe(second);
+  });
+
+  it("puts the policy on the request too, so Next can nonce its own scripts", () => {
+    /* Next discovers the nonce by reading `Content-Security-Policy` off the
+       incoming request. A response-only header enforces a policy against a page
+       that cannot then hydrate. */
+    const response = proxy(request("/reset-password"));
+    const forwarded = response.headers.get("x-middleware-override-headers") ?? "";
+
+    expect(forwarded).toContain("x-nonce");
+    expect(forwarded).toContain("content-security-policy");
+  });
+
+  it("puts no policy on an ordinary product route", () => {
+    // The strict policy is scoped on purpose; the product is not force-dynamic.
+    const response = proxy(request("/projects", { [ACCESS]: "any" }));
+
+    expect(response.headers.get("content-security-policy")).toBeNull();
   });
 
   it("does not guard a path that merely starts with a domain's name", () => {
