@@ -6,9 +6,17 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -45,10 +56,83 @@ class RegistrationVerificationDeliveryIntegrationTest extends AbstractMockMvcInt
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private PlatformTransactionManager transactionManager;
+
     @AfterEach
     void restoreMailServer() {
         recordingMailSender.setFailing(false);
         recordingMailSender.clear();
+    }
+
+    /**
+     * Runs one guarded repository write in its own committed transaction —
+     * exactly the shape {@code RegistrationVerificationDeliveryWorker} itself
+     * uses for every step of an attempt. See {@code
+     * InviteDeliveryResilienceIntegrationTest#inTx}: the {@code @Modifying}
+     * methods on {@link RegistrationVerificationRepository} require an active
+     * transaction, and a test simulating "a second worker" is calling them
+     * directly, with nothing else supplying one.
+     */
+    private <T> T inTx(Supplier<T> action) {
+        TransactionTemplate template = new TransactionTemplate(transactionManager);
+        template.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return template.execute(status -> action.get());
+    }
+
+    // ---- concurrency: the claim itself ----
+
+    /**
+     * The same property {@code InviteDeliveryResilienceIntegrationTest
+     * #concurrentClaimsAtTheRepositoryLevelHaveExactlyOneWinner} proves for
+     * invites, for the identical reason: {@code claimDelivery} is the
+     * conditional UPDATE every worker attempt depends on to be the only one
+     * that can win a given row, and PostgreSQL — not any one thread — is what
+     * decides. A {@link CountDownLatch} releases every contender at the same
+     * instant rather than sleeping through any window, so this is
+     * deterministic: contenders that never overlapped in practice would not
+     * prove anything either way.
+     */
+    @Test
+    @DisplayName("of many concurrent delivery-claim attempts on one row, exactly one wins")
+    void concurrentClaimsAtTheRepositoryLevelHaveExactlyOneWinner() throws Exception {
+        String email = uniqueEmail("founder");
+        requestRegistration(email, uniqueName("Org"));
+        UUID verificationId = latestFor(email).getId();
+
+        int contenders = 12;
+        ExecutorService pool = Executors.newFixedThreadPool(contenders);
+        CountDownLatch startTogether = new CountDownLatch(1);
+        List<UUID> attemptIds = new ArrayList<>();
+        for (int i = 0; i < contenders; i++) {
+            attemptIds.add(UUID.randomUUID());
+        }
+
+        List<Future<Integer>> claims = new ArrayList<>();
+        try {
+            for (UUID attemptId : attemptIds) {
+                claims.add(pool.submit(() -> {
+                    startTogether.await();
+                    OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+                    return inTx(() -> registrationVerificationRepository.claimDelivery(
+                        verificationId, now, now.plusMinutes(5), attemptId));
+                }));
+            }
+            startTogether.countDown();
+
+            int wins = 0;
+            for (Future<Integer> claim : claims) {
+                wins += claim.get(30, TimeUnit.SECONDS);
+            }
+            assertThat(wins).as("exactly one conditional UPDATE may succeed").isEqualTo(1);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        RegistrationVerification claimed = latestFor(email);
+        assertThat(claimed.getDeliveryStatus())
+            .isEqualTo(RegistrationVerification.DeliveryStatus.DELIVERING);
+        assertThat(attemptIds).contains(claimed.getLeaseOwner());
     }
 
     // ---- the honest answer ----

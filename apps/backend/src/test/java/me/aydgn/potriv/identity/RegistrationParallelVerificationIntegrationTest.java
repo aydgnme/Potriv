@@ -19,6 +19,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
@@ -46,6 +47,9 @@ class RegistrationParallelVerificationIntegrationTest extends AbstractMockMvcInt
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @AfterEach
     void restoreMailServer() {
@@ -132,6 +136,101 @@ class RegistrationParallelVerificationIntegrationTest extends AbstractMockMvcInt
             .isEqualTo(1);
         assertThat(rejected).isEqualTo(1);
         assertThat(userRepository.findByEmail(email)).isPresent();
+    }
+
+    /**
+     * The race {@code RegistrationVerificationRepository#claim} itself
+     * exists to close: two callers presenting the identical token at once
+     * must not both redeem it. Unlike the two-different-tokens test above,
+     * there is only one row and one mailed token here — the whole contest is
+     * the conditional {@code UPDATE ... WHERE usedAt IS NULL} in {@code
+     * claim}, with PostgreSQL, not any one thread, deciding the winner. A
+     * {@link CyclicBarrier} releases every contender at the same instant
+     * rather than sleeping through a window.
+     */
+    @Test
+    @DisplayName("racing the identical token lets exactly one confirmation through, cleanly")
+    void racingTheIdenticalTokenLetsExactlyOneThrough() throws Exception {
+        String email = uniqueEmail("samerace");
+        register(email, uniqueName("Org"));
+        registrationVerificationDeliveryWorker.runOnce();
+        String token = inviteTokenFromMailTo(email);
+
+        int contenders = 10;
+        ExecutorService pool = Executors.newFixedThreadPool(contenders);
+        CyclicBarrier startTogether = new CyclicBarrier(contenders);
+        List<Callable<Integer>> attempts = new ArrayList<>();
+        for (int i = 0; i < contenders; i++) {
+            attempts.add(() -> {
+                startTogether.await(10, TimeUnit.SECONDS);
+                return confirmStatus(token);
+            });
+        }
+
+        List<Future<Integer>> outcomes;
+        try {
+            outcomes = pool.invokeAll(attempts, 30, TimeUnit.SECONDS);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        int succeeded = 0;
+        int rejected = 0;
+        for (Future<Integer> outcome : outcomes) {
+            int status = outcome.get();
+            if (status == 201) {
+                succeeded++;
+            } else if (status == 400) {
+                // Every loser gets the identical clean rejection, never a 500
+                // — confirmRegistration's claim()-returns-zero-rows path,
+                // not an uncaught exception.
+                rejected++;
+            } else {
+                throw new AssertionError("Unexpected confirm status: " + status);
+            }
+        }
+
+        assertThat(succeeded)
+            .as("the claim()'s conditional UPDATE (usedAt IS NULL) allows exactly one winner")
+            .isEqualTo(1);
+        assertThat(rejected).isEqualTo(contenders - 1);
+
+        // Exactly one organization and one admin user exist for this address
+        // — not zero, not more than one — whatever order the contenders
+        // actually ran in.
+        assertThat(userRepository.findByEmail(email)).isPresent();
+        Integer userCount = jdbcTemplate.queryForObject(
+            "select count(*) from users where email = ?", Integer.class, email);
+        assertThat(userCount).isEqualTo(1);
+        Integer orgCount = jdbcTemplate.queryForObject(
+            "select count(*) from organizations o "
+                + "join users u on u.organization_id = o.id where u.email = ?",
+            Integer.class, email);
+        assertThat(orgCount).isEqualTo(1);
+
+        // Exactly one mail was ever sent for this address — confirmation
+        // contention is invisible to delivery, which already happened once,
+        // before any of this race began.
+        assertThat(mailsTo(email)).isEqualTo(1);
+
+        // The token is not reusable after the race has settled: a later,
+        // sequential attempt with the identical value still gets the same
+        // clean rejection, not a second success.
+        assertThat(confirmStatus(token)).isEqualTo(400);
+        assertThat(userCountFor(email)).isEqualTo(1);
+    }
+
+    private long mailsTo(String email) {
+        return recordingMailSender.getSentMessages().stream()
+            .filter(message -> message.getTo() != null
+                && java.util.List.of(message.getTo()).contains(email))
+            .count();
+    }
+
+    private int userCountFor(String email) {
+        Integer count = jdbcTemplate.queryForObject(
+            "select count(*) from users where email = ?", Integer.class, email);
+        return count == null ? 0 : count;
     }
 
     private void register(String email, String organizationName) throws Exception {
