@@ -61,6 +61,7 @@ public class SecurityConfig {
                     "/v3/api-docs/**"
                 ).permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/register-admin").permitAll()
+                .requestMatchers(HttpMethod.POST, "/auth/register-admin/verify").permitAll()
                 // Exact, not "/**". The wildcard existed only to admit the token that
                 // used to sit in the path; with the route fixed there is nothing
                 // below it to match, and a trailing wildcard on a public matcher is

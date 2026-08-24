@@ -140,8 +140,7 @@ class RateLimitIntegrationTest extends AbstractMockMvcIntegrationTest {
 
     /** Registers an administrator and signs them in, both on a fresh synthetic IP. */
     private String setupAdminAndLogin(String orgNamePrefix, String email) throws Exception {
-        registerAdminRaw(uniqueName(orgNamePrefix), email, freshSetupIp())
-            .andExpect(status().isCreated());
+        setupAdmin(orgNamePrefix, email);
         String loginBody = mockMvc.perform(post("/auth/login")
                 .with(fromIp(freshSetupIp()))
                 .contentType(MediaType.APPLICATION_JSON)
@@ -152,10 +151,30 @@ class RateLimitIntegrationTest extends AbstractMockMvcIntegrationTest {
         return objectMapper.readTree(loginBody).get("accessToken").asText();
     }
 
-    /** Registers an administrator on a fresh synthetic IP; does not sign in. */
+    /**
+     * Registers and confirms an administrator on a fresh synthetic IP; does
+     * not sign in.
+     *
+     * Registration is request-then-confirm now (see {@code
+     * AuthRegistrationService}), so this drives the same three steps {@code
+     * AbstractMockMvcIntegrationTest#registerAdmin} does rather than calling
+     * it directly: that helper's own rate-limit exposure is on the shared
+     * default IP, which would collide with the very quotas this test class
+     * exists to probe.
+     */
     private void setupAdmin(String orgNamePrefix, String email) throws Exception {
         registerAdminRaw(uniqueName(orgNamePrefix), email, freshSetupIp())
+            .andExpect(status().isAccepted());
+
+        registrationVerificationDeliveryWorker.runOnce();
+        String token = inviteTokenFromMailTo(email);
+
+        mockMvc.perform(post("/auth/register-admin/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of("token", token))))
             .andExpect(status().isCreated());
+
+        recordingMailSender.clear();
     }
 
     // ---- invite: burst on one org/actor ----
@@ -359,7 +378,7 @@ class RateLimitIntegrationTest extends AbstractMockMvcIntegrationTest {
 
         for (int i = 0; i < 2; i++) {
             registerAdminRaw(uniqueName("WorkspaceOrg"), uniqueEmail("workspace-ok-" + i), ip)
-                .andExpect(status().isCreated());
+                .andExpect(status().isAccepted());
         }
 
         registerAdminRaw(uniqueName("WorkspaceOrg"), uniqueEmail("workspace-blocked"), ip)

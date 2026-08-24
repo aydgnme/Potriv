@@ -52,6 +52,34 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
     @org.springframework.beans.factory.annotation.Autowired
     protected me.aydgn.potriv.identity.service.InviteDeliveryWorker inviteDeliveryWorker;
 
+    /**
+     * Registration-verification mail is delivered by a worker too, not by the
+     * request that creates the intention to register. See
+     * {@link #inviteDeliveryWorker}: same reason, same "drive one pass
+     * explicitly" approach.
+     */
+    @org.springframework.beans.factory.annotation.Autowired
+    protected me.aydgn.potriv.identity.service.RegistrationVerificationDeliveryWorker
+        registrationVerificationDeliveryWorker;
+
+    /**
+     * Registers and confirms a workspace admin, end to end, and returns the
+     * confirmation response — {@code {organizationId, userId}} — exactly as
+     * before this helper existed across two requests instead of one.
+     *
+     * Registration is request-then-confirm now: the request only queues an
+     * intention, a worker mails a confirmation link, and only confirming it
+     * creates the organization and the account. This helper drives all three
+     * steps so every one of its many callers, most of which only want a
+     * ready admin and organization to exist, needs no changes for that.
+     *
+     * Leaves {@link #recordingMailSender} cleared afterward. Almost nothing
+     * that calls this helper is testing registration mail itself — assertions
+     * further down a test are about mail their own actions send, and would
+     * otherwise have to filter out this setup step's message by hand. A test
+     * that does need to inspect the registration mail itself should drive
+     * {@code POST /auth/register-admin} directly instead of through here.
+     */
     protected JsonNode registerAdmin(String organizationName, String email, String password)
         throws Exception {
 
@@ -63,13 +91,24 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
             "headquarterAddress", "Test Address 1"
         ));
 
-        String response = mockMvc
+        mockMvc
             .perform(post("/auth/register-admin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
+            .andExpect(status().isAccepted());
+
+        registrationVerificationDeliveryWorker.runOnce();
+        String token = inviteTokenFromMailTo(email);
+
+        String confirmBody = objectMapper.writeValueAsString(Map.of("token", token));
+        String response = mockMvc
+            .perform(post("/auth/register-admin/verify")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(confirmBody))
             .andExpect(status().isCreated())
             .andReturn().getResponse().getContentAsString();
 
+        recordingMailSender.clear();
         return objectMapper.readTree(response);
     }
 
@@ -143,7 +182,9 @@ public abstract class AbstractMockMvcIntegrationTest extends AbstractIntegration
     }
 
     /**
-     * The raw invite token, taken from the message actually sent to it.
+     * The raw token, taken from the message actually sent to it — an invite,
+     * a registration-verification link, or anything else whose mail carries
+     * one the same {@code token=…} way; the name predates the second use.
      *
      * The comparison is case-insensitive because the backend normalises the
      * address before it stores or mails anything, so a caller that invited

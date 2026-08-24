@@ -23,6 +23,7 @@ import me.aydgn.potriv.identity.dto.MessageResponse;
 import me.aydgn.potriv.identity.dto.PasswordResetConfirmRequest;
 import me.aydgn.potriv.identity.dto.PasswordResetRequest;
 import me.aydgn.potriv.identity.dto.RefreshRequest;
+import me.aydgn.potriv.identity.dto.RegisterAdminConfirmRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminResponse;
 import me.aydgn.potriv.identity.dto.RegisterEmployeeRequest;
@@ -54,14 +55,41 @@ public class AuthController {
         this.clientIpResolver = clientIpResolver;
     }
 
+    /**
+     * Requests a new workspace. Always {@code 202}, with an identical body,
+     * whether or not the address already has an account — see {@link
+     * me.aydgn.potriv.identity.service.AuthRegistrationService
+     * #registerOrganizationAdmin} for why nothing here can differ between the
+     * two. Nothing is created yet; a confirmation link is mailed separately,
+     * and {@link #confirmOrganizationAdminRegistration} is what actually
+     * creates the workspace.
+     */
     @PostMapping("/register-admin")
-    @ResponseStatus(HttpStatus.CREATED)
-    public RegisterAdminResponse registerOrganizationAdmin(
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public MessageResponse registerOrganizationAdmin(
         @Valid @RequestBody RegisterAdminRequest request,
         HttpServletRequest httpRequest
     ) {
-        return authRegistrationService.registerOrganizationAdmin(
+        authRegistrationService.registerOrganizationAdmin(
             request, clientIpResolver.resolve(httpRequest));
+
+        return new MessageResponse(
+            "If this email address can be used to create a workspace, "
+                + "a confirmation link has been sent to it."
+        );
+    }
+
+    /**
+     * Confirms a workspace registration. The route is fixed and carries no
+     * token, for the same reason {@link #registerEmployee}'s is — see that
+     * method's javadoc.
+     */
+    @PostMapping("/register-admin/verify")
+    @ResponseStatus(HttpStatus.CREATED)
+    public RegisterAdminResponse confirmOrganizationAdminRegistration(
+        @Valid @RequestBody RegisterAdminConfirmRequest request
+    ) {
+        return authRegistrationService.confirmRegistration(request);
     }
 
     /**

@@ -56,7 +56,7 @@ class ProductionSchemaMigrationIntegrationTest {
         "projects", "project_allocations", "project_assignment_proposals",
         "project_assignment_proposal_roles", "project_deallocation_proposals",
         "project_status_history", "project_team_role_requirements", "project_technologies",
-        "rate_limit_windows", "rate_limit_cooldowns",
+        "rate_limit_windows", "rate_limit_cooldowns", "registration_verifications",
         "refresh_tokens", "security_audit_events", "skills", "skill_categories",
         "skill_department_links", "team_roles", "users", "user_roles", "user_sessions");
 

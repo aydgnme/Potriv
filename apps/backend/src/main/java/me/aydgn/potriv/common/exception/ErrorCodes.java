@@ -33,6 +33,18 @@ public final class ErrorCodes {
      */
     public static final String RESET_TOKEN_INVALID = "RESET_TOKEN_INVALID";
 
+    /**
+     * Every way a workspace-registration verification token can fail to
+     * redeem: unknown, expired, already used, or the address it was issued
+     * to is now registered by some other means.
+     *
+     * Same reasoning as {@link #RESET_TOKEN_INVALID}: one code for all of
+     * them, because distinguishing "never existed" from "somebody else beat
+     * you to it" would hand back an oracle for exactly the enumeration this
+     * flow exists to close.
+     */
+    public static final String REGISTER_TOKEN_INVALID = "REGISTER_TOKEN_INVALID";
+
     /** A rate limit was exceeded. The response's {@code Retry-After} header says how long to wait. */
     public static final String RATE_LIMITED = "RATE_LIMITED";
 

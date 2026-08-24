@@ -13,7 +13,15 @@ public record AuthProperties(
      * reach someone across a weekend and short enough that a link found later
      * in a mailbox or a proxy log is already dead.
      */
-    long inviteTokenHours
+    long inviteTokenHours,
+
+    /**
+     * How long a registration-verification link stays redeemable.
+     * Configurable for the same reason {@link #inviteTokenHours} is; 60
+     * minutes by default — long enough to check an inbox, short enough that a
+     * link found later in a mailbox or a proxy log is already dead.
+     */
+    long registrationVerificationMinutes
 ) {
 
     public AuthProperties {
@@ -38,6 +46,12 @@ public record AuthProperties(
             throw new IllegalStateException(
                 "app.auth.invite-token-hours must be positive: an invite that "
                     + "never lapses is a permanent credential."
+            );
+        }
+        if (registrationVerificationMinutes <= 0) {
+            throw new IllegalStateException(
+                "app.auth.registration-verification-minutes must be positive: a "
+                    + "verification link that never lapses is a permanent credential."
             );
         }
     }
