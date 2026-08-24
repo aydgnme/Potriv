@@ -44,7 +44,7 @@ Two security workflows run alongside it:
 | Workflow | Trigger | Notes |
 | --- | --- | --- |
 | `codeql.yml` ("CodeQL") | PR → `main`, push → `main`, weekly, dispatch | SAST over the backend, `java-kotlin`, manual Maven build. |
-| `dependency-check.yml` ("Dependency Check") | weekly, dispatch — **not** on PRs | Known-CVE scan. **Requires the `NVD_API_KEY` secret**; without it the job warns and exits without scanning, so a green run alone does not prove the dependencies were checked. |
+| `dependency-check.yml` ("Dependency Check") | weekly, dispatch — **not** on PRs | Known-CVE scan. **Requires the `NVD_API_KEY` secret**; the job fails closed without it (or on an NVD outage, or a finding at or above CVSS 7.0), so a green run is real evidence the dependencies were checked, not just that the job happened to run. |
 
 Secret scanning is handled by the connected **GitGuardian** app on pull
 requests. SonarCloud is **not** active. Full detail, including accepted
@@ -53,8 +53,9 @@ limitations and what is still only a repository setting, lives in
 
 **Repository settings still to apply manually** (none are configured by code):
 require the `Backend CI / backend-verify` status check on `main` through branch
-protection — and the CodeQL check once it is stably green; add the `NVD_API_KEY`
-secret; enable GitHub secret scanning push protection. Backend CI has no
+protection — and the CodeQL check once it is stably green; enable GitHub secret
+scanning push protection. (`NVD_API_KEY` has since been added as a repository
+secret.) Backend CI has no
 `paths:` filter for exactly this reason — a path-filtered workflow never reports
 a status on PRs that miss the filter, which would block those PRs forever once
 the check is required.

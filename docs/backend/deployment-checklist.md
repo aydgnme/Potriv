@@ -11,9 +11,10 @@ Run through this list for every production deployment of `apps/backend`.
       `cd apps/backend && ./mvnw clean verify` (full suite, `BUILD SUCCESS`).
 - [ ] **CodeQL** reported no new alerts on the release commit
       (Security → Code scanning).
-- [ ] The most recent **Dependency Check** run actually scanned — it is weekly
-      and skips with a warning unless the `NVD_API_KEY` secret is set. Review the
-      uploaded report artifact for critical CVEs. See
+- [ ] The most recent **Dependency Check** run passed — it is weekly and
+      dispatch-only, and fails closed (not a silent skip) if `NVD_API_KEY` is
+      missing, NVD is unreachable, or any finding is at or above CVSS 7.0.
+      Review the uploaded report artifact regardless. See
       [`security-baseline.md`](security-baseline.md).
 - [ ] Flyway migrations under `src/main/resources/db/migration` cover every
       schema change since the last release (production runs

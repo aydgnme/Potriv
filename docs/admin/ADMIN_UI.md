@@ -798,8 +798,9 @@ Truthful as of the console-finalization PR.
 - **CodeQL has 8 open alerts** (3 high, 5 note), all pre-existing and triaged in
   `security-baseline.md` §2/§7. None were introduced or suppressed by this work.
 - **Dependency-Check runs on a weekly schedule and on manual dispatch only** — it
-  does not run on pull requests, and it skips itself with a warning when
-  `NVD_API_KEY` is absent rather than starting an unauthenticated multi-hour sync.
+  does not run on pull requests, and it fails closed (not a silent skip) when
+  `NVD_API_KEY` is absent, when NVD itself is unreachable, or when a finding at
+  or above CVSS 7.0 is found.
 - A **malformed `page`, `size`, filter value or path id** is normalized or
   answered with the admin 404; encoded spaces, semicolons and path traversal are
   refused with a `400` by Spring Security's firewall before routing.

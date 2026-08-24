@@ -182,16 +182,21 @@ Direct dependencies and the transitive components that historically carry CVEs:
 | --- | --- |
 | Spring Boot (parent) | 3.5.16 |
 | Spring Security | 6.5.11 |
-| Tomcat embed (core/el/websocket) | 10.1.55 |
+| Tomcat embed (core/el/websocket) | 10.1.57 (bumped from 10.1.55 — CVE-2026-53434/55276/59083/59084) |
 | Jackson Databind | 2.21.4 |
 | Logback (classic/core) | 1.5.34 |
 | SnakeYAML | 2.4 |
 | Flyway (core + postgresql) | 11.7.2 |
-| PostgreSQL JDBC | 42.7.11 |
-| springdoc-openapi | 2.8.16 |
+| PostgreSQL JDBC | 42.7.13 (bumped from 42.7.11 — CVE-2026-54291) |
+| log4j-api (via spring-boot-starter-logging) | 2.25.4 (bumped from 2.24.3 — CVE-2026-34479) |
+| springdoc-openapi | 2.9.0, **-api not -ui** (dropped the interactive Swagger UI and its bundled DOMPurify — see §5) |
 | jjwt (api/impl/jackson) | 0.12.6 |
 | commons-lang3 | 3.17.0 |
 | Lombok | 1.18.46 (optional, compile-time) |
+
+(Versions above resolved via `dependency:tree` after the dependency-scan
+hardening described in §3 — not from the original point-in-time audit that
+produced the rest of this table.)
 
 Every one of these is a current release line, and the components behind the
 best-known recent JVM advisories (Logback, SnakeYAML, Jackson, Tomcat) are all
@@ -211,15 +216,54 @@ that the update *"can take a VERY long time"*. Measured rate on this machine:
 ```
 
 Extrapolating, a first full sync would take roughly **2.5 hours**, so the scan
-was stopped and the documented `dependency:tree` fallback used instead. **This
-means no CVE database has actually been consulted for this baseline** — the
-assessment above is version-inspection only, and that gap is exactly what the CI
-job below must close.
+was stopped at the time and the documented `dependency:tree` fallback used
+instead. That gap has since been closed: `dependency-check.yml` now runs for
+real on a schedule (and manually, on demand), and the current fail-closed
+policy — not the "warns and skips" behaviour described in earlier drafts of
+this document — is:
 
-**Required in CI:** run Dependency-Check as its own **scheduled** job (not on
-every PR) with an `NVD_API_KEY` repository secret and a cached NVD data
-directory, so the first sync is paid once. Do **not** add blanket suppressions; a
-suppression needs a written, per-CVE justification.
+- **Missing or blank `NVD_API_KEY`** → the workflow's own preflight step
+  (`tools/dependency-scan/src/preflight.ts`) fails the job immediately, before
+  the Maven goal ever runs. It does not warn and continue.
+- **NVD unreachable, or NVD itself erroring** (network error, timeout, 401,
+  403, repeated 5xx) → classified by that same preflight step into a named
+  reason and fails the job. Retries apply only to the transient cases (5xx,
+  timeout, network error), never to 401/403.
+- **A finding at or above CVSS 7.0** (the latest available generation — v4,
+  else v3, else v2; see below) → fails the job, both via the Maven goal's own
+  `-DfailBuildOnCVSS` and independently via
+  `tools/dependency-scan/src/reportValidator.ts`, which re-parses the JSON
+  report itself rather than trusting the Maven goal's exit code alone.
+- **A vulnerability whose CVSS score cannot be parsed in any generation**
+  fails the job as an explicit `unscored-findings` result — an unreadable
+  score is never treated as an implicit pass; it means the report could not
+  be fully checked and needs a person to triage it.
+- **A cache hit whose freshness record is missing, corrupt, or older than 10
+  days** fails the job (`tools/dependency-scan/src/freshness.ts`), decided
+  from what the cache directory actually contains rather than trusting
+  `actions/cache`'s own `cache-hit` output (which is `true` only on an exact
+  key match — this workflow's key includes `github.run_id`, so a real
+  `restore-keys` hit always reports `cache-hit: false` and would otherwise
+  skip the freshness check entirely).
+- **CVSS generation precedence**: a CVE re-scored by NVD under CVSS v4 is
+  checked against that v4 score, not the older v3/v2 score for the same CVE,
+  and never against the maximum across generations. A real case that drove
+  this: `postgresql` JDBC's CVE-2026-54291 is v4 8.2 / v3 5.9 (v4 must fail
+  it); `log4j-api`'s CVE-2026-34479 is v4 6.9 / v3 7.5 (v4 must NOT fail it,
+  even though the older v3 number is higher).
+
+**Required in CI (now implemented):** Dependency-Check runs as its own
+**scheduled** job (not on every PR) with an `NVD_API_KEY` repository secret and
+a cached NVD data directory, so the first sync is paid once. Suppressions are
+never blanket: `apps/backend/dependency-check-suppressions.xml` requires every
+entry to name exactly one literal CVE (never a regex or CVE family), be scoped
+to one package pinned to one exact version (never a bare CPE, vendor, or
+package family), carry a written applicability justification, a named owner,
+and an `until` expiry date — enforced by
+`tools/dependency-scan/src/suppressionPolicy.ts`, which fails the job if any of
+that drifts. The NVD API key itself is passed only via an HTTP header inside
+`preflight.ts` / the Maven goal's own argument; it is never echoed to a log
+line, written into the JSON/HTML report, or included in the uploaded artifact.
 
 ---
 
@@ -326,7 +370,7 @@ secret scanning (§7) is the control that prevents a repeat.
 | Backend runtime is non-root? | **Yes** — multi-stage build; the JRE 21 runtime layer runs as `USER potriv`. |
 | Secrets baked into the image? | **No** — all configuration is environment-driven; `.dockerignore` excludes `.env`, `.env.*`, `target`, `.git`. |
 | Actuator restricted in production? | **Yes** — `health` only. |
-| Swagger disabled in production? | **Yes** — `springdoc.*.enabled=false` unless `SWAGGER_ENABLED=true` is set deliberately. |
+| Swagger disabled in production? | **The interactive UI no longer exists at all** — `springdoc-openapi-starter-webmvc-ui` was replaced with `-webmvc-api`, which generates `/v3/api-docs` (the OpenAPI JSON contract other tooling reads, e.g. `tools/api-e2e`'s own contract tests) without pulling in the UI's bundled static assets, including a vendored DOMPurify copy that was a real, unrelated CVE source in dependency scans. `springdoc.api-docs.enabled=false` unless `SWAGGER_ENABLED=true` still gates the JSON endpoint itself in production; there is no separate `swagger-ui.enabled` toggle any more because there is no UI to toggle. |
 | Production CORS requires explicit origins? | **Yes** — wildcards rejected at boot. |
 | JWT secret required and length-guarded? | **Yes** — no default in the prod profile; ≥32 bytes enforced in every profile. |
 | System-admin bootstrap variables present? | **Yes** — `SYSTEM_ADMIN_EMAIL` / `_PASSWORD` / `_NAME`, with strength rules when the console is enabled. |
@@ -414,20 +458,25 @@ of these is ever dismissed in the GitHub UI, the reason belongs in this table.
 Scheduled weekly and manually dispatchable — deliberately **not** on pull
 requests, because the NVD sync would dominate PR feedback time.
 
-**`NVD_API_KEY` is required for the workflow to actually scan.** Without the
-secret the job prints a GitHub warning and exits successfully rather than
-starting a rate-limited multi-hour anonymous sync that usually fails anyway. So
-a green "Dependency Check" run does **not** by itself prove the dependency tree
-was scanned — check the run log or the uploaded report artifact.
+**`NVD_API_KEY` is required for the workflow to actually scan, and the
+workflow fails closed without it** — a missing or invalid key, an NVD outage,
+a threshold-exceeding finding, or an unparseable CVSS score all fail the job;
+none of them are silently skipped or waved through. A green "Dependency Check"
+run is therefore real evidence the dependency tree was scanned, not just that
+the job happened to run. See §3 above for the full fail-closed policy.
 
-Configuration: plugin pinned to `12.2.2`, `failBuildOnCVSS=9` (only critical
-findings break the build at first, so noisy medium/low CVEs cannot make the gate
-useless), HTML + JSON reports uploaded as artifacts, NVD dataset cached between
-runs. No suppressions exist; adding one requires a written per-CVE
-justification.
+Configuration: plugin pinned to `12.2.2`, `failBuildOnCVSS` and the
+independent report validator both read the same
+`DEPENDENCY_SCAN_MAX_CVSS=7.0` value (HIGH and above, not just CRITICAL — a
+9.0 threshold let real HIGH findings through), HTML + JSON reports uploaded as
+artifacts even when the scan fails, NVD dataset cached between runs with its
+own freshness check. Suppressions require exact scope, evidence, an owner, and
+an expiry — see §3; as of this writing exactly one exists (CVE-2026-66299,
+expiring no later than 2026-09-30).
 
 Free key: <https://nvd.nist.gov/developers/request-an-api-key> → store as the
-`NVD_API_KEY` repository secret.
+`NVD_API_KEY` repository secret. The key is never logged, never written into a
+report, and never included in an uploaded artifact.
 
 ### Repository settings still to apply manually
 
@@ -436,8 +485,12 @@ this repository's commits**:
 
 1. **Branch protection on `main`** — require `Backend CI / backend-verify`; add
    the CodeQL check once its first runs are stably green.
-2. **`NVD_API_KEY` secret** — without it, Dependency Check reports a warning and
-   scans nothing.
+2. ~~**`NVD_API_KEY` secret**~~ — added. Without it, Dependency Check fails
+   closed at its preflight step and never reaches a real scan (see §3/§7
+   above); this is what let a real scan against the live NVD service run for
+   the first time and find CVE-2026-53434/55276/59083/59084 (Tomcat),
+   CVE-2026-54291 (PostgreSQL JDBC), and CVE-2026-34479 (log4j-api), all since
+   fixed.
 3. **GitHub secret scanning push protection** — GitGuardian reports a leak after
    it is pushed; push protection blocks it at push time.
 
