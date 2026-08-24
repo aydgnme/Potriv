@@ -106,6 +106,18 @@ jobs:
         working-directory: tools/dependency-scan
         run: npm ci
 
+      # Fails fast, before the ~50-minute NVD sync below, if
+      # dependency-check-suppressions.xml has drifted from its own required
+      # shape: any suppression missing its until= expiry, naming more than
+      # one CVE (or a regex/family match instead of one literal CVE id), or
+      # scoped by anything looser than one package pinned to one exact
+      # version (no bare CPE/vendor/package-family/wildcard matches).
+      - name: Check dependency-check suppression policy
+        working-directory: tools/dependency-scan
+        run: >
+          npx tsx src/cli.ts check-suppressions
+          --file "$GITHUB_WORKSPACE/apps/backend/dependency-check-suppressions.xml"
+
       # Classifies missing key, invalid key (401/403), NVD unreachable
       # (network error/timeout), and NVD itself erroring (5xx, retried a
       # bounded number of times) as distinct, named failures — never a

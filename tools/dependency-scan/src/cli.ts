@@ -6,14 +6,15 @@ import { DEFAULT_MAX_CVSS } from './config.js';
 import { buildFreshnessRecord, checkFreshness, directoryHasNvdData } from './freshness.js';
 import { checkNvdPreflight } from './preflight.js';
 import { validateReportContent } from './reportValidator.js';
+import { checkSuppressionPolicy } from './suppressionPolicy.js';
 
 /**
  * The exact entry point the GitHub Actions workflow invokes for each of
  * these gates — never a second, ad-hoc copy of the logic living in the
  * workflow's own `run:` blocks. Everything each subcommand does is exercised
- * by this package's own test suite against `preflight.ts`, `freshness.ts`
- * and `reportValidator.ts` directly; this file is only argument parsing,
- * environment/file plumbing, and the exit code.
+ * by this package's own test suite against `preflight.ts`, `freshness.ts`,
+ * `reportValidator.ts` and `suppressionPolicy.ts` directly; this file is
+ * only argument parsing, environment/file plumbing, and the exit code.
  */
 
 const DEFAULT_NVD_BASE_URL = 'https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1';
@@ -134,6 +135,30 @@ function runRecordFreshness(args: readonly string[]): void {
   console.log(`Recorded a fresh verification timestamp at ${metadataPath}.`);
 }
 
+function runCheckSuppressions(args: readonly string[]): void {
+  const suppressionsPath = readArg(args, '--file');
+  if (!suppressionsPath) {
+    fail('Suppression policy check misconfigured', '--file path was not provided.');
+  }
+
+  const raw = readFileIfExists(suppressionsPath);
+  if (raw === undefined) {
+    fail('Suppression policy check failed', `No file found at ${suppressionsPath}.`);
+  }
+
+  const result = checkSuppressionPolicy(raw);
+  if (!result.ok) {
+    const summary = result.issues
+      .map((issue) => `#${issue.index} (${issue.reason}): ${issue.detail}`)
+      .join(' | ');
+    fail(
+      'Suppression policy check failed',
+      `${result.issues.length} suppression(s) do not meet policy: ${summary}`,
+    );
+  }
+  console.log(`Suppression policy check passed (${result.suppressionCount} suppression(s)).`);
+}
+
 async function main(): Promise<void> {
   const [, , command, ...rest] = process.argv;
 
@@ -150,10 +175,13 @@ async function main(): Promise<void> {
     case 'record-freshness':
       runRecordFreshness(rest);
       return;
+    case 'check-suppressions':
+      runCheckSuppressions(rest);
+      return;
     default:
       console.error(
         `Unknown command "${command ?? ''}". Expected one of: `
-          + 'preflight, check-freshness, validate-report, record-freshness.',
+          + 'preflight, check-freshness, validate-report, record-freshness, check-suppressions.',
       );
       process.exit(1);
   }
