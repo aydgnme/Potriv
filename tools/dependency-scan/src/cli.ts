@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { basename, dirname } from 'node:path';
 
-import { buildFreshnessRecord, checkFreshness } from './freshness.js';
+import { DEFAULT_MAX_CVSS } from './config.js';
+import { buildFreshnessRecord, checkFreshness, directoryHasNvdData } from './freshness.js';
 import { checkNvdPreflight } from './preflight.js';
 import { validateReportContent } from './reportValidator.js';
 
@@ -71,29 +72,39 @@ async function runPreflight(args: readonly string[]): Promise<void> {
 
 function runCheckFreshness(args: readonly string[]): void {
   const metadataPath = readArg(args, '--metadata');
+  const dataDir = readArg(args, '--data-dir');
   const maxAgeDays = Number(readArg(args, '--max-age-days') ?? '10');
-  const cacheHit = readArg(args, '--cache-hit') === 'true';
 
   if (!metadataPath) {
     fail('Dependency-Check freshness check misconfigured', '--metadata path was not provided.');
   }
+  if (!dataDir) {
+    fail('Dependency-Check freshness check misconfigured', '--data-dir path was not provided.');
+  }
 
+  // Deliberately not `actions/cache`'s own `cache-hit` output: that output
+  // is true only on an exact primary-key match, and this workflow's cache
+  // key includes the run id (unique every run), so `cache-hit` would always
+  // be false — even on a run that legitimately restored last week's data
+  // through `restore-keys`. Whether data is actually present is decided by
+  // looking at the directory itself, not by trusting that upstream signal.
+  const dataPresent = directoryHasNvdData(dataDir, [basename(metadataPath)]);
   const raw = readFileIfExists(metadataPath);
-  const result = checkFreshness(raw, new Date(), maxAgeDays, cacheHit);
+  const result = checkFreshness(raw, new Date(), maxAgeDays, dataPresent);
 
   if (!result.ok) {
     fail(
       'Dependency-Check cache freshness check failed',
-      `${result.detail} Treating this as a failed run rather than trusting a possibly-stale `
-        + `cache silently. (reason: ${result.reason})`,
+      `${result.detail} Treating this as a failed run rather than trusting possibly-stale `
+        + `data silently. (reason: ${result.reason})`,
     );
   }
-  console.log(`NVD cache freshness check passed (${result.reason}).`);
+  console.log(`NVD cache freshness check passed (${result.reason}, dataPresent=${dataPresent}).`);
 }
 
 function runValidateReport(args: readonly string[]): void {
   const reportPath = readArg(args, '--report');
-  const maxCvss = Number(readArg(args, '--max-cvss') ?? '9');
+  const maxCvss = Number(readArg(args, '--max-cvss') ?? String(DEFAULT_MAX_CVSS));
 
   if (!reportPath) {
     fail('Dependency-Check report validation misconfigured', '--report path was not provided.');

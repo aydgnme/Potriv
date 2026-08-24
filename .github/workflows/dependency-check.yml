@@ -81,6 +81,16 @@ jobs:
       # schedule (7 days), so an ordinary run's own record from last week
       # never trips this — see tools/dependency-scan/src/freshness.ts.
       NVD_FRESHNESS_MAX_AGE_DAYS: 10
+      # The single CVSS threshold both the Maven goal (-DfailBuildOnCVSS)
+      # and the independent report validator (validate-report --max-cvss)
+      # read below — one number, one place, so the two gates cannot drift
+      # apart. Mirrors tools/dependency-scan/src/config.ts's
+      # DEFAULT_MAX_CVSS; a YAML run: block cannot import that constant, so
+      # this env var is this workflow's side of the same contract. 7.0
+      # (HIGH and above) rather than 9.0 (CRITICAL only) — a 9.0 threshold
+      # let real HIGH-severity findings (CVSS 7.0-8.9) through a gate meant
+      # to block them.
+      DEPENDENCY_SCAN_MAX_CVSS: '7.0'
     steps:
       - name: Check out repository
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
@@ -124,24 +134,35 @@ jobs:
           restore-keys: |
             nvd-${{ env.DEPENDENCY_CHECK_VERSION }}-
 
-      # A cache miss (a fresh runner, or the cache key changed) is never a
-      # failure here — there is nothing yet to have gone stale, and this run
-      # populates the record below. A cache *hit* with a missing, corrupt, or
-      # out-of-date freshness record is the actual failure this step exists
-      # to catch: reused data that nothing proves was ever verified recently.
+      # A directory with no real NVD data yet (a fresh runner, or the cache
+      # key format changed) is never a failure here — there is nothing yet
+      # to have gone stale, and this run populates the record below. A
+      # directory that already holds data — however it got there — with a
+      # missing, corrupt, or out-of-date freshness record is the actual
+      # failure this step exists to catch: reused data that nothing proves
+      # was ever verified recently.
+      #
+      # Deliberately NOT `steps.nvd-cache.outputs.cache-hit`: that output is
+      # true only on an exact primary-key match, and the cache key above
+      # includes `github.run_id` (unique every run), so an exact match never
+      # happens — cache-hit is always false here, even on a run that
+      # legitimately restored last week's data through `restore-keys`.
+      # Gating on it made this check silently never run against restored
+      # data. Whether data is present is decided by looking at the
+      # directory itself (--data-dir), not by trusting that signal.
       - name: Check NVD data freshness
         working-directory: tools/dependency-scan
         run: >
           npx tsx src/cli.ts check-freshness
           --metadata "$HOME/.m2/repository/org/owasp/dependency-check-data/nvd-metadata.json"
+          --data-dir "$HOME/.m2/repository/org/owasp/dependency-check-data"
           --max-age-days "$NVD_FRESHNESS_MAX_AGE_DAYS"
-          --cache-hit "${{ steps.nvd-cache.outputs.cache-hit }}"
 
-      # failBuildOnCVSS=9 keeps the gate meaningful at first: only critical
-      # findings break the build, so noisy medium/low CVEs cannot make the
-      # workflow useless. Lower it deliberately once the backlog is
-      # understood. suppressionFiles points at a real, version-controlled
-      # file (apps/backend/dependency-check-suppressions.xml) so any future
+      # failBuildOnCVSS reads DEPENDENCY_SCAN_MAX_CVSS (7.0 — HIGH and above)
+      # so this threshold and the one the validate-report step below applies
+      # come from the exact same env var and cannot drift apart.
+      # suppressionFiles points at a real, version-controlled file
+      # (apps/backend/dependency-check-suppressions.xml) so any future
       # suppression is reviewable in a diff and — via that file's required
       # `until` dates — expires back into an active finding on its own
       # rather than staying silenced indefinitely. autoUpdate is explicit
@@ -154,7 +175,7 @@ jobs:
           "org.owasp:dependency-check-maven:${DEPENDENCY_CHECK_VERSION}:check"
           -DnvdApiKey="$NVD_API_KEY"
           -Dformats=HTML,JSON
-          -DfailBuildOnCVSS=9
+          -DfailBuildOnCVSS="$DEPENDENCY_SCAN_MAX_CVSS"
           -DskipProvidedScope=true
           -DsuppressionFiles=dependency-check-suppressions.xml
           -DautoUpdate=true
@@ -170,7 +191,7 @@ jobs:
         run: >
           npx tsx src/cli.ts validate-report
           --report "$GITHUB_WORKSPACE/apps/backend/target/dependency-check-report.json"
-          --max-cvss 9
+          --max-cvss "$DEPENDENCY_SCAN_MAX_CVSS"
 
       # Reached only if the preflight, the scan, and the report validation
       # all genuinely succeeded — this is the "verified" in "verified
