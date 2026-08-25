@@ -79,15 +79,18 @@
      suppression entry only hides that the upgrade actually happened.
      Re-review, or remove, no later than the `until` date below regardless.
 
-     Two entries, not one: two consecutive real scans against verified NVD
-     data attributed CVE-2026-66299 to a DIFFERENT single tomcat-embed-*
-     artifact each time — run 32856766452 to tomcat-embed-websocket only,
-     run 32858443908 (minutes later, same dependency tree, same NVD data
-     freshly re-verified) to tomcat-embed-core only. Dependency-Check's own
-     CPE analyzer is evidently non-deterministic about which one of the two
-     it reports on a given run, not that only one is genuinely affected —
-     both are therefore suppressed explicitly, rather than chasing whichever
-     one a given run happens to name. tomcat-embed-el has never shown this
+     Two entries, not one: three consecutive real scans against verified
+     NVD data attributed CVE-2026-66299 to a DIFFERENT single
+     tomcat-embed-* artifact each time — run 32856766452 to
+     tomcat-embed-websocket only, run 32858443908 (minutes later, same
+     dependency tree, same NVD data freshly re-verified) to
+     tomcat-embed-core only, and run 32858766800 (queued right behind
+     32858443908 by the workflow's own concurrency group, same commit)
+     again to tomcat-embed-core only. Dependency-Check's own CPE analyzer
+     is evidently non-deterministic about which one of the two it reports
+     on a given run, not that only one is genuinely affected — both are
+     therefore suppressed explicitly, rather than chasing whichever one a
+     given run happens to name. tomcat-embed-el has never shown this
      finding in any real run; not suppressed, since there is no observed
      finding to suppress and adding one anyway would be exactly the kind of
      speculative, unevidenced suppression this file's own rules forbid.
@@ -105,8 +108,10 @@
          in the tomcat-embed-* JARs this Spring Boot application actually
          uses, and this application packages no standalone Tomcat
          distribution and implements no WebSocket endpoints of its own.
-         Fix version 10.1.58 is not yet released. Reviewed by Mert Aydoğan
-         (aydgnme), 2026-08-25. Remove on upgrading to Tomcat >= 10.1.58.
+         Fix version 10.1.58 is not yet released. Official advisory:
+         https://tomcat.apache.org/security-10.html. Reviewed by Mert
+         Aydoğan (aydgnme), 2026-08-25. Remove on upgrading to Tomcat
+         >= 10.1.58.
       </notes>
       <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat\-embed\-core@10\.1\.57(\?.*)?$</packageUrl>
       <cve>CVE-2026-66299</cve>
@@ -118,8 +123,10 @@
          in the tomcat-embed-* JARs this Spring Boot application actually
          uses, and this application packages no standalone Tomcat
          distribution and implements no WebSocket endpoints of its own.
-         Fix version 10.1.58 is not yet released. Reviewed by Mert Aydoğan
-         (aydgnme), 2026-08-25. Remove on upgrading to Tomcat >= 10.1.58.
+         Fix version 10.1.58 is not yet released. Official advisory:
+         https://tomcat.apache.org/security-10.html. Reviewed by Mert
+         Aydoğan (aydgnme), 2026-08-25. Remove on upgrading to Tomcat
+         >= 10.1.58.
       </notes>
       <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat\-embed\-websocket@10\.1\.57(\?.*)?$</packageUrl>
       <cve>CVE-2026-66299</cve>

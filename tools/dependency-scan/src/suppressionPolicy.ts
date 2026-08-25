@@ -24,7 +24,10 @@ export type SuppressionIssueReason =
   | 'multiple-identifiers'
   | 'missing-scope'
   | 'wildcard-scope'
-  | 'unpinned-version';
+  | 'unpinned-version'
+  | 'missing-notes'
+  | 'missing-owner'
+  | 'missing-review-date';
 
 export type SuppressionIssue = {
   /** 1-based position of the `<suppress>` block in the file, for a human to find it. */
@@ -43,7 +46,12 @@ const CVE_ELEMENT = /<cve>([^<]*)<\/cve>/g;
 const VULN_NAME_ELEMENT = /<vulnerabilityName(\s[^>]*)?>([^<]*)<\/vulnerabilityName>/g;
 const PACKAGE_URL_ELEMENT = /<packageUrl(\s[^>]*)?>([^<]*)<\/packageUrl>/;
 const GAV_ELEMENT = /<gav(\s[^>]*)?>([^<]*)<\/gav>/;
+const NOTES_ELEMENT = /<notes>([\s\S]*?)<\/notes>/;
 const CVE_SHAPE = /^CVE-\d{4}-\d+$/;
+/** "Reviewed by <someone>" — the owner attribution this repo's suppressions always carry. */
+const REVIEWED_BY_PATTERN = /reviewed\s+by\s+\S/i;
+/** A yyyy-MM-dd date anywhere in the notes — the review date. */
+const REVIEW_DATE_PATTERN = /\b\d{4}-\d{2}-\d{2}\b/;
 /** An unescaped `*` — repetition/wildcard in a regex matcher, not an escaped literal. */
 const UNESCAPED_STAR = /(?<!\\)\*/;
 
@@ -214,6 +222,61 @@ function checkIdentifier(inner: string, index: number, issues: SuppressionIssue[
   }
 }
 
+/**
+ * `<notes>` is free text by the underlying schema — nothing about the XML
+ * shape forces it to actually say who reviewed a suppression or when. This
+ * checks for the two structural signals this repository's own convention
+ * always carries: a "Reviewed by <name>" attribution (the owner) and a
+ * yyyy-MM-dd date (the review date) somewhere in the text. It cannot verify
+ * the *content* of the applicability explanation is actually correct —
+ * that still needs a human reviewer — but an empty, missing, or
+ * owner/date-free `<notes>` block is a structural failure this check can
+ * and does catch on its own.
+ */
+function checkNotes(inner: string, index: number, issues: SuppressionIssue[]): void {
+  const notesMatch = NOTES_ELEMENT.exec(inner);
+  const notes = (notesMatch?.[1] ?? '').trim();
+
+  if (notes.length === 0) {
+    issues.push({
+      index,
+      reason: 'missing-notes',
+      detail:
+        'No <notes> element, or it is empty — a suppression must explain why the finding does '
+        + 'not apply, who reviewed it, and when.',
+    });
+    return;
+  }
+
+  if (!REVIEWED_BY_PATTERN.test(notes)) {
+    issues.push({
+      index,
+      reason: 'missing-owner',
+      detail: '<notes> does not contain a "Reviewed by <owner>" attribution.',
+    });
+  }
+
+  if (!REVIEW_DATE_PATTERN.test(notes)) {
+    issues.push({
+      index,
+      reason: 'missing-review-date',
+      detail: '<notes> does not contain a yyyy-MM-dd review date.',
+    });
+  }
+}
+
+/**
+ * Strips XML comments. Exported (not just an inline step of
+ * {@link checkSuppressionPolicy}) so anything else reading this file's real
+ * content — including this package's own tests, asserting facts directly
+ * about the committed suppressions.xml — sees the same "real entries only"
+ * view the policy check itself uses, rather than also matching the literal
+ * documentation example this file's own header comment contains.
+ */
+export function stripXmlComments(xml: string): string {
+  return xml.replace(/<!--[\s\S]*?-->/g, '');
+}
+
 export function checkSuppressionPolicy(xml: string): SuppressionPolicyResult {
   const issues: SuppressionIssue[] = [];
   let index = 0;
@@ -224,7 +287,7 @@ export function checkSuppressionPolicy(xml: string): SuppressionPolicyResult {
   // never mistaken for a real entry — it deliberately doesn't look like a
   // real reviewed suppression (CVE-2026-XXXXX) and would otherwise fail
   // this very check on a file that has nothing wrong with it.
-  const withoutComments = xml.replace(/<!--[\s\S]*?-->/g, '');
+  const withoutComments = stripXmlComments(xml);
 
   for (const block of withoutComments.matchAll(SUPPRESS_BLOCK)) {
     index += 1;
@@ -247,6 +310,7 @@ export function checkSuppressionPolicy(xml: string): SuppressionPolicyResult {
 
     checkIdentifier(inner ?? '', index, issues);
     checkScopeMatcher(inner ?? '', index, issues);
+    checkNotes(inner ?? '', index, issues);
   }
 
   if (issues.length > 0) {
