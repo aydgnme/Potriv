@@ -33,7 +33,11 @@ describe('the real dependency-check-suppressions.xml this repository ships', () 
   it('passes the policy, and the documentation example inside the header comment is not treated as a real entry', () => {
     const xml = readFileSync(REAL_SUPPRESSIONS_FILE, 'utf8');
     const result = checkSuppressionPolicy(xml);
-    expect(result).toEqual({ ok: true, suppressionCount: 1 });
+    // Two entries: real scans non-deterministically attributed the same
+    // CVE-2026-66299 to either tomcat-embed-core or tomcat-embed-websocket
+    // depending on the run, so both are suppressed explicitly rather than
+    // one arbitrarily-chosen artifact.
+    expect(result).toEqual({ ok: true, suppressionCount: 2 });
   });
 });
 

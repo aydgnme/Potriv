@@ -79,17 +79,38 @@
      suppression entry only hides that the upgrade actually happened.
      Re-review, or remove, no later than the `until` date below regardless.
 
-     Scoped to tomcat-embed-websocket, not tomcat-embed-core: a real scan
-     against verified NVD data (run 32856766452, 2026-08-25) attributes
-     CVE-2026-66299 to tomcat-embed-websocket-10.1.57.jar specifically —
-     tomcat-embed-core does not carry this finding in that report at all.
-     That is the more semantically accurate mapping regardless (the CVE is
-     about the WebSocket chat example), and the same three-point
-     applicability proof above already covered tomcat-embed-websocket
-     directly (its JAR was one of the three actually unzip -l'd and checked
-     for "example"/"chat" entries), so no new evidence was needed to retarget
-     this suppression — only the artifact coordinate itself was wrong.
+     Two entries, not one: two consecutive real scans against verified NVD
+     data attributed CVE-2026-66299 to a DIFFERENT single tomcat-embed-*
+     artifact each time — run 32856766452 to tomcat-embed-websocket only,
+     run 32858443908 (minutes later, same dependency tree, same NVD data
+     freshly re-verified) to tomcat-embed-core only. Dependency-Check's own
+     CPE analyzer is evidently non-deterministic about which one of the two
+     it reports on a given run, not that only one is genuinely affected —
+     both are therefore suppressed explicitly, rather than chasing whichever
+     one a given run happens to name. tomcat-embed-el has never shown this
+     finding in any real run; not suppressed, since there is no observed
+     finding to suppress and adding one anyway would be exactly the kind of
+     speculative, unevidenced suppression this file's own rules forbid.
+
+     No new applicability evidence was needed for either: the same
+     three-point proof above already unzip -l'd and checked all three
+     tomcat-embed-* jars (core, websocket, el) directly, and this
+     application still packages no standalone Tomcat distribution and
+     implements no WebSocket endpoints of its own either way.
    -->
+   <suppress until="2026-09-30">
+      <notes>
+         CVE-2026-66299: low-severity DoS in Tomcat's bundled WebSocket chat
+         EXAMPLE application (webapps/examples/websocket/chat), not present
+         in the tomcat-embed-* JARs this Spring Boot application actually
+         uses, and this application packages no standalone Tomcat
+         distribution and implements no WebSocket endpoints of its own.
+         Fix version 10.1.58 is not yet released. Reviewed by Mert Aydoğan
+         (aydgnme), 2026-08-25. Remove on upgrading to Tomcat >= 10.1.58.
+      </notes>
+      <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat\-embed\-core@10\.1\.57(\?.*)?$</packageUrl>
+      <cve>CVE-2026-66299</cve>
+   </suppress>
    <suppress until="2026-09-30">
       <notes>
          CVE-2026-66299: low-severity DoS in Tomcat's bundled WebSocket chat
