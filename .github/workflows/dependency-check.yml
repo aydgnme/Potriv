@@ -67,7 +67,17 @@ jobs:
   dependency-check:
     name: dependency-check
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 120, not 60: a cold NVD sync (no usable cache -- e.g. run 32828508157,
+    # 2026-08-25, which hit 60 min mid-download after the cache from the
+    # previous run had already been evicted) needs more than 60 minutes'
+    # margin. The first-ever cold sync measured ~51 min; 60 cut that too
+    # close to survive normal variance. This does not change what gets
+    # checked or how strictly -- every fail-closed gate above (preflight,
+    # freshness, the CVSS threshold, report validation, the suppression
+    # policy) is unchanged; a genuinely stuck run still eventually times out
+    # and fails closed, just with realistic room to finish a legitimate cold
+    # sync first.
+    timeout-minutes: 120
     env:
       # Mapped to an env var, not read from `secrets` directly in a step's
       # `run:` — the `secrets` context is not available in step-level `if:`
