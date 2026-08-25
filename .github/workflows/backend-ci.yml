@@ -54,6 +54,14 @@ jobs:
         run: ./mvnw -B clean verify
         working-directory: apps/backend
 
+      # Second-layer proof, over the actual packaged artifact rather than
+      # the dependency tree alone: fails if the interactive Swagger UI (or
+      # its bundled DOMPurify copy) ever ends up inside the jar this project
+      # ships. See apps/backend/scripts/verify-jar-excludes-swagger-ui.sh.
+      - name: Verify packaged jar excludes Swagger UI assets
+        run: ./scripts/verify-jar-excludes-swagger-ui.sh
+        working-directory: apps/backend
+
   production-compose-config:
     name: production-compose-config
     runs-on: ubuntu-latest

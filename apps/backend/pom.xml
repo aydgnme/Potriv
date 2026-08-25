@@ -173,6 +173,49 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!--
+              Fails the build the moment the interactive Swagger UI
+              dependency (or its underlying webjar, carrying a bundled
+              DOMPurify copy that was a real, unrelated CVE source) is
+              resolved into the tree at all. A preventive check, ahead of
+              the packaged-jar inspection in
+              scripts/verify-jar-excludes-swagger-ui.sh and the classpath
+              check in SwaggerUiRemovalTest, which both catch it only after
+              the fact. See docs/backend/security-baseline.md for why -api
+              replaced -ui.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <id>ban-swagger-ui-runtime-dependency</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.webjars:swagger-ui</exclude>
+                                        <exclude>org.springdoc:springdoc-openapi-starter-webmvc-ui</exclude>
+                                    </excludes>
+                                    <message>
+                                        The interactive Swagger UI dependency was deliberately
+                                        removed (apps/backend/pom.xml uses springdoc's -api
+                                        starter, not -ui) to drop its bundled static assets,
+                                        including a vendored DOMPurify copy that was a real CVE
+                                        source. Do not reintroduce it -- /v3/api-docs already
+                                        works without it. See docs/backend/security-baseline.md.
+                                    </message>
+                                </bannedDependencies>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
