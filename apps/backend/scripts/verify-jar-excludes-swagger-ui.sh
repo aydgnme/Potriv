@@ -14,7 +14,13 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-JAR="$(ls target/potriv-backend-*.jar 2>/dev/null | grep -v '\.original$' | head -1 || true)"
+JAR=""
+for candidate in target/potriv-backend-*.jar; do
+  [[ -e "$candidate" ]] || continue
+  [[ "$candidate" == *.original ]] && continue
+  JAR="$candidate"
+  break
+done
 if [[ -z "$JAR" ]]; then
   echo "No packaged jar found under target/ -- run 'mvn package' first." >&2
   exit 1
