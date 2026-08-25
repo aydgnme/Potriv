@@ -75,10 +75,20 @@
      Owner: Mert Aydoğan (aydgnme). Reviewed: 2026-08-25.
      Remove this suppression immediately once tomcat.version in
      apps/backend/pom.xml is upgraded to 10.1.58 or newer — at that point
-     dependency-check will stop reporting this CVE against tomcat-embed-core
-     on its own, and an unused suppression entry only hides that the
-     upgrade actually happened. Re-review, or remove, no later than the
-     `until` date below regardless.
+     dependency-check will stop reporting this CVE on its own, and an unused
+     suppression entry only hides that the upgrade actually happened.
+     Re-review, or remove, no later than the `until` date below regardless.
+
+     Scoped to tomcat-embed-websocket, not tomcat-embed-core: a real scan
+     against verified NVD data (run 32856766452, 2026-08-25) attributes
+     CVE-2026-66299 to tomcat-embed-websocket-10.1.57.jar specifically —
+     tomcat-embed-core does not carry this finding in that report at all.
+     That is the more semantically accurate mapping regardless (the CVE is
+     about the WebSocket chat example), and the same three-point
+     applicability proof above already covered tomcat-embed-websocket
+     directly (its JAR was one of the three actually unzip -l'd and checked
+     for "example"/"chat" entries), so no new evidence was needed to retarget
+     this suppression — only the artifact coordinate itself was wrong.
    -->
    <suppress until="2026-09-30">
       <notes>
@@ -90,7 +100,7 @@
          Fix version 10.1.58 is not yet released. Reviewed by Mert Aydoğan
          (aydgnme), 2026-08-25. Remove on upgrading to Tomcat >= 10.1.58.
       </notes>
-      <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat\-embed\-core@10\.1\.57(\?.*)?$</packageUrl>
+      <packageUrl regex="true">^pkg:maven/org\.apache\.tomcat\.embed/tomcat\-embed\-websocket@10\.1\.57(\?.*)?$</packageUrl>
       <cve>CVE-2026-66299</cve>
    </suppress>
 </suppressions>
