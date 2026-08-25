@@ -17,17 +17,20 @@ import { PublicAuthShell } from "./PublicAuthShell";
 import styles from "./CreateWorkspacePage.module.css";
 
 /**
- * Create a workspace: one organization and its first administrator.
+ * Requests a workspace: one organization and its first administrator, pending
+ * confirmation of the email address.
  *
- * The scope is deliberately one step. It creates the organization and stops —
- * departments, team roles, the skill catalogue and invitations are all real
- * work the administrator does inside the product, and a wizard that pretended
- * to do them here would be inventing behaviour the backend does not offer.
+ * The scope of what gets created is deliberately one step — departments, team
+ * roles, the skill catalogue and invitations are all real work the
+ * administrator does inside the product, and a wizard that pretended to do
+ * them here would be inventing behaviour the backend does not offer.
  *
- * There is no auto-login, because `POST /auth/register-admin` returns no tokens.
- * Faking one would mean replaying the password against the login endpoint behind
- * the user's back. The success state says what actually happened and sends them
- * to sign in.
+ * Submitting no longer creates anything by itself: `POST /auth/register-admin`
+ * answers 202 identically whether or not the address already has an account,
+ * so the response here cannot say "created" — only that a confirmation link
+ * has been sent, worded exactly like the password-reset request's own
+ * deliberately neutral confirmation. The organization and the administrator
+ * account are created when that link is opened; see `ConfirmWorkspacePage`.
  */
 
 const FIELDS = [
@@ -84,7 +87,7 @@ export function CreateWorkspacePage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const [createdEmail, setCreatedEmail] = useState<string | null>(null);
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -109,31 +112,31 @@ export function CreateWorkspacePage() {
       return;
     }
 
-    setCreatedEmail(outcome.email);
+    setSubmittedEmail(validated.value.email);
   }
 
-  if (createdEmail) {
+  if (submittedEmail) {
     return (
       <PublicAuthShell
-        title="Your workspace is ready"
+        title="Check your email"
         contextTitle="One organization, and its first administrator."
         contextBody="Everything else — departments, skills, projects — is set up inside the workspace afterwards."
         topology="createWorkspace"
-        /* No footer link: the primary action below is already Sign in, and a
-           second one saying the same thing is just two ways to leave. */
+        footer={<Link href="/login">Back to sign in</Link>}
       >
         <div className={styles.success}>
           <CheckMark className={styles.successMark} />
+          {/*
+            Deliberately neutral, and worded like the password-reset request's
+            own confirmation: the backend answers the same way whether or not
+            the address already has an account, so this cannot say "created"
+            without handing back the enumeration signal it refuses to give.
+          */}
           <p className={styles.successBody}>
-            The organization and the administrator account{" "}
-            <strong>{createdEmail}</strong> were created. Sign in to add
-            departments, team roles and the people who will work in it.
+            If <strong>{submittedEmail}</strong> can be used to create a
+            workspace, a confirmation link has been sent to it. Open it to
+            finish creating the organization and its administrator account.
           </p>
-          <div className={styles.successActions}>
-            <Link className={styles.successPrimary} href="/login">
-              Sign in
-            </Link>
-          </div>
         </div>
       </PublicAuthShell>
     );

@@ -40,6 +40,15 @@ services:
       JWT_ISSUER: ${JWT_ISSUER:-https://api.potriv.aydgn.me/api}
       ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
       REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-7}
+      # ProductionConfigGuard requires this whenever rate limiting is enabled
+      # (the default), same as JWT_SECRET below.
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_HMAC_SECRET: ${RATE_LIMIT_HMAC_SECRET:?RATE_LIMIT_HMAC_SECRET is required}
+      # Exactly one of these two must be set once rate limiting is enabled;
+      # ProductionConfigGuard enforces that at boot, not this file — compose
+      # cannot express an either/or requirement between two variables.
+      RATE_LIMIT_TRUSTED_PROXIES: ${RATE_LIMIT_TRUSTED_PROXIES:-}
+      RATE_LIMIT_NO_REVERSE_PROXY: ${RATE_LIMIT_NO_REVERSE_PROXY:-false}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://potriv.aydgn.me}
       FRONTEND_URL: ${FRONTEND_URL:-https://potriv.aydgn.me}
       APP_BASE_URL: ${APP_BASE_URL:-https://api.potriv.aydgn.me/api}

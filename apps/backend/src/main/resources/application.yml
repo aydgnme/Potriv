@@ -36,6 +36,9 @@ app:
     invite-token-hours: ${INVITE_TOKEN_HOURS:72}
     max-failed-login-attempts: 5
     lock-duration-minutes: 15
+    # 60 minutes. Long enough to check an inbox, short enough that a link
+    # found later in a mailbox or a proxy log is already dead.
+    registration-verification-minutes: ${REGISTRATION_VERIFICATION_MINUTES:60}
   mail:
     from: no-reply@potriv.local
 
@@ -61,6 +64,10 @@ app:
     # Empty: no X-Forwarded-For is trusted unless explicitly configured. See
     # ClientIpResolver.
     trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:}
+    # See application-prod.yml: ProductionConfigGuard requires one of
+    # trusted-proxies or this to be set whenever rate limiting is enabled in
+    # the prod profile. Not enforced outside prod.
+    no-reverse-proxy: ${RATE_LIMIT_NO_REVERSE_PROXY:false}
     invite:
       short-window: ${RATE_LIMIT_INVITE_ORG_SHORT_WINDOW:60s}
       short-limit: ${RATE_LIMIT_INVITE_ORG_SHORT_LIMIT:20}

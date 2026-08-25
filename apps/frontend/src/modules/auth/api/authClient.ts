@@ -45,7 +45,7 @@ export async function signIn(email: string, password: string): Promise<LoginOutc
 }
 
 export type CreateWorkspaceOutcome =
-  | { readonly ok: true; readonly email: string }
+  | { readonly ok: true }
   | {
       readonly ok: false;
       readonly error: ProductAuthError;
@@ -53,11 +53,14 @@ export type CreateWorkspaceOutcome =
     };
 
 /**
- * Creates an organization and its first administrator.
+ * Requests a workspace: an organization and a first administrator, pending
+ * confirmation of the email address.
  *
- * Returns the email the account was created with so the success screen can name
- * it. No token crosses this boundary because the backend issues none here — the
- * new administrator signs in afterwards like anybody else.
+ * Nothing is created yet, and nothing comes back beyond success or failure —
+ * the backend answers identically whether or not the address already has an
+ * account, so there is no identifier here to return either. The caller
+ * already knows the email it submitted; see `confirmWorkspace` for the step
+ * that actually creates anything.
  */
 export async function createWorkspace(input: {
   name: string;
@@ -89,8 +92,39 @@ export async function createWorkspace(input: {
     };
   }
 
-  const body = (await response.json()) as { email: string };
-  return { ok: true, email: body.email };
+  return { ok: true };
+}
+
+export type ConfirmWorkspaceOutcome =
+  | { readonly ok: true; readonly organizationId: string; readonly userId: string }
+  | { readonly ok: false; readonly error: ProductAuthError };
+
+/**
+ * Confirms a workspace registration. This is the step that actually creates
+ * the organization and the administrator account — `createWorkspace` only
+ * queues the intention.
+ *
+ * The token is passed through to the BFF in the request body and is never
+ * stored, echoed or logged here. No token crosses back: the backend issues
+ * none for this operation, so the new administrator signs in afterwards like
+ * anybody else.
+ */
+export async function confirmWorkspace(token: string): Promise<ConfirmWorkspaceOutcome> {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/register-workspace/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+  } catch {
+    return { ok: false, error: productAuthError("NETWORK", NETWORK_MESSAGE) };
+  }
+
+  if (!response.ok) return { ok: false, error: await readError(response) };
+
+  const body = (await response.json()) as { organizationId: string; userId: string };
+  return { ok: true, organizationId: body.organizationId, userId: body.userId };
 }
 
 export type InviteRegistrationOutcome =

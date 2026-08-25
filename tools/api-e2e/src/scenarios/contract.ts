@@ -192,12 +192,31 @@ export async function runOperationalScenarios(
     });
   }
 
-  const swagger = await client.get('/swagger-ui/index.html', { accept: 'text/html' });
+  // The interactive Swagger UI dependency was removed (springdoc's -api
+  // starter, not -ui — apps/backend/pom.xml). SecurityConfig no longer
+  // permitAll's "/swagger-ui/**", so this proves the route is not publicly
+  // exposed. It deliberately does NOT try to also prove "and no resource
+  // exists there" via an authenticated request expecting 404: in this
+  // application, ANY authenticated request to ANY nonexistent path returns
+  // 401 (via Spring Boot's /error dispatch), not 404 — confirmed against a
+  // second, unrelated nonexistent path too. Spring Security's stateless
+  // SecurityContextHolderFilter clears the context at the end of the
+  // original request's filter pass; JwtAuthenticationFilter, being a
+  // well-behaved OncePerRequestFilter, correctly does not re-authenticate
+  // the internal forward() to /error, so that dispatch's authorization
+  // check always runs unauthenticated — independent of whether the
+  // original request carried a valid token. Asserting 404 here would
+  // assert something this application's error-handling architecture cannot
+  // produce; actual absence of the Swagger UI dependency is proven
+  // separately (dependency tree, packaged-jar inspection, and a classpath
+  // resource check — see dependency-check-suppressions.xml's neighbours
+  // and SwaggerUiRemovalTest).
+  const swaggerAnonymous = await client.get('/swagger-ui/index.html', { accept: 'text/html' });
   prober.record({
-    id: 'operations:swagger-ui', kind: 'operations',
-    description: 'Swagger UI entry route responds in development',
-    passed: swagger.status === 200 || swagger.status === 302,
-    actual: String(swagger.status),
+    id: 'operations:swagger-ui-anonymous-unauthorized', kind: 'operations',
+    description: 'Swagger UI route is not publicly exposed (anonymous request is rejected)',
+    passed: swaggerAnonymous.status === 401,
+    actual: String(swaggerAnonymous.status),
   });
   void config;
 }

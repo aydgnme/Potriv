@@ -95,11 +95,20 @@ class AdminRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest {
         assertThat(passwordEncoder.matches(rawPassword, admin.getPasswordHash())).isTrue();
     }
 
+    /**
+     * A duplicate address gets the identical 202 a fresh one does, and no
+     * second account. Registration used to answer 400 here — an
+     * unauthenticated way to learn an address already has an account — which
+     * is exactly what moving to request-then-confirm closes. See
+     * {@code RegistrationEnumerationParityIntegrationTest} for the fuller
+     * response-shape/timing-class comparison; this test is the DB-level
+     * half: proving the second request never actually creates anything.
+     */
     @Test
-    void duplicateEmailIsRejected() throws Exception {
+    void duplicateEmailGetsTheIdenticalAcceptedResponseAndNoSecondAccount() throws Exception {
         String email = uniqueEmail("admin");
-
         registerAdmin(uniqueName("Org"), email, "Password123!");
+        // registerAdmin already cleared recordingMailSender.
 
         String body = objectMapper.writeValueAsString(Map.of(
             "name", "Second Admin",
@@ -109,10 +118,25 @@ class AdminRegistrationIntegrationTest extends AbstractMockMvcIntegrationTest {
             "headquarterAddress", "Test Address 2"
         ));
 
-        mockMvc.perform(post("/auth/register-admin")
+        String response = mockMvc.perform(post("/auth/register-admin")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
-            .andExpect(status().isBadRequest());
+            .andExpect(status().isAccepted())
+            .andReturn().getResponse().getContentAsString();
+
+        assertThat(objectMapper.readTree(response).get("message").asText())
+            .isEqualTo("If this email address can be used to create a workspace, "
+                + "a confirmation link has been sent to it.");
+
+        registrationVerificationDeliveryWorker.runOnce();
+
+        // The worker found the address already registered and suppressed
+        // delivery: nothing was mailed for the duplicate attempt.
+        assertThat(recordingMailSender.getSentMessages()).isEmpty();
+
+        // Still exactly one account for this address — the users.email
+        // unique constraint makes a second one impossible regardless.
+        assertThat(userRepository.findByEmail(email)).isPresent();
     }
 
     @Test

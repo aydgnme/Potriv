@@ -98,7 +98,7 @@ async function main(): Promise<number> {
     const context = await buildWorld(client, config.runId, config);
 
     console.log('Success paths…');
-    await runSuccessScenarios(client, prober, context);
+    await runSuccessScenarios(client, prober, context, config);
     console.log('Password-reset mail…');
     await runMailScenarios(client, prober, context, config);
     await runCapacityScenarios(client, prober, context);

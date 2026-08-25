@@ -17,7 +17,7 @@ export async function runBootstrapScenarios(
 ): Promise<void> {
   const founderEmail = `${ctx.runId}-solo-founder@potriv.test`.toLowerCase();
 
-  const created = await client.post('/auth/register-admin', {
+  const requested = await client.post('/auth/register-admin', {
     body: {
       name: 'QA Solo Founder',
       email: founderEmail,
@@ -26,15 +26,31 @@ export async function runBootstrapScenarios(
       headquarterAddress: 'Test Address 1',
     },
   });
-  if (!created.ok) {
+  if (!requested.ok) {
     prober.record({
       id: 'bootstrap.setup', kind: 'success', description: 'register a solo organization',
-      passed: false, message: `could not register: HTTP ${created.status}`,
+      passed: false, message: `could not register: HTTP ${requested.status}`,
     });
     return;
   }
 
-  const body = created.body as Record<string, unknown>;
+  // 202 only queues the intention: registration is request-then-confirm now,
+  // so the organization does not exist until the mailed confirmation link is
+  // redeemed — read out of the mailbox the same way an invite token is.
+  const confirmToken = await inviteTokenFor(config, founderEmail);
+  const confirmed = await client.post('/auth/register-admin/verify', {
+    body: { token: confirmToken },
+  });
+  if (!confirmed.ok) {
+    prober.record({
+      id: 'bootstrap.setup.confirm', kind: 'success',
+      description: 'confirm the solo organization registration',
+      passed: false, message: `could not confirm: HTTP ${confirmed.status}`,
+    });
+    return;
+  }
+
+  const body = confirmed.body as Record<string, unknown>;
   const founderId = String(body.userId ?? '');
   const founder = await login(client, {
     email: founderEmail, as: 'soloFounder', role: 'ORGANIZATION_ADMIN',

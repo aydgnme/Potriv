@@ -3,8 +3,53 @@ name: Dependency Check
 # Software composition analysis (known-CVE scan) for the backend's dependency
 # tree. Deliberately NOT on pull requests: OWASP Dependency-Check has to sync the
 # National Vulnerability Database, and without an API key that first sync takes
-# hours (measured locally: ~2.5h for 372k records). Keeping it scheduled means
-# PR feedback stays fast while CVE coverage still runs regularly.
+# hours (measured locally: ~2.5h for 372k records) — running it per-PR would also
+# mean handing NVD_API_KEY to a workflow that can be triggered by a fork's
+# pull_request event, which this repository does not do for any secret-bearing
+# job. Keeping it scheduled means PR feedback stays fast, no fork or Dependabot
+# PR ever sees this secret (there is no `pull_request` trigger to expose it
+# through), and CVE coverage still runs regularly.
+#
+# Every gate below — key present, key valid, NVD reachable, the produced report
+# real and clean, the NVD cache actually fresh — is implemented in
+# tools/dependency-scan and is exercised by that package's own test suite
+# (`npm test`, entirely against a local mock server and fixtures, never the real
+# NVD service) before it is ever trusted here. This workflow calls exactly that
+# code (`npx tsx src/cli.ts <command>`); nothing here is a second, undocumented
+# copy of the logic. That is deliberate: a red run in this workflow must always
+# mean "a named, tested check failed," never "somebody forgot a secret and
+# nobody noticed," and it must not go quietly green because a third-party
+# plugin's own failure behaviour was assumed rather than verified.
+#
+# Required secret setup (repository owner, one time — this workflow does not
+# and must not create the secret itself):
+#   1. Request a free NVD API key: https://nvd.nist.gov/developers/request-an-api-key
+#   2. Repository Settings -> Secrets and variables -> Actions -> New
+#      repository secret, name NVD_API_KEY, value the key from step 1.
+#
+# ---------------------------------------------------------------- Coverage
+#
+# Not every workspace's software-composition-analysis gate lives in this
+# file, so the current state is recorded here in one place rather than left
+# to be reconstructed from five different workflow files:
+#
+#   apps/backend          OWASP Dependency-Check, this workflow (Java/Maven).
+#   apps/frontend          `npm audit --audit-level=high`, required, in
+#                          frontend-ci.yml — runs on every PR, always fail-
+#                          closed, no NVD-style key or sync dependency.
+#   tools/api-e2e          `npm audit --audit-level=high`, required, in
+#                          api-e2e.yml — this workspace previously had no
+#                          dependency audit step at all.
+#   tools/dependency-scan  `npm audit --audit-level=high` plus typecheck and
+#                          its own deterministic test suite, required, in
+#                          dependency-scan-ci.yml.
+#   Container image / SBOM  Not implemented yet. Image build, SBOM
+#                          generation, and image vulnerability scanning are
+#                          scoped to the Azure staging CI/CD pipeline (a
+#                          later, separate piece of work) — apps/backend/
+#                          Dockerfile exists but nothing here scans the image
+#                          it produces. An explicit, tracked gap, not a
+#                          silent omission.
 on:
   schedule:
     # Weekly, Monday 04:17 UTC — after CodeQL, off the hour.
@@ -22,72 +67,257 @@ jobs:
   dependency-check:
     name: dependency-check
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # 120, not 60: a cold NVD sync (no usable cache -- e.g. run 32828508157,
+    # 2026-08-25, which hit 60 min mid-download after the cache from the
+    # previous run had already been evicted) needs more than 60 minutes'
+    # margin. The first-ever cold sync measured ~51 min; 60 cut that too
+    # close to survive normal variance. This does not change what gets
+    # checked or how strictly -- every fail-closed gate above (preflight,
+    # freshness, the CVSS threshold, report validation, the suppression
+    # policy) is unchanged; a genuinely stuck run still eventually times out
+    # and fails closed, just with realistic room to finish a legitimate cold
+    # sync first.
+    timeout-minutes: 120
     env:
-      # Mapped to an env var so the guard below can test it: the `secrets`
-      # context is not available in step-level `if:` conditions.
+      # Mapped to an env var, not read from `secrets` directly in a step's
+      # `run:` — the `secrets` context is not available in step-level `if:`
+      # conditions, and this keeps every step that touches it identical in
+      # shape.
       NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
       # Pinned for reproducibility; matches the version verified locally.
       DEPENDENCY_CHECK_VERSION: 12.2.2
+      # How stale a cache hit's own verified-freshness record may be before
+      # this job refuses to trust it. Comfortably longer than the weekly
+      # schedule (7 days), so an ordinary run's own record from last week
+      # never trips this — see tools/dependency-scan/src/freshness.ts.
+      NVD_FRESHNESS_MAX_AGE_DAYS: 10
+      # The single CVSS threshold both the Maven goal (-DfailBuildOnCVSS)
+      # and the independent report validator (validate-report --max-cvss)
+      # read below — one number, one place, so the two gates cannot drift
+      # apart. Mirrors tools/dependency-scan/src/config.ts's
+      # DEFAULT_MAX_CVSS; a YAML run: block cannot import that constant, so
+      # this env var is this workflow's side of the same contract. 7.0
+      # (HIGH and above) rather than 9.0 (CRITICAL only) — a 9.0 threshold
+      # let real HIGH-severity findings (CVSS 7.0-8.9) through a gate meant
+      # to block them.
+      DEPENDENCY_SCAN_MAX_CVSS: '7.0'
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      # Without a key the scan would fall back to an anonymous, rate-limited NVD
-      # sync that burns hours of runner time and usually still fails. Warn
-      # loudly and finish successfully instead of pretending to scan.
-      - name: Check for NVD API key
-        id: guard
-        run: |
-          if [ -z "$NVD_API_KEY" ]; then
-            echo "::warning title=Dependency-Check skipped::NVD_API_KEY secret is not configured. \
-            A real scan needs it: without a key the NVD sync is rate-limited to hours. \
-            Add the secret (free key: https://nvd.nist.gov/developers/request-an-api-key) and re-run."
-            echo "have_key=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "have_key=true" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Set up Node 22
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/dependency-scan/package-lock.json
+
+      - name: Install dependency-scan tooling
+        working-directory: tools/dependency-scan
+        run: npm ci
+
+      # Fails fast, before the ~50-minute NVD sync below, if
+      # dependency-check-suppressions.xml has drifted from its own required
+      # shape: any suppression missing its until= expiry, naming more than
+      # one CVE (or a regex/family match instead of one literal CVE id), or
+      # scoped by anything looser than one package pinned to one exact
+      # version (no bare CPE/vendor/package-family/wildcard matches).
+      - name: Check dependency-check suppression policy
+        working-directory: tools/dependency-scan
+        run: >
+          npx tsx src/cli.ts check-suppressions
+          --file "$GITHUB_WORKSPACE/apps/backend/dependency-check-suppressions.xml"
+
+      # Classifies missing key, invalid key (401/403), NVD unreachable
+      # (network error/timeout), and NVD itself erroring (5xx, retried a
+      # bounded number of times) as distinct, named failures — never a
+      # single "something went wrong" guess. Never logs the key value.
+      - name: NVD preflight (key present, valid, and NVD reachable)
+        working-directory: tools/dependency-scan
+        run: npx tsx src/cli.ts preflight
 
       - name: Set up Java 21
-        if: steps.guard.outputs.have_key == 'true'
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           java-version: '21'
           distribution: temurin
           cache: maven
 
       # The NVD dataset is expensive to build and changes slowly, so it is
-      # cached across runs and refreshed incrementally.
-      - name: Cache NVD data
-        if: steps.guard.outputs.have_key == 'true'
-        uses: actions/cache@v4
+      # cached across runs and refreshed incrementally. restore-only (not the
+      # combined action): the save half is done explicitly, later, right
+      # after the update stages below succeed -- not automatically at job
+      # end. A job that gets CANCELLED (e.g. the 60- and then 120-minute
+      # timeouts a live-API-only cold sync hit twice in a row) skips the
+      # combined action's automatic post-save entirely, discarding a
+      # partially- or even fully-updated database. An explicit, early save
+      # does not have that failure mode.
+      - name: Restore NVD data cache
+        id: nvd-cache
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.m2/repository/org/owasp/dependency-check-data
           key: nvd-${{ env.DEPENDENCY_CHECK_VERSION }}-${{ github.run_id }}
           restore-keys: |
             nvd-${{ env.DEPENDENCY_CHECK_VERSION }}-
 
-      # failBuildOnCVSS=9 keeps the gate meaningful at first: only critical
-      # findings break the build, so noisy medium/low CVEs cannot make the
-      # workflow useless. Lower it deliberately once the backlog is understood.
-      - name: Run OWASP Dependency-Check
-        if: steps.guard.outputs.have_key == 'true'
+      # A directory with no real NVD data yet (a fresh runner, or the cache
+      # key format changed) is never a failure here — there is nothing yet
+      # to have gone stale, and this run populates the record below. A
+      # directory that already holds data — however it got there — with a
+      # missing, corrupt, or out-of-date freshness record is the actual
+      # failure this step exists to catch: reused data that nothing proves
+      # was ever verified recently.
+      #
+      # Deliberately NOT `steps.nvd-cache.outputs.cache-hit`: that output is
+      # true only on an exact primary-key match, and the cache key above
+      # includes `github.run_id` (unique every run), so an exact match never
+      # happens — cache-hit is always false here, even on a run that
+      # legitimately restored last week's data through `restore-keys`.
+      # Gating on it made this check silently never run against restored
+      # data. Whether data is present is decided by looking at the
+      # directory itself (--data-dir), not by trusting that signal.
+      - name: Check NVD data freshness
+        working-directory: tools/dependency-scan
+        run: >
+          npx tsx src/cli.ts check-freshness
+          --metadata "$HOME/.m2/repository/org/owasp/dependency-check-data/nvd-metadata.json"
+          --data-dir "$HOME/.m2/repository/org/owasp/dependency-check-data"
+          --max-age-days "$NVD_FRESHNESS_MAX_AGE_DAYS"
+
+      # ---------------------------------------------------------- NVD update
+      #
+      # Two runs of this workflow already timed out (60 min, then 120 min)
+      # doing a cold NVD sync entirely through the live REST API: the second
+      # run had downloaded only ~140,000 of 382,390 records when it was
+      # cancelled. The live API, page by page, is simply too slow for a full
+      # cold start within any CI-realistic budget -- it is fine for a small
+      # incremental delta against data that is mostly already current, which
+      # is the only thing it is asked to do below. Bulk historical population
+      # instead comes from a pre-built mirror of the same NVD API 2.0 JSON
+      # shape, published for exactly this purpose.
+      #
+      # update-only (not check): populates/refreshes the local database
+      # without running the dependency scan itself -- the scan runs once,
+      # afterwards, against data these two stages have already verified.
+
+      # Stage 1: bulk-populate from the mirror. Not the live NVD API, so not
+      # subject to its per-key rate limit; this is what makes a cold start
+      # (no restored cache at all) survive the job's time budget.
+      - name: Seed NVD data from the verified feed mirror
         working-directory: apps/backend
         run: >
           ./mvnw -B
-          org.owasp:dependency-check-maven:${DEPENDENCY_CHECK_VERSION}:check
-          -DnvdApiKey="$NVD_API_KEY"
-          -Dformats=HTML,JSON
-          -DfailBuildOnCVSS=9
-          -DskipProvidedScope=true
+          "org.owasp:dependency-check-maven:${DEPENDENCY_CHECK_VERSION}:update-only"
+          "-DnvdDatafeedUrl=https://dependency-check.github.io/DependencyCheck_Builder/nvd_cache/nvdcve-{0}.json.gz"
 
-      # Reports are the point of the run, so upload them even when the scan
-      # failed the CVSS gate. They are artifacts only — never committed.
+      # Stage 2: the mirror is a snapshot, not a live feed, so this forces one
+      # real check against the live NVD API for anything modified since --
+      # nvdValidForHours=0 means "never trust the timestamp alone, always
+      # verify," and this is the ONLY stage that talks to the live API, so
+      # its cost is one delta, not a 382k-record cold sync.
+      # nvdApiKeyEnvironmentVariable (not nvdApiKey): the key value itself
+      # never appears as a command-line argument this way, only the name of
+      # the env var to read it from -- `ps`/process-listing output and any
+      # verbose Maven logging can show `-D` arguments verbatim, and this
+      # avoids that regardless of log level.
+      - name: Force a live NVD API delta update
+        working-directory: apps/backend
+        run: >
+          ./mvnw -B
+          "org.owasp:dependency-check-maven:${DEPENDENCY_CHECK_VERSION}:update-only"
+          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+          -DnvdValidForHours=0
+
+      # Recorded here -- immediately after both update stages succeed, before
+      # the scan below -- not after the scan. The scan's own CVSS gate can
+      # legitimately fail on real findings; that failure says nothing about
+      # whether the NVD data itself was ever properly refreshed, and this
+      # step must not be skipped just because the data it verified went on to
+      # find something real.
+      - name: Record verified NVD freshness
+        working-directory: tools/dependency-scan
+        run: >
+          npx tsx src/cli.ts record-freshness
+          --metadata "$HOME/.m2/repository/org/owasp/dependency-check-data/nvd-metadata.json"
+
+      # Explicit, not the automatic post-save half of the combined
+      # actions/cache action: saved right here, before vulnerability
+      # evaluation, so that a later CVE-gate failure -- or, as has actually
+      # happened twice, the job hitting its overall timeout during the scan
+      # itself -- cannot discard a database that was already fully, verifiably
+      # updated. A cancelled job skips every remaining step, including a
+      # combined action's automatic save; a step that has already completed
+      # is not undone by anything after it.
+      - name: Save NVD data cache
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-${{ env.DEPENDENCY_CHECK_VERSION }}-${{ github.run_id }}
+
+      # -------------------------------------------------------------- Scan
+      #
+      # failBuildOnCVSS reads DEPENDENCY_SCAN_MAX_CVSS (7.0 — HIGH and above)
+      # so this threshold and the one the validate-report step below applies
+      # come from the exact same env var and cannot drift apart.
+      # suppressionFiles points at a real, version-controlled file
+      # (apps/backend/dependency-check-suppressions.xml) so any future
+      # suppression is reviewable in a diff and — via that file's required
+      # `until` dates — expires back into an active finding on its own
+      # rather than staying silenced indefinitely. autoUpdate=false, not
+      # true: the two stages above have just verified the data is current,
+      # so this scan reads that already-updated database offline rather than
+      # re-triggering a third round of NVD traffic (and re-introducing the
+      # exact rate-limited-cold-sync problem this whole section exists to
+      # avoid).
+      - name: Run OWASP Dependency-Check
+        working-directory: apps/backend
+        run: >
+          ./mvnw -B
+          "org.owasp:dependency-check-maven:${DEPENDENCY_CHECK_VERSION}:check"
+          -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+          -Dformats=HTML,JSON
+          -DfailBuildOnCVSS="$DEPENDENCY_SCAN_MAX_CVSS"
+          -DskipProvidedScope=true
+          -DsuppressionFiles=dependency-check-suppressions.xml
+          -DautoUpdate=false
+
+      # A second, independent gate over the Maven goal's own exit code: the
+      # report must exist, parse as JSON, list at least one scanned
+      # dependency, and — re-checked here rather than only trusted from the
+      # goal above — carry no finding at or above the same CVSS threshold.
+      # This is what a plugin update, a changed default, or an environment
+      # quirk exiting 0 without a real scan cannot slip past.
+      #
+      # if: always() so this also runs when the Maven goal above already
+      # failed (-DfailBuildOnCVSS) rather than being skipped: the JSON
+      # report is written before Maven evaluates the threshold, so it still
+      # exists, and re-checking it here surfaces the same findings through
+      # this tool's own diagnostics (CVE, generation, score, dependency)
+      # instead of only Maven's console output. This cannot turn a failed
+      # scan into a green job: the job's conclusion is already "failure"
+      # from the step above the moment it exits non-zero, and this step's
+      # own exit code independently agrees in every real case, since it
+      # reads the same report against the same threshold.
+      - name: Validate the Dependency-Check report
+        if: always()
+        working-directory: tools/dependency-scan
+        run: >
+          npx tsx src/cli.ts validate-report
+          --report "$GITHUB_WORKSPACE/apps/backend/target/dependency-check-report.json"
+          --max-cvss "$DEPENDENCY_SCAN_MAX_CVSS"
+
+      # Reports are the point of the run, so upload them even when an earlier
+      # step failed. They are artifacts only — never committed. Fails, not
+      # warns, when the report is missing: a run that never produced a report
+      # (e.g. cancelled mid-scan) is not a successful run with an
+      # inconsequential upload hiccup, and this step should say so clearly
+      # rather than going green on an empty artifact.
       - name: Upload Dependency-Check reports
-        if: always() && steps.guard.outputs.have_key == 'true'
-        uses: actions/upload-artifact@v4
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dependency-check-report
           path: apps/backend/target/dependency-check-report.*
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30

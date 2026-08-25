@@ -75,19 +75,29 @@ app:
     # quota below keys on the proxy's own address instead of each caller's —
     # which still fails closed (one shared bucket, reached sooner) rather than
     # open, but defeats the per-caller intent of the quota. Set to the
-    # deployment's actual front-door/gateway ranges.
+    # deployment's actual front-door/gateway ranges. ProductionConfigGuard
+    # refuses to boot with rate limiting enabled and this left unset unless
+    # no-reverse-proxy below is explicitly true.
     trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:}
+    # The explicit opt-out for a deployment that is deliberately reachable
+    # directly from the internet, with nothing forwarding on its behalf — so
+    # request.getRemoteAddr() already is the real client and trusted-proxies
+    # has nothing to name. Never set this next to a non-empty trusted-proxies;
+    # ProductionConfigGuard rejects that combination as contradictory.
+    no-reverse-proxy: ${RATE_LIMIT_NO_REVERSE_PROXY:false}
 
 cors:
   # Comma-separated list of exact origins. Wildcards are refused at boot
   # because CORS responses carry credentials.
   allowed-origins: ${CORS_ALLOWED_ORIGINS:https://potriv.aydgn.me}
 
-# OpenAPI/Swagger stays off in production unless explicitly re-enabled.
+# The OpenAPI JSON contract (/v3/api-docs) stays off in production unless
+# explicitly re-enabled. There is no swagger-ui toggle here any more: the
+# interactive Swagger UI dependency itself was removed (springdoc's -api
+# starter, not -ui — see apps/backend/pom.xml), so there is no UI left to
+# enable or disable, only the JSON contract.
 springdoc:
   api-docs:
-    enabled: ${SWAGGER_ENABLED:false}
-  swagger-ui:
     enabled: ${SWAGGER_ENABLED:false}
 
 management:

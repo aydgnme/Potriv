@@ -2,6 +2,15 @@ package me.aydgn.potriv.security.entity;
 
 public enum SecurityAuditEventType {
     ORGANIZATION_ADMIN_REGISTERED,
+    /**
+     * A workspace-registration request was received, for any address —
+     * mirrors {@link #PASSWORD_RESET_REQUESTED} being recorded regardless of
+     * whether the address has an account. {@link #ORGANIZATION_ADMIN_REGISTERED}
+     * fires only once the address is actually confirmed and the account
+     * created; this fires for every attempt, so the two together show how
+     * many requests never got confirmed.
+     */
+    ORGANIZATION_ADMIN_REGISTRATION_REQUESTED,
     EMPLOYEE_REGISTERED,
     LOGIN_SUCCEEDED,
     LOGIN_FAILED,

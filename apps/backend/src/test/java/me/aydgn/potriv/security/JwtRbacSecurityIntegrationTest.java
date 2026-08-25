@@ -216,9 +216,40 @@ class JwtRbacSecurityIntegrationTest extends AbstractMockMvcIntegrationTest {
     }
 
     @Test
-    void swaggerEndpointsRemainAccessible() throws Exception {
+    void openApiContractRemainsAccessible() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk());
+    }
+
+    /**
+     * No permitAll rule remains for "/swagger-ui/**" (the interactive
+     * Swagger UI dependency was removed — see apps/backend/pom.xml), so an
+     * anonymous request is dispatched to Spring's own /error handler, which
+     * itself sits behind {@code .anyRequest().authenticated()} — this
+     * legitimately fails authentication before MVC ever gets a chance to say
+     * "not found". A 401 here proves the route is not publicly exposed.
+     *
+     * <p>This deliberately does not also assert 404 for an authenticated
+     * request to the same path: verified against a real, fully embedded
+     * server (not this class's MockMvc slice — MockMvc does not exercise
+     * Spring Boot's real ErrorPageFilter forward the same way a genuine
+     * container does), ANY authenticated request to ANY nonexistent path in
+     * this application returns 401, not 404, because
+     * {@code SecurityContextHolderFilter} clears the security context at
+     * the end of the original request's filter pass and
+     * {@code JwtAuthenticationFilter} — a well-behaved
+     * {@code OncePerRequestFilter} — correctly does not re-authenticate the
+     * internal forward to /error. That is an application-wide characteristic
+     * of the STATELESS session policy, not evidence about Swagger UI one way
+     * or the other; actual absence of the dependency is proven separately —
+     * see {@code SwaggerUiRemovalTest} (classpath resources),
+     * {@code scripts/verify-jar-excludes-swagger-ui.sh} (the packaged jar),
+     * and the Enforcer-banned dependency in apps/backend/pom.xml.
+     */
+    @Test
+    void swaggerUiIsNotPubliclyExposedToAnonymousRequests() throws Exception {
+        mockMvc.perform(get("/swagger-ui/index.html"))
+            .andExpect(status().isUnauthorized());
     }
 
     // ---- RBAC annotation coverage ----

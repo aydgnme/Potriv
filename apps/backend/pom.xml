@@ -28,6 +28,27 @@
     </scm>
     <properties>
         <java.version>21</java.version>
+        <!--
+          Overrides of versions the spring-boot-starter-parent BOM would
+          otherwise pick, applied because the BOM's own pinned versions had
+          real, NVD-confirmed CVEs at or above this project's CVSS gate
+          (see tools/dependency-scan and .github/workflows/dependency-check.yml).
+          Format is FROM to TO, then the reason.
+
+            tomcat.version:     10.1.55 to 10.1.57. CVE-2026-53434,
+                                55276, 59083, 59084 (v4/v3 9.1, CRITICAL) and
+                                others, fixed by 57. CVE-2026-66299 remains
+                                open until 10.1.58 is released; see the
+                                narrowly-scoped, expiring suppression in
+                                dependency-check-suppressions.xml.
+            postgresql.version: 42.7.11 to 42.7.13. CVE-2026-54291 (v4 8.2).
+            log4j2.version:     2.24.3 to 2.25.4. CVE-2026-34479 (v3 7.5,
+                                re-scored under v4 as 6.9; upgraded
+                                regardless of the score generation used).
+        -->
+        <tomcat.version>10.1.57</tomcat.version>
+        <postgresql.version>42.7.13</postgresql.version>
+        <log4j2.version>2.25.4</log4j2.version>
     </properties>
     <dependencies>
         <dependency>
@@ -67,9 +88,19 @@
             <artifactId>flyway-database-postgresql</artifactId>
         </dependency>
         <dependency>
+            <!--
+              -api, not -ui: this application never serves the interactive
+              Swagger UI (application-prod.yml keeps it off by default, and
+              nothing in this codebase relies on it) but does need
+              /v3/api-docs, which -api still generates. -ui pulls in a
+              bundled Swagger UI static asset set, including its own vendored
+              copy of DOMPurify, that this project does not use and that has
+              been a source of real, unrelated CVEs in dependency scans; -api
+              drops that whole surface from the resolved runtime graph.
+            -->
             <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.8.16</version>
+            <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+            <version>2.9.0</version>
         </dependency>
 
         <dependency>
@@ -141,6 +172,49 @@
                         </exclude>
                     </excludes>
                 </configuration>
+            </plugin>
+            <!--
+              Fails the build the moment the interactive Swagger UI
+              dependency (or its underlying webjar, carrying a bundled
+              DOMPurify copy that was a real, unrelated CVE source) is
+              resolved into the tree at all. A preventive check, ahead of
+              the packaged-jar inspection in
+              scripts/verify-jar-excludes-swagger-ui.sh and the classpath
+              check in SwaggerUiRemovalTest, which both catch it only after
+              the fact. See docs/backend/security-baseline.md for why -api
+              replaced -ui.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.6.3</version>
+                <executions>
+                    <execution>
+                        <id>ban-swagger-ui-runtime-dependency</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.webjars:swagger-ui</exclude>
+                                        <exclude>org.springdoc:springdoc-openapi-starter-webmvc-ui</exclude>
+                                    </excludes>
+                                    <message>
+                                        The interactive Swagger UI dependency was deliberately
+                                        removed (apps/backend/pom.xml uses springdoc's -api
+                                        starter, not -ui) to drop its bundled static assets,
+                                        including a vendored DOMPurify copy that was a real CVE
+                                        source. Do not reintroduce it -- /v3/api-docs already
+                                        works without it. See docs/backend/security-baseline.md.
+                                    </message>
+                                </bannedDependencies>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>

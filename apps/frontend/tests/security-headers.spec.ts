@@ -22,12 +22,14 @@ const SENSITIVE_ROUTES = [
   "/forgot-password",
   "/login",
   "/create-workspace",
+  "/create-workspace/verify",
 ] as const;
 
-/** Fragments the two token-bearing pages are reached with in the wild. */
+/** Fragments the token-bearing pages are reached with in the wild. */
 const FRAGMENT: Partial<Record<(typeof SENSITIVE_ROUTES)[number], string>> = {
   "/invite": "#token=playwright-fake-invite-token",
   "/reset-password": "#token=playwright-fake-reset-token",
+  "/create-workspace/verify": "#token=playwright-fake-registration-token",
 };
 
 /**
@@ -240,6 +242,16 @@ test.describe("the credential leaves the address bar", () => {
 
   test("the fragment is scrubbed from the reset URL", async ({ page }) => {
     await page.goto("/reset-password#token=playwright-fake-reset-token");
+    await expect(page.locator("form")).toBeVisible();
+
+    await expect
+      .poll(() => page.evaluate(() => window.location.hash))
+      .toBe("");
+    expect(await page.evaluate(() => window.location.href)).not.toContain("token");
+  });
+
+  test("the fragment is scrubbed from the workspace-confirmation URL", async ({ page }) => {
+    await page.goto("/create-workspace/verify#token=playwright-fake-registration-token");
     await expect(page.locator("form")).toBeVisible();
 
     await expect

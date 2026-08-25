@@ -138,6 +138,7 @@ describe("the route list", () => {
   it("covers every page named in the security review", () => {
     expect([...SENSITIVE_ROUTES].sort()).toEqual([
       "/create-workspace",
+      "/create-workspace/verify",
       "/forgot-password",
       "/invite",
       "/login",

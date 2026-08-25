@@ -4,10 +4,15 @@ import java.security.SecureRandom;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.mail.MailAuthenticationException;
 import org.springframework.mail.MailException;
+import org.springframework.mail.MailParseException;
+import org.springframework.mail.MailPreparationException;
+import org.springframework.mail.MailSendException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -149,10 +154,44 @@ public class PasswordResetService {
                 passwordResetUrlFactory.build(rawToken)
             );
         } catch (MailException exception) {
-            // Keep the response identical for all callers; the raw token is
-            // intentionally absent from this log statement.
-            log.warn("Failed to send password reset email.", exception);
+            logMailFailure(exception);
         }
+    }
+
+    /**
+     * The one thing this method must not do is log {@code exception} itself.
+     *
+     * SLF4J renders a {@link Throwable} argument as its full {@code toString()}
+     * plus stack trace, and a {@code MailException}'s message routinely
+     * includes what the underlying transport failed to do — which, for this
+     * call, is deliver to a specific recipient. A nested cause can carry the
+     * same detail even deeper, on a JavaMail exception this application did
+     * not construct and cannot rely on staying free of it. So nothing here
+     * reads {@code exception.getMessage()}, calls {@code exception.toString()},
+     * or passes {@code exception} to the logger — only its class name, and a
+     * category drawn from a fixed, non-derived allowlist of four values. Keep
+     * the response identical for all callers either way; the raw token is
+     * never in reach of this method at all.
+     */
+    private static void logMailFailure(MailException exception) {
+        log.warn(
+            "Failed to send password reset email [eventId={}, exceptionType={}, category={}]",
+            UUID.randomUUID(), exception.getClass().getSimpleName(),
+            mailFailureCategory(exception));
+    }
+
+    private static String mailFailureCategory(MailException exception) {
+        if (exception instanceof MailAuthenticationException) {
+            return "AUTHENTICATION";
+        }
+        if (exception instanceof MailSendException) {
+            return "SEND";
+        }
+        if (exception instanceof MailPreparationException
+            || exception instanceof MailParseException) {
+            return "PREPARATION";
+        }
+        return "UNKNOWN";
     }
 
     /**

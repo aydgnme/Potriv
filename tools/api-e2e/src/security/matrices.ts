@@ -14,6 +14,7 @@ import { Prober } from '../scenarios/probe.js';
 /** Public by SecurityConfig — audited from source, not assumed. */
 export const PUBLIC_OPERATIONS: ReadonlySet<string> = new Set([
   'POST /auth/register-admin',
+  'POST /auth/register-admin/verify',
   'POST /auth/register-employee',
   'POST /auth/login',
   'POST /auth/refresh',

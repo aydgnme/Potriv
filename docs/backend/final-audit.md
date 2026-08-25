@@ -237,7 +237,7 @@ Stack torn down afterwards (`down -v`, 0 containers left).
 | --- | --- | --- |
 | `backend-ci.yml` | PR to `main`, push to `main`, dispatch | `backend-verify` (Java 21, Maven cache, `clean verify`) + `production-compose-config` |
 | `codeql.yml` | PR, push, weekly cron, dispatch | `java-kotlin`, `build-mode: manual`, `security-extended,security-and-quality` |
-| `dependency-check.yml` | weekly cron + dispatch **only** | Skips with a warning when `NVD_API_KEY` is absent — never starts an unauthenticated multi-hour NVD sync; never runs on PRs |
+| `dependency-check.yml` | weekly cron + dispatch **only** | Fails closed when `NVD_API_KEY` is absent, NVD is unreachable, or a finding is at or above CVSS 7.0 (no silent skip — see `security-baseline.md` §3); never starts an unauthenticated multi-hour NVD sync; never runs on PRs |
 
 Permissions are least-privilege (`contents: read`; CodeQL adds
 `security-events: write`). No generated reports are committed; no secret values
@@ -361,8 +361,10 @@ No scenario is claimed as manually verified except Scenario 6, which was.
   → `ACCEPTED SECURITY LIMITATION`.
 - **8 open CodeQL alerts** (3 high, 5 note), pre-existing and triaged. Not
   suppressed, not resolved here.
-- **Dependency-Check** runs weekly/dispatch only and skips itself without
-  `NVD_API_KEY`; PRs are therefore not SCA-gated.
+- **Dependency-Check** runs weekly/dispatch only and fails closed (does not run
+  a real scan) without `NVD_API_KEY`; PRs are therefore still not SCA-gated by
+  this workflow (deliberate — see `security-baseline.md` §3 for why it stays
+  off pull requests).
 - **Repository settings** (branch protection, required checks, secret scanning,
   push protection, Dependabot) are not code and were not verified.
 - **Mail health** is reported but no longer gates the probe; an SMTP outage is

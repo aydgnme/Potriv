@@ -56,7 +56,7 @@ class ProductionSchemaMigrationIntegrationTest {
         "projects", "project_allocations", "project_assignment_proposals",
         "project_assignment_proposal_roles", "project_deallocation_proposals",
         "project_status_history", "project_team_role_requirements", "project_technologies",
-        "rate_limit_windows", "rate_limit_cooldowns",
+        "rate_limit_windows", "rate_limit_cooldowns", "registration_verifications",
         "refresh_tokens", "security_audit_events", "skills", "skill_categories",
         "skill_department_links", "team_roles", "users", "user_roles", "user_sessions");
 
@@ -76,6 +76,11 @@ class ProductionSchemaMigrationIntegrationTest {
             () -> "test-only-production-schema-secret-with-plenty-of-entropy-0123456789");
         registry.add("app.rate-limit.hmac-secret",
             () -> "test-only-production-schema-rate-limit-secret-0123456789");
+        // ProductionConfigGuard now also requires exactly one of trusted-proxies
+        // or this whenever rate limiting is enabled; this test is not exercising
+        // that guard's proxy logic, so it opts out explicitly like a direct,
+        // no-reverse-proxy connection would.
+        registry.add("app.rate-limit.no-reverse-proxy", () -> "true");
         registry.add("cors.allowed-origins", () -> "https://potriv.aydgn.me");
         registry.add("app.mail.from", () -> "no-reply@potriv.test");
         registry.add("spring.mail.host", () -> "localhost");

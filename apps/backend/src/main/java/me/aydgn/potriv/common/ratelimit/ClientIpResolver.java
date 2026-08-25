@@ -1,7 +1,5 @@
 package me.aydgn.potriv.common.ratelimit;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -26,6 +24,17 @@ import jakarta.servlet.http.HttpServletRequest;
  * RateLimitProperties#trustedProxies()}. With no trusted proxies configured,
  * which is the default, this always returns the peer address, and every
  * {@code X-Forwarded-For} on every request is ignored.
+ *
+ * Every hop value this class compares against a trusted range — the
+ * configured ranges themselves and each forwarded hop — is parsed by
+ * {@link IpLiteral}, never by handing an unproven string to {@link
+ * java.net.InetAddress#getByName}. A forwarded hop is exactly the kind of
+ * value a caller controls once the immediate peer is trusted, so treating it
+ * as a hostname worth resolving would let that caller make this application
+ * perform an arbitrary outbound DNS lookup on request. A hop that is not a
+ * valid IPv4 or IPv6 literal breaks the chain of custody the right-to-left
+ * walk depends on and is never returned as the client's address; the walk
+ * falls back to the peer instead.
  */
 @Component
 public class ClientIpResolver {
@@ -67,8 +76,19 @@ public class ClientIpResolver {
             }
         }
         for (int i = hops.size() - 1; i >= 0; i--) {
-            if (!trustedByConfiguration(hops.get(i))) {
-                return hops.get(i);
+            String hop = hops.get(i);
+            if (!IpLiteral.isLiteral(hop)) {
+                // Not a value this application can compare against a CIDR
+                // range at all — a hostname, a malformed address, a zone id,
+                // or otherwise garbled input. Whether or not it happens to
+                // match a trusted range as a string is not a question worth
+                // asking: nothing to its left can be trusted once the chain
+                // itself does not parse, so this stops here rather than
+                // walking past it.
+                return peer;
+            }
+            if (!trustedByConfiguration(hop)) {
+                return hop;
             }
         }
         // Every hop, including the client's own claimed address, matched a
@@ -82,7 +102,7 @@ public class ClientIpResolver {
     }
 
     /** IPv4 CIDR, or a bare address of either family compared by exact string. */
-    private record CidrBlock(InetAddress network, int prefixLength, String exact) {
+    private record CidrBlock(byte[] networkBytes, int prefixLength, String exact) {
 
         static CidrBlock parse(String value) {
             String trimmed = value.trim();
@@ -90,41 +110,61 @@ public class ClientIpResolver {
             if (slash < 0) {
                 return new CidrBlock(null, -1, trimmed);
             }
+            String networkPart = trimmed.substring(0, slash);
+            if (!IpLiteral.isLiteral(networkPart)) {
+                throw new IllegalArgumentException(
+                    "Invalid entry in app.rate-limit.trusted-proxies: " + value);
+            }
+            int prefixLength;
             try {
-                InetAddress network = InetAddress.getByName(trimmed.substring(0, slash));
-                int prefixLength = Integer.parseInt(trimmed.substring(slash + 1));
-                return new CidrBlock(network, prefixLength, null);
-            } catch (UnknownHostException | NumberFormatException exception) {
+                prefixLength = Integer.parseInt(trimmed.substring(slash + 1));
+            } catch (NumberFormatException exception) {
                 throw new IllegalArgumentException(
                     "Invalid entry in app.rate-limit.trusted-proxies: " + value, exception);
             }
+            byte[] networkBytes = IpLiteral.toBytes(networkPart);
+            // An IPv4-mapped IPv6 literal (::ffff:x.x.x.x) is folded by the
+            // JDK into a 4-byte Inet4Address, exactly like a plain IPv4
+            // literal — InetAddress does not keep the 16-byte form around. A
+            // prefix written as if against that 16-byte form (anything over
+            // 32) is therefore not a stricter range, it is nonsense: there is
+            // no such bit to compare, and comparing past a 4-byte array
+            // without this guard runs off the end of it entirely. Caught
+            // here, at configuration load, rather than against a real
+            // request.
+            if (prefixLength < 0 || prefixLength > networkBytes.length * 8) {
+                throw new IllegalArgumentException(
+                    "Invalid entry in app.rate-limit.trusted-proxies: " + value
+                        + " (prefix length must be between 0 and " + (networkBytes.length * 8)
+                        + " for this address)");
+            }
+            return new CidrBlock(networkBytes, prefixLength, null);
         }
 
         boolean contains(String candidate) {
+            String trimmed = candidate.trim();
             if (exact != null) {
-                return exact.equalsIgnoreCase(candidate.trim());
+                return exact.equalsIgnoreCase(trimmed);
             }
-            try {
-                byte[] networkBytes = network.getAddress();
-                byte[] candidateBytes = InetAddress.getByName(candidate.trim()).getAddress();
-                if (networkBytes.length != candidateBytes.length) {
-                    return false;
-                }
-                int fullBytes = prefixLength / 8;
-                for (int i = 0; i < fullBytes; i++) {
-                    if (networkBytes[i] != candidateBytes[i]) {
-                        return false;
-                    }
-                }
-                int remainingBits = prefixLength % 8;
-                if (remainingBits == 0) {
-                    return true;
-                }
-                int mask = 0xFF00 >> remainingBits & 0xFF;
-                return (networkBytes[fullBytes] & mask) == (candidateBytes[fullBytes] & mask);
-            } catch (UnknownHostException exception) {
+            if (!IpLiteral.isLiteral(trimmed)) {
                 return false;
             }
+            byte[] candidateBytes = IpLiteral.toBytes(trimmed);
+            if (networkBytes.length != candidateBytes.length) {
+                return false;
+            }
+            int fullBytes = prefixLength / 8;
+            for (int i = 0; i < fullBytes; i++) {
+                if (networkBytes[i] != candidateBytes[i]) {
+                    return false;
+                }
+            }
+            int remainingBits = prefixLength % 8;
+            if (remainingBits == 0) {
+                return true;
+            }
+            int mask = 0xFF00 >> remainingBits & 0xFF;
+            return (networkBytes[fullBytes] & mask) == (candidateBytes[fullBytes] & mask);
         }
     }
 }

@@ -105,8 +105,9 @@ Security gates run as separate workflows:
 
 - **CodeQL** (`codeql.yml`) — SAST on PRs, pushes to `main`, and weekly.
 - **Dependency Check** (`dependency-check.yml`) — weekly/manual CVE scan.
-  Requires an `NVD_API_KEY` secret; without it the job warns and skips instead
-  of starting a multi-hour anonymous NVD sync.
+  Requires an `NVD_API_KEY` secret; the job fails closed without one (and on
+  an NVD outage, or a finding at or above CVSS 7.0) rather than silently
+  skipping the scan.
 - **GitGuardian** — connected app, scans pull requests for secrets.
 
 See [`docs/backend/security-baseline.md`](docs/backend/security-baseline.md) for

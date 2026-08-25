@@ -1,5 +1,6 @@
 package me.aydgn.potriv.identity.service;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,15 +10,18 @@ import me.aydgn.potriv.identity.support.EmailAddresses;
 import me.aydgn.potriv.common.exception.BadRequestException;
 import me.aydgn.potriv.common.ratelimit.RateLimitService;
 import me.aydgn.potriv.common.security.TokenDigest;
+import me.aydgn.potriv.identity.dto.RegisterAdminConfirmRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminRequest;
 import me.aydgn.potriv.identity.dto.RegisterAdminResponse;
 import me.aydgn.potriv.identity.dto.RegisterEmployeeRequest;
 import me.aydgn.potriv.identity.dto.RegisterEmployeeResponse;
 import me.aydgn.potriv.identity.entity.AccessRole;
 import me.aydgn.potriv.identity.entity.InviteToken;
+import me.aydgn.potriv.identity.entity.RegistrationVerification;
 import me.aydgn.potriv.identity.entity.User;
 import me.aydgn.potriv.identity.entity.UserRole;
 import me.aydgn.potriv.identity.repository.InviteTokenRepository;
+import me.aydgn.potriv.identity.repository.RegistrationVerificationRepository;
 import me.aydgn.potriv.identity.repository.UserRepository;
 import me.aydgn.potriv.identity.repository.UserRoleRepository;
 import me.aydgn.potriv.organization.entity.Organization;
@@ -35,6 +39,8 @@ public class AuthRegistrationService {
     private final InviteTokenRepository inviteTokenRepository;
     private final InviteTokenService inviteTokenService;
     private final InviteUrlFactory inviteUrlFactory;
+    private final RegistrationVerificationRepository registrationVerificationRepository;
+    private final RegistrationVerificationTokenService registrationVerificationTokenService;
     private final SecurityAuditService securityAuditService;
     private final PasswordEncoder passwordEncoder;
     private final RateLimitService rateLimitService;
@@ -46,6 +52,8 @@ public class AuthRegistrationService {
         InviteTokenRepository inviteTokenRepository,
         InviteTokenService inviteTokenService,
         InviteUrlFactory inviteUrlFactory,
+        RegistrationVerificationRepository registrationVerificationRepository,
+        RegistrationVerificationTokenService registrationVerificationTokenService,
         SecurityAuditService securityAuditService,
         PasswordEncoder passwordEncoder,
         RateLimitService rateLimitService
@@ -56,43 +64,126 @@ public class AuthRegistrationService {
         this.inviteTokenRepository = inviteTokenRepository;
         this.inviteTokenService = inviteTokenService;
         this.inviteUrlFactory = inviteUrlFactory;
+        this.registrationVerificationRepository = registrationVerificationRepository;
+        this.registrationVerificationTokenService = registrationVerificationTokenService;
         this.securityAuditService = securityAuditService;
         this.passwordEncoder = passwordEncoder;
         this.rateLimitService = rateLimitService;
     }
 
+    /**
+     * Requests a new workspace. Always returns having done exactly the same
+     * work, whether or not {@code request.email()} already has an account:
+     * normalise, check the rate limit, hash the password, insert one row.
+     *
+     * Nothing here branches on email availability — there is no
+     * {@code existsByEmail} call in this method at all, deliberately. The
+     * previous version answered 400 for a taken address and 201 for a new
+     * one, which is an unauthenticated way to learn whether somebody has an
+     * account. Password hashing is the dominant cost of this method by a wide
+     * margin, and it runs unconditionally here, so there is nothing left for
+     * a timing difference to hang on either.
+     *
+     * Nothing is created yet. This inserts one {@link RegistrationVerification}
+     * row — an intention, not an account — and returns; a delivery worker
+     * mints and mails a confirmation link separately, and only
+     * {@link #confirmRegistration} ever creates the organization and the
+     * admin account. See {@link RegistrationVerification}'s own javadoc for
+     * why, including how a since-registered address is handled without this
+     * method ever finding out.
+     */
     @Transactional
-    public RegisterAdminResponse registerOrganizationAdmin(
-        RegisterAdminRequest request, String clientIp
-    ) {
+    public void registerOrganizationAdmin(RegisterAdminRequest request, String clientIp) {
         String normalizedEmail = normalizeEmail(request.email());
         rateLimitService.checkRegisterAdmin(clientIp, normalizedEmail);
-        ensureEmailIsAvailable(normalizedEmail);
+
+        String passwordHash = passwordEncoder.encode(request.password());
+
+        registrationVerificationRepository.save(new RegistrationVerification(
+            normalizedEmail,
+            request.name().trim(),
+            request.organizationName().trim(),
+            request.headquarterAddress().trim(),
+            passwordHash,
+            registrationVerificationTokenService.provisionalExpiry()
+        ));
+
+        securityAuditService.record(
+            SecurityAuditEvent.builder(
+                    SecurityAuditEventType.ORGANIZATION_ADMIN_REGISTRATION_REQUESTED, true)
+                .normalizedEmail(normalizedEmail)
+                .build()
+        );
+    }
+
+    /**
+     * Confirms a workspace registration and — only now — creates the
+     * organization and the admin account, atomically.
+     *
+     * The claim ({@link RegistrationVerificationRepository#claim}) is a
+     * conditional UPDATE, not a read followed by a write, for the same
+     * reason {@link #registerEmployee}'s is: two confirmations racing the
+     * same token must not both pass a Java check before either has written
+     * anything.
+     *
+     * The {@code existsByEmail} check here is not the one this class removed
+     * from {@link #registerOrganizationAdmin}: this is reached only by
+     * someone who has already proven ownership of the token, so there is no
+     * enumeration surface left to protect — an invalid-token response here
+     * means either a bad token or a race lost to a concurrent confirmation,
+     * and a caller who already holds a valid token has no use for
+     * distinguishing those. The {@code saveAndFlush}/catch below is the same
+     * race closed a second, structural way: if two different tokens for the
+     * same address are confirmed together, the {@code users.email} unique
+     * constraint — not just this check — guarantees only one insert can
+     * succeed, and the loser is turned into the same clean, generic error
+     * instead of an uncaught exception.
+     */
+    @Transactional
+    public RegisterAdminResponse confirmRegistration(RegisterAdminConfirmRequest request) {
+        String tokenHash = TokenDigest.sha256Base64Url(request.token());
+
+        if (registrationVerificationRepository.claim(tokenHash) != 1) {
+            throw invalidRegistrationException();
+        }
+
+        RegistrationVerification pending = registrationVerificationRepository
+            .findByTokenHash(tokenHash)
+            .orElseThrow(AuthRegistrationService::invalidRegistrationException);
+
+        if (userRepository.existsByEmail(pending.getEmail())) {
+            // Same exception as every other failure here. The transaction
+            // rolls back, so the claim above is undone.
+            throw invalidRegistrationException();
+        }
 
         Organization organization = new Organization(
-            request.organizationName().trim(),
-            request.headquarterAddress().trim()
+            pending.getOrganizationName(),
+            pending.getHeadquarterAddress()
         );
         organizationRepository.save(organization);
 
         User admin = new User(
             organization,
-            request.name().trim(),
-            normalizedEmail,
-            passwordEncoder.encode(request.password())
+            pending.getAdminName(),
+            pending.getEmail(),
+            pending.getPasswordHash()
         );
-        userRepository.save(admin);
+        try {
+            userRepository.saveAndFlush(admin);
+        } catch (DataIntegrityViolationException exception) {
+            throw invalidRegistrationException();
+        }
 
         userRoleRepository.save(new UserRole(admin, AccessRole.EMPLOYEE));
         userRoleRepository.save(new UserRole(admin, AccessRole.ORGANIZATION_ADMIN));
-
 
         securityAuditService.record(
             SecurityAuditEvent.builder(
                     SecurityAuditEventType.ORGANIZATION_ADMIN_REGISTERED, true)
                 .userId(admin.getId())
                 .organizationId(organization.getId())
-                .normalizedEmail(normalizedEmail)
+                .normalizedEmail(pending.getEmail())
                 .build()
         );
 
@@ -185,10 +276,15 @@ public class AuthRegistrationService {
         return new BadRequestException("This invitation is not valid.", ErrorCodes.INVITE_INVALID);
     }
 
-    private void ensureEmailIsAvailable(String email) {
-        if (userRepository.existsByEmail(email)) {
-            throw new BadRequestException("Email address is already used.");
-        }
+    /**
+     * The one answer {@code /auth/register-admin/verify} gives for every
+     * rejection. Unknown token, expired, already used, and an address
+     * registered by the time confirmation arrived all produce this — see
+     * {@link #confirmRegistration}.
+     */
+    private static BadRequestException invalidRegistrationException() {
+        return new BadRequestException(
+            "This registration link is not valid.", ErrorCodes.REGISTER_TOKEN_INVALID);
     }
 
     /**

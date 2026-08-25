@@ -4,16 +4,23 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import me.aydgn.potriv.AbstractMockMvcIntegrationTest;
+import me.aydgn.potriv.identity.service.PasswordResetService;
 import me.aydgn.potriv.support.RecordingMailSender;
+import org.slf4j.LoggerFactory;
 
 /**
  * What the password-reset request must do at the mail boundary.
@@ -125,5 +132,57 @@ class PasswordResetMailDeliveryIntegrationTest extends AbstractMockMvcIntegratio
 
         recordingMailSender.setFailing(false);
         assertThat(login(email, "Password123!").get("accessToken").asText()).isNotBlank();
+    }
+
+    // --------------------------------------------------- Failure log redaction
+
+    /**
+     * The exception a real unreachable-mail-server failure raises routinely
+     * carries the recipient in its own message — JavaMail and Spring's own
+     * {@code MailSendException} both do this by design, to tell an operator
+     * which send failed. That is exactly why the address and a token-shaped
+     * value are planted in the simulated exception's message here: proving
+     * the emitted log line omits them is only meaningful against an exception
+     * that actually contains them, not one that happens not to.
+     */
+    @Test
+    void aMailFailureLogsNoRecipientAddressOrToken() throws Exception {
+        String email = seedUser();
+        String plantedToken = "reset-token-should-never-appear-in-logs";
+        recordingMailSender.failFor(email, () -> new MailSendException(
+            "Failed to deliver to " + email + " using link containing " + plantedToken));
+
+        Logger passwordResetLogger =
+            (Logger) LoggerFactory.getLogger(PasswordResetService.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        passwordResetLogger.addAppender(appender);
+        try {
+            requestReset(email);
+        } finally {
+            passwordResetLogger.detachAppender(appender);
+        }
+
+        List<ILoggingEvent> warnings = appender.list.stream()
+            .filter(event -> event.getLevel() == ch.qos.logback.classic.Level.WARN)
+            .toList();
+        assertThat(warnings).hasSize(1);
+
+        ILoggingEvent failureLog = warnings.get(0);
+        String rendered = failureLog.getFormattedMessage();
+
+        assertThat(rendered)
+            .as("the rendered log line")
+            .doesNotContain(email)
+            .doesNotContain(plantedToken)
+            .contains("eventId=")
+            .contains("exceptionType=MailSendException")
+            .contains("category=SEND");
+
+        // The exception object itself must never reach the logger: SLF4J
+        // would render its message (containing the planted address/token)
+        // via the throwable's own stack trace regardless of the format
+        // string above.
+        assertThat(failureLog.getThrowableProxy()).isNull();
     }
 }
