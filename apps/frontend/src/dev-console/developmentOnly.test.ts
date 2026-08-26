@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from "next/constants";
 import { describe, expect, it } from "vitest";
 
-import nextConfig, { DEVELOPMENT_ONLY_EXTENSIONS, ROUTABLE_EXTENSIONS } from "../../next.config";
+import nextConfig, {
+  DEVELOPMENT_ONLY_EXTENSIONS,
+  deploymentOutput,
+  ROUTABLE_EXTENSIONS,
+} from "../../next.config";
 
 /**
  * The developer console is development-only, and this is where that stays true.
@@ -90,7 +94,11 @@ describe("what the production build is allowed to route", () => {
   });
 
   it("emits the standalone server bundle used by the production container", () => {
-    expect(nextConfig(PHASE_PRODUCTION_BUILD).output).toBe("standalone");
+    expect(deploymentOutput(undefined).output).toBe("standalone");
+  });
+
+  it("leaves output tracing to Vercel during a Vercel build", () => {
+    expect(deploymentOutput("1")).toEqual({});
   });
 
   it("adds the development-only extensions for the dev server, and keeps the rest", () => {

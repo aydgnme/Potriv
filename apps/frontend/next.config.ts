@@ -20,6 +20,16 @@ const DEVELOPMENT_ONLY_EXTENSIONS = ROUTABLE_EXTENSIONS.map(
 );
 
 /**
+ * Docker consumes Next's standalone server bundle. Vercel performs its own
+ * output-file tracing and fails its post-build packaging step when standalone
+ * mode moves that trace into `.next/standalone`, so it must retain Next's
+ * default output layout.
+ */
+export function deploymentOutput(vercelFlag: string | undefined): Pick<NextConfig, "output"> {
+  return vercelFlag === "1" ? {} : { output: "standalone" };
+}
+
+/**
  * Headers every route gets, whatever it renders.
  *
  * These are deliberately *not* in `middleware.ts`. The middleware runs only on
@@ -88,11 +98,9 @@ export default function nextConfig(phase: string): NextConfig {
   const isDevelopmentServer = phase === PHASE_DEVELOPMENT_SERVER;
 
   return {
-    /* Emit the minimal Node.js server bundle consumed by the production
-       container. Runtime-only values such as POTRIV_BACKEND_BASE_URL stay out
-       of the image and are supplied by the orchestrator when the container
-       starts. */
-    output: "standalone",
+    /* Runtime-only values such as POTRIV_BACKEND_BASE_URL stay out of both
+       deployment artifacts and are supplied when the server starts. */
+    ...deploymentOutput(process.env.VERCEL),
     pageExtensions: isDevelopmentServer
       ? [...DEVELOPMENT_ONLY_EXTENSIONS, ...ROUTABLE_EXTENSIONS]
       : ROUTABLE_EXTENSIONS,
