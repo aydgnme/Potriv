@@ -1,0 +1,53 @@
+name: Azure Deploy Verify
+
+on:
+  pull_request:
+    branches: [main, v2]
+  push:
+    branches: [main, v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: azure-deploy-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  azure-deploy-verify:
+    name: azure-deploy-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Compile Azure Bicep templates
+        run: |
+          az bicep build --file infra/azure/foundation.bicep --stdout > /tmp/potriv-foundation.json
+          az bicep build --file infra/azure/apps.bicep --stdout > /tmp/potriv-backend.json
+
+      - name: Enforce the low-cost deployment shape
+        run: |
+          test "$(jq '[.resources[] | select(.type == "Microsoft.DBforPostgreSQL/flexibleServers")] | length' /tmp/potriv-foundation.json)" = "0"
+          test "$(jq '[.resources[] | select(.type == "Microsoft.App/containerApps")] | length' /tmp/potriv-backend.json)" = "1"
+          test "$(jq -r '.resources[] | select(.type == "Microsoft.App/containerApps") | .properties.configuration.ingress.external' /tmp/potriv-backend.json)" = "true"
+          test "$(jq -r '.resources[] | select(.type == "Microsoft.App/containerApps") | .properties.template.scale.minReplicas' /tmp/potriv-backend.json)" = "0"
+          test -f apps/frontend/vercel.json
+
+      - name: Validate production compose configuration
+        run: >
+          docker compose --env-file .env.prod.example
+          -f docker-compose.prod.yml config --quiet
+
+      - name: Build backend production image
+        run: docker build -t potriv-backend:verify apps/backend
+
+      - name: Build frontend production image
+        run: docker build -t potriv-frontend:verify apps/frontend
+
+      - name: Verify frontend image runs as a non-root user
+        run: test "$(docker image inspect potriv-frontend:verify --format '{{.Config.User}}')" = "nextjs"

@@ -43,13 +43,12 @@ name: Dependency Check
 #   tools/dependency-scan  `npm audit --audit-level=high` plus typecheck and
 #                          its own deterministic test suite, required, in
 #                          dependency-scan-ci.yml.
-#   Container image / SBOM  Not implemented yet. Image build, SBOM
-#                          generation, and image vulnerability scanning are
-#                          scoped to the Azure staging CI/CD pipeline (a
-#                          later, separate piece of work) — apps/backend/
-#                          Dockerfile exists but nothing here scans the image
-#                          it produces. An explicit, tracked gap, not a
-#                          silent omission.
+#   Container images/SBOM  azure-staging.yml builds the backend and frontend
+#                          images, emits a CycloneDX SBOM for each, and blocks
+#                          every HIGH/CRITICAL Trivy finding before Azure login
+#                          or resource deployment. azure-deploy-verify.yml also
+#                          proves on every PR that both Dockerfiles and both
+#                          Bicep templates still build.
 on:
   schedule:
     # Weekly, Monday 04:17 UTC — after CodeQL, off the hour.
