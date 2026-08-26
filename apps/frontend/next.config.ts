@@ -88,6 +88,11 @@ export default function nextConfig(phase: string): NextConfig {
   const isDevelopmentServer = phase === PHASE_DEVELOPMENT_SERVER;
 
   return {
+    /* Emit the minimal Node.js server bundle consumed by the production
+       container. Runtime-only values such as POTRIV_BACKEND_BASE_URL stay out
+       of the image and are supplied by the orchestrator when the container
+       starts. */
+    output: "standalone",
     pageExtensions: isDevelopmentServer
       ? [...DEVELOPMENT_ONLY_EXTENSIONS, ...ROUTABLE_EXTENSIONS]
       : ROUTABLE_EXTENSIONS,

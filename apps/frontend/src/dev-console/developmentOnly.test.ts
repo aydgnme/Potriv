@@ -89,6 +89,10 @@ describe("what the production build is allowed to route", () => {
     expect(pageExtensionsFor(PHASE_PRODUCTION_BUILD)).toEqual(ROUTABLE_EXTENSIONS);
   });
 
+  it("emits the standalone server bundle used by the production container", () => {
+    expect(nextConfig(PHASE_PRODUCTION_BUILD).output).toBe("standalone");
+  });
+
   it("adds the development-only extensions for the dev server, and keeps the rest", () => {
     const development = pageExtensionsFor(PHASE_DEVELOPMENT_SERVER);
 

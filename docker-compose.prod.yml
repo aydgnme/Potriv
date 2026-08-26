@@ -84,5 +84,34 @@ services:
       retries: 20
     restart: unless-stopped
 
+  potriv-frontend:
+    build:
+      context: ./apps/frontend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Server-only BFF traffic stays on the compose network. The browser
+      # talks only to the frontend origin and never learns the backend URL.
+      POTRIV_BACKEND_BASE_URL: http://potriv-backend:8080/api
+    depends_on:
+      potriv-backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - >-
+          fetch('http://127.0.0.1:3000/').then(response => {
+            if (!response.ok) process.exit(1)
+          }).catch(() => process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
 volumes:
   potriv-prod-db-data:
