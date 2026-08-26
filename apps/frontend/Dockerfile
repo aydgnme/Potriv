@@ -4,13 +4,13 @@
 # the files needed to serve the application. No environment file or secret is
 # copied into the image; server-only configuration is injected at runtime.
 
-FROM node:22-alpine AS dependencies
+FROM node:22.23.2-alpine3.24 AS dependencies
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22-alpine AS build
+FROM node:22.23.2-alpine3.24 AS build
 WORKDIR /app
 
 ENV NEXT_TELEMETRY_DISABLED=1
@@ -23,7 +23,7 @@ RUN npm run build \
     && mkdir -p .next/standalone/.next \
     && cp -R .next/static .next/standalone/.next/static
 
-FROM node:22-alpine AS runtime
+FROM node:22.23.2-alpine3.24 AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production \
@@ -31,7 +31,13 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000
 
-RUN addgroup --system --gid 1001 nodejs \
+RUN apk upgrade --no-cache \
+    && rm -rf /usr/local/lib/node_modules/npm \
+        /usr/local/lib/node_modules/corepack \
+        /opt/yarn-v1.22.22 \
+    && rm -f /usr/local/bin/npm /usr/local/bin/npx \
+        /usr/local/bin/corepack /usr/local/bin/yarn /usr/local/bin/yarnpkg \
+    && addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 --ingroup nodejs nextjs
 
 COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
