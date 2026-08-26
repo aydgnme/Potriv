@@ -1,0 +1,330 @@
+name: Deploy Azure Backend Staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type deploy-staging to authorize a billable Azure deployment
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: azure-backend-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy-staging:
+    name: deploy-backend-staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: staging
+    steps:
+      - name: Refuse an accidental deployment
+        env:
+          DEPLOY_CONFIRMATION: ${{ inputs.confirmation }}
+          DEPLOY_REF: ${{ github.ref }}
+        run: |
+          test "$DEPLOY_CONFIRMATION" = "deploy-staging"
+          test "$DEPLOY_REF" = "refs/heads/v2"
+
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Validate non-secret staging configuration
+        env:
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          VERCEL_FRONTEND_ORIGIN: ${{ vars.VERCEL_FRONTEND_ORIGIN }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_USERNAME: ${{ vars.SMTP_USERNAME }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          SYSTEM_ADMIN_EMAIL: ${{ vars.SYSTEM_ADMIN_EMAIL }}
+        run: |
+          required_names=(
+            AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID
+            AZURE_RESOURCE_GROUP AZURE_LOCATION VERCEL_FRONTEND_ORIGIN
+            SMTP_HOST SMTP_PORT SMTP_USERNAME MAIL_FROM SYSTEM_ADMIN_EMAIL
+          )
+          for required_name in "${required_names[@]}"; do
+            if [ -z "${!required_name:-}" ]; then
+              echo "::error::Missing staging environment variable: ${required_name}"
+              exit 1
+            fi
+          done
+          case "$VERCEL_FRONTEND_ORIGIN" in
+            https://*) ;;
+            *) echo "::error::VERCEL_FRONTEND_ORIGIN must be an exact https origin"; exit 1 ;;
+          esac
+          if [[ ! "$VERCEL_FRONTEND_ORIGIN" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?$ ]]; then
+            echo "::error::VERCEL_FRONTEND_ORIGIN must contain only scheme, host, and optional port"
+            exit 1
+          fi
+          case "$VERCEL_FRONTEND_ORIGIN" in
+            *'*'*) echo "::error::VERCEL_FRONTEND_ORIGIN must not contain a wildcard"; exit 1 ;;
+          esac
+          if ! [[ "$SMTP_PORT" =~ ^[0-9]+$ ]] || (( SMTP_PORT < 1 || SMTP_PORT > 65535 )); then
+            echo "::error::SMTP_PORT must be an integer between 1 and 65535"
+            exit 1
+          fi
+
+      - name: Validate secret presence without exposing values
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          NEON_DATABASE_USERNAME: ${{ secrets.NEON_DATABASE_USERNAME }}
+          NEON_DATABASE_PASSWORD: ${{ secrets.NEON_DATABASE_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          RATE_LIMIT_HMAC_SECRET: ${{ secrets.RATE_LIMIT_HMAC_SECRET }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SYSTEM_ADMIN_PASSWORD: ${{ secrets.SYSTEM_ADMIN_PASSWORD }}
+        run: |
+          required_names=(
+            NEON_DATABASE_URL NEON_DATABASE_USERNAME NEON_DATABASE_PASSWORD
+            JWT_SECRET RATE_LIMIT_HMAC_SECRET SMTP_PASSWORD SYSTEM_ADMIN_PASSWORD
+          )
+          for required_name in "${required_names[@]}"; do
+            if [ -z "${!required_name:-}" ]; then
+              echo "::error::Missing staging environment secret: ${required_name}"
+              exit 1
+            fi
+          done
+          case "$NEON_DATABASE_URL" in
+            jdbc:postgresql://*) ;;
+            *) echo "::error::NEON_DATABASE_URL must be a PostgreSQL JDBC URL"; exit 1 ;;
+          esac
+          case "${NEON_DATABASE_URL#jdbc:postgresql://}" in
+            *@*)
+              echo "::error::NEON_DATABASE_URL must not embed a username or password; use the separate secrets"
+              exit 1
+              ;;
+          esac
+          case "$NEON_DATABASE_URL" in
+            *sslmode=require*) ;;
+            *) echo "::error::NEON_DATABASE_URL must require TLS with sslmode=require"; exit 1 ;;
+          esac
+          if (( ${#JWT_SECRET} < 32 )); then
+            echo "::error::JWT_SECRET must be at least 32 characters"
+            exit 1
+          fi
+          if (( ${#RATE_LIMIT_HMAC_SECRET} < 32 )); then
+            echo "::error::RATE_LIMIT_HMAC_SECRET must be at least 32 characters"
+            exit 1
+          fi
+          if (( ${#SYSTEM_ADMIN_PASSWORD} < 12 )); then
+            echo "::error::SYSTEM_ADMIN_PASSWORD must be at least 12 characters"
+            exit 1
+          fi
+
+      - name: Compile Azure templates before any mutation
+        run: |
+          az bicep build --file infra/azure/foundation.bicep --stdout >/dev/null
+          az bicep build --file infra/azure/apps.bicep --stdout >/dev/null
+
+      - name: Build immutable local images
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build --pull -t "potriv-backend:${IMAGE_TAG}" apps/backend
+          # The frontend image is a portability and recovery artifact. Vercel,
+          # not Azure, serves the production frontend.
+          docker build --pull -t "potriv-frontend:${IMAGE_TAG}" apps/frontend
+
+      - name: Prepare security artifact directory
+        run: mkdir -p security-artifacts
+
+      - name: Generate backend CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: potriv-backend:${{ github.sha }}
+          format: cyclonedx
+          output: security-artifacts/backend.cdx.json
+
+      - name: Generate frontend CycloneDX SBOM
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: potriv-frontend:${{ github.sha }}
+          format: cyclonedx
+          output: security-artifacts/frontend.cdx.json
+
+      - name: Block high or critical backend image findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: potriv-backend:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: 'false'
+          severity: HIGH,CRITICAL
+
+      - name: Block high or critical frontend image findings
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: potriv-frontend:${{ github.sha }}
+          format: table
+          exit-code: '1'
+          ignore-unfixed: 'false'
+          severity: HIGH,CRITICAL
+
+      - name: Upload image SBOMs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: potriv-staging-sbom-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 30
+          path: security-artifacts/*.cdx.json
+
+      # Azure authentication deliberately starts only after every third-party
+      # build/scan action is finished. Those steps never receive an Azure
+      # session they could accidentally or maliciously reuse.
+      - name: Sign in to Azure with GitHub OIDC
+        uses: azure/login@f5d393ae46f8fde4be8b75f32e3fc50e654ad0ca # v3.0.1
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Confirm the pre-created staging resource group exists
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+        run: az group show --name "$AZURE_RESOURCE_GROUP" --output none
+
+      - name: Deploy the low-cost backend foundation
+        id: foundation
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+        run: |
+          deployment_name="foundation-${GITHUB_RUN_ID}"
+          az deployment group create \
+            --name "$deployment_name" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/azure/foundation.bicep \
+            --parameters location="$AZURE_LOCATION" \
+            --output none
+
+          {
+            echo "registry_name=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.registryName.value -o tsv)"
+            echo "registry_server=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.registryLoginServer.value -o tsv)"
+            echo "environment_name=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.managedEnvironmentName.value -o tsv)"
+            echo "identity_name=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.runtimeIdentityName.value -o tsv)"
+            echo "aca_subnet_cidr=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.containerAppsSubnetCidr.value -o tsv)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Push immutable backend image to Azure Container Registry
+        id: image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          REGISTRY_NAME: ${{ steps.foundation.outputs.registry_name }}
+          REGISTRY_SERVER: ${{ steps.foundation.outputs.registry_server }}
+        run: |
+          az acr login --name "$REGISTRY_NAME"
+          remote_image_tag="${IMAGE_TAG}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          backend_image="${REGISTRY_SERVER}/potriv-backend:${remote_image_tag}"
+          docker tag "potriv-backend:${IMAGE_TAG}" "$backend_image"
+          docker push "$backend_image"
+          echo "backend_image=$backend_image" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy the public scale-to-zero backend
+        id: application
+        env:
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_LOCATION: ${{ vars.AZURE_LOCATION }}
+          MANAGED_ENVIRONMENT_NAME: ${{ steps.foundation.outputs.environment_name }}
+          REGISTRY_NAME: ${{ steps.foundation.outputs.registry_name }}
+          RUNTIME_IDENTITY_NAME: ${{ steps.foundation.outputs.identity_name }}
+          CONTAINER_APPS_SUBNET_CIDR: ${{ steps.foundation.outputs.aca_subnet_cidr }}
+          BACKEND_IMAGE: ${{ steps.image.outputs.backend_image }}
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          NEON_DATABASE_USERNAME: ${{ secrets.NEON_DATABASE_USERNAME }}
+          NEON_DATABASE_PASSWORD: ${{ secrets.NEON_DATABASE_PASSWORD }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          RATE_LIMIT_HMAC_SECRET: ${{ secrets.RATE_LIMIT_HMAC_SECRET }}
+          VERCEL_FRONTEND_ORIGIN: ${{ vars.VERCEL_FRONTEND_ORIGIN }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_USERNAME: ${{ vars.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
+          SYSTEM_ADMIN_EMAIL: ${{ vars.SYSTEM_ADMIN_EMAIL }}
+          SYSTEM_ADMIN_PASSWORD: ${{ secrets.SYSTEM_ADMIN_PASSWORD }}
+        run: |
+          deployment_name="backend-${GITHUB_RUN_ID}"
+          revision_suffix="${GITHUB_RUN_ID: -7}${GITHUB_RUN_ATTEMPT: -3}"
+          az deployment group create \
+            --name "$deployment_name" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/azure/apps.bicep \
+            --parameters \
+              location="$AZURE_LOCATION" \
+              managedEnvironmentName="$MANAGED_ENVIRONMENT_NAME" \
+              registryName="$REGISTRY_NAME" \
+              runtimeIdentityName="$RUNTIME_IDENTITY_NAME" \
+              containerAppsSubnetCidr="$CONTAINER_APPS_SUBNET_CIDR" \
+              backendImage="$BACKEND_IMAGE" \
+              revisionSuffix="$revision_suffix" \
+              databaseUrl="$NEON_DATABASE_URL" \
+              databaseUsername="$NEON_DATABASE_USERNAME" \
+              databasePassword="$NEON_DATABASE_PASSWORD" \
+              jwtSecret="$JWT_SECRET" \
+              rateLimitHmacSecret="$RATE_LIMIT_HMAC_SECRET" \
+              frontendOrigin="$VERCEL_FRONTEND_ORIGIN" \
+              smtpHost="$SMTP_HOST" \
+              smtpPort="$SMTP_PORT" \
+              smtpUsername="$SMTP_USERNAME" \
+              smtpPassword="$SMTP_PASSWORD" \
+              mailFrom="$MAIL_FROM" \
+              systemAdminEmail="$SYSTEM_ADMIN_EMAIL" \
+              systemAdminPassword="$SYSTEM_ADMIN_PASSWORD" \
+            --output none
+
+          {
+            echo "backend_url=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.backendUrl.value -o tsv)"
+            echo "backend_external=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.backendExternal.value -o tsv)"
+            echo "minimum_replicas=$(az deployment group show --name "$deployment_name" --resource-group "$AZURE_RESOURCE_GROUP" --query properties.outputs.minimumReplicas.value -o tsv)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify the public backend and Vercel CORS boundary
+        env:
+          BACKEND_URL: ${{ steps.application.outputs.backend_url }}
+          BACKEND_EXTERNAL: ${{ steps.application.outputs.backend_external }}
+          MINIMUM_REPLICAS: ${{ steps.application.outputs.minimum_replicas }}
+          VERCEL_FRONTEND_ORIGIN: ${{ vars.VERCEL_FRONTEND_ORIGIN }}
+        run: |
+          test "$BACKEND_EXTERNAL" = "true"
+          test "$MINIMUM_REPLICAS" = "0"
+
+          curl --fail --silent --show-error \
+            --retry 18 --retry-delay 10 --retry-all-errors \
+            --max-time 30 "$BACKEND_URL/api/actuator/health/readiness" >/dev/null
+
+          response_headers=$(mktemp)
+          login_status=$(curl --silent --show-error \
+            --dump-header "$response_headers" \
+            --output /dev/null --write-out '%{http_code}' \
+            --request POST "$BACKEND_URL/api/auth/login" \
+            --header "Origin: $VERCEL_FRONTEND_ORIGIN" \
+            --header 'Content-Type: application/json' \
+            --data '{"email":"staging-smoke@invalid.example","password":"not-a-real-password"}')
+          if [ "$login_status" != "401" ] && [ "$login_status" != "429" ]; then
+            echo "::error::Backend login probe returned HTTP ${login_status}"
+            exit 1
+          fi
+          grep -Fqi "access-control-allow-origin: $VERCEL_FRONTEND_ORIGIN" "$response_headers" || {
+            echo "::error::Backend did not authorize the exact Vercel origin"
+            exit 1
+          }
+          echo "Azure backend is healthy: $BACKEND_URL"
+          echo "Set POTRIV_BACKEND_BASE_URL=$BACKEND_URL/api in the Vercel project."
