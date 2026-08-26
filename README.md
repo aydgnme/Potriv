@@ -38,12 +38,24 @@ cd apps/backend
 ./mvnw spring-boot:run
 ```
 
-Production-like Docker stack (prod profile, internal-only PostgreSQL):
+Production-like Docker stack (frontend + prod-profile backend + internal-only PostgreSQL):
 
 ```bash
 cp .env.prod.example .env.prod   # edit the placeholder values
 ./scripts/backend-prod-smoke.sh
 ```
+
+The frontend also ships as a standalone, non-root production image:
+
+```bash
+docker build -t potriv-frontend apps/frontend
+```
+
+The low-cost staging architecture and OIDC runbook live in
+[`infra/azure/README.md`](infra/azure/README.md). Vercel serves the frontend,
+Azure Container Apps runs only the scale-to-zero backend, and Neon supplies
+PostgreSQL. The staging workflow still builds and scans both container images,
+but pushes only the backend image to Azure.
 
 An embedded **administration console** (monitor plus a Django-style backoffice
 for users, organizations, departments, projects, allocations, invitations, skills

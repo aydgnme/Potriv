@@ -179,14 +179,24 @@ database permanently out of sync with the migrations.
 
 - `apps/backend/Dockerfile` builds a multi-stage image: Maven + JDK 21 compile
   the jar, a JRE 21 runtime layer runs it as the non-root `potriv` user with
-  container-aware JVM flags through `JAVA_OPTS`. No secrets are baked in.
+  container-aware JVM flags through `JAVA_OPTS`. `apps/frontend/Dockerfile`
+  builds Next's standalone output and runs it as the non-root `nextjs` user.
+  Neither image bakes in a deployment secret.
 - `docker-compose.prod.yml` (repository root) runs the production-like stack:
   `potriv-db` (PostgreSQL 16, named volume, internal-only — no published port)
-  and `potriv-backend` (prod profile, port `8080`, starts only after the DB
-  healthcheck passes, own healthcheck on `/api/actuator/health`).
+  `potriv-backend` (prod profile, port `8080`, starts only after the DB
+  healthcheck passes, readiness probe on `/api/actuator/health/readiness`) and
+  `potriv-frontend` (standalone Next server, port `3000`, starts only after the
+  backend is healthy).
 - Configuration comes from `.env.prod` (copy of `.env.prod.example`;
   git-ignored). `scripts/backend-prod-smoke.sh` validates the compose config,
-  starts the stack, and waits for the health endpoint.
+  starts the stack, and waits for both backend readiness and the frontend HTTP
+  response.
+- `infra/azure/` defines the staging VNet, ACR, managed identity and a single
+  public Azure Container Apps backend with `minReplicas: 0`. Vercel serves the
+  frontend and its BFF; Neon supplies TLS-only PostgreSQL. The manual staging
+  workflow generates SBOMs and blocks HIGH/CRITICAL image findings before it
+  obtains Azure credentials.
 - See `docs/backend/environment.md` for the exact commands.
 
 ## Known gaps (tracked, not hidden)
@@ -203,6 +213,17 @@ database permanently out of sync with the migrations.
   first boot.
 - The development compose file (`docker-compose.yml`) provisions local
   PostgreSQL and Mailpit only and is unchanged.
-- Rate limiting beyond the existing login lockout is not implemented.
-- No reverse proxy / TLS termination is included; the production compose file
-  publishes plain HTTP on 8080 for local smoke testing.
+- The production compose file intentionally includes no reverse proxy or TLS;
+  it publishes plain HTTP on ports 3000/8080 for local smoke testing. Vercel
+  terminates frontend TLS and Azure Container Apps terminates backend TLS.
+- The Azure backend needs public ingress so Vercel's server-side BFF can reach
+  it. CORS is an exact browser-origin boundary, not authentication; every
+  protected API still enforces authentication and authorization.
+- The low-cost setup accepts compound cold starts when both Container Apps and
+  Neon have scaled to zero. Measure the first real request before treating this
+  staging shape as production-ready.
+- Before production promotion, staging must prove that Container Apps' observed
+  peer address belongs to the configured infrastructure subnet and that
+  IP-scoped rate limits distinguish unrelated callers. The backend fails closed
+  if the store is unavailable, but a wrong proxy range could collapse callers
+  into one shared quota.

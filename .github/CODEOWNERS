@@ -51,6 +51,10 @@
 # ---- Production and deployment configuration ------------------------------
 /apps/backend/src/main/resources/application-prod.yml   @aydgnme
 /apps/backend/Dockerfile                                @aydgnme
+/apps/frontend/Dockerfile                               @aydgnme
+/apps/frontend/.dockerignore                            @aydgnme
+/apps/frontend/vercel.json                              @aydgnme
+/infra/azure/                                           @aydgnme
 /docker-compose.prod.yml                                @aydgnme
 /docker-compose.yml                                     @aydgnme
 /docker-compose.mail.yml                                @aydgnme

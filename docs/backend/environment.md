@@ -196,12 +196,12 @@ surface; it is a read-only monitoring and browsing console only.
 
 ## Production-like Docker run
 
-The backend ships a multi-stage production image (`apps/backend/Dockerfile`,
-non-root runtime, JRE 21) and a production-like compose stack
-(`docker-compose.prod.yml` at the repository root) with PostgreSQL on an
-internal-only network (the DB port is deliberately not published — only the
-backend reaches it) and healthchecks on `pg_isready` and
-`/api/actuator/health`.
+The backend and frontend ship multi-stage production images
+(`apps/backend/Dockerfile` and `apps/frontend/Dockerfile`) with non-root
+runtimes. The production-like compose stack (`docker-compose.prod.yml` at the
+repository root) keeps PostgreSQL on an internal-only network (the DB port is
+deliberately not published — only the backend reaches it) and healthchecks the
+database, backend readiness endpoint, and frontend HTTP response.
 
 ```bash
 # One-time setup: create the local env file (git-ignored) and edit the values.
@@ -213,6 +213,7 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml up --build
 # Status and health:
 docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 curl http://localhost:8080/api/actuator/health
+curl http://localhost:3000/
 
 # Logs:
 docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f potriv-backend
@@ -224,10 +225,11 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml down
 docker compose --env-file .env.prod -f docker-compose.prod.yml down --volumes
 ```
 
-Build the image on its own with:
+Build the images individually with:
 
 ```bash
 docker build -t potriv-backend apps/backend
+docker build -t potriv-frontend apps/frontend
 ```
 
 On a fresh database the prod profile applies the Flyway migrations
@@ -236,6 +238,12 @@ validates the result, so the stack reaches a healthy state without any manual
 schema step. Schema changes always ship as new migrations — Hibernate never
 creates or alters tables in production. See
 `docs/backend/production-readiness.md`.
+
+For hosted staging, Vercel builds `apps/frontend` directly and receives the
+server-only `POTRIV_BACKEND_BASE_URL` through its environment settings. Azure
+Container Apps runs only the backend with `minReplicas: 0`; Neon provides the
+TLS-required JDBC endpoint. See `infra/azure/README.md` for the exact secret
+names and deployment order.
 
 
 ## Outbound mail
