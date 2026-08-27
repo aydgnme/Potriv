@@ -318,7 +318,10 @@ jobs:
             --header "Origin: $VERCEL_FRONTEND_ORIGIN" \
             --header 'Content-Type: application/json' \
             --data '{"email":"staging-smoke@invalid.example","password":"not-a-real-password"}')
-          if [ "$login_status" != "401" ] && [ "$login_status" != "429" ]; then
+          # Unknown credentials intentionally produce 400 in the API. A future
+          # auth boundary may use 401 instead, while the IP limiter can return
+          # 429. All three prove that the probe did not authenticate.
+          if [ "$login_status" != "400" ] && [ "$login_status" != "401" ] && [ "$login_status" != "429" ]; then
             echo "::error::Backend login probe returned HTTP ${login_status}"
             exit 1
           fi
