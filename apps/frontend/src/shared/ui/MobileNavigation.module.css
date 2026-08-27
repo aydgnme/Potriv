@@ -110,6 +110,9 @@
   padding-top: var(--p-space-4);
   border-top: 1px solid var(--p-border);
 }
+/* The desktop rail uses these icons when it compacts. Mobile already has room
+   for the explicit labels, so preserve the sheet's quieter text treatment. */
+.sheetAccount > :is(a, button) svg { display: none; }
 .accountName { font-size: var(--p-text-sm); font-weight: var(--p-weight-medium); }
 .accountRoles {
   font-size: var(--p-text-xs);
