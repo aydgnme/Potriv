@@ -76,8 +76,22 @@ describe("composition", () => {
     expect(
       within(desktopNav())
         .getAllByRole("link")
-        .map((link) => link.textContent),
-    ).toEqual(["Home", "Projects", "Staffing", "Skills"]);
+        .map((link) => link.getAttribute("aria-label") ?? link.textContent),
+    ).toEqual(["Potriv dashboard", "Home", "Projects", "Staffing", "Skills"]);
+  });
+
+  it("makes the product identity a stable dashboard shortcut", async () => {
+    const user = userEvent.setup();
+    renderShell(["EMPLOYEE"]);
+
+    const brand = within(desktopNav()).getByRole("link", { name: "Potriv dashboard" });
+    expect(brand).toHaveAttribute("href", "/home");
+
+    await user.click(within(desktopNav()).getByRole("button", { name: "Collapse navigation" }));
+
+    expect(
+      within(desktopNav()).getByRole("link", { name: "Potriv dashboard" }),
+    ).toHaveAttribute("href", "/home");
   });
 
   it("does not render items the role set does not grant", () => {
@@ -180,8 +194,8 @@ describe("collapsing the desktop rail", () => {
     expect(
       within(desktopNav())
         .getAllByRole("link")
-        .map((link) => link.textContent),
-    ).toEqual(["Home", "Projects", "Staffing", "Skills"]);
+        .map((link) => link.getAttribute("aria-label") ?? link.textContent),
+    ).toEqual(["Potriv dashboard", "Home", "Projects", "Staffing", "Skills"]);
     expect(within(desktopNav()).getByRole("link", { name: "Projects" })).toHaveAttribute(
       "aria-current",
       "page",

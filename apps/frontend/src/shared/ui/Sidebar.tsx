@@ -1,4 +1,5 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import type { NavigationItem, NavigationItemId } from "@/shared/config/navigation";
@@ -79,11 +80,16 @@ export function Sidebar({
       aria-label="Product"
     >
       <div className={styles.identity}>
-        {/* The mark alone when collapsed; the full name is still announced. */}
-        <span className={styles.wordmark} aria-hidden={collapsed ? "true" : undefined}>
-          {collapsed ? "P" : "Potriv"}
-        </span>
-        {collapsed ? <VisuallyHidden>Potriv</VisuallyHidden> : null}
+        <Link href="/home" className={styles.brandLink} aria-label="Potriv dashboard">
+          {/* Both marks stay mounted so the automatic tablet rail can compact
+              without asking React for a second source of viewport truth. */}
+          <span className={`${styles.wordmark} ${styles.wordmarkFull}`} aria-hidden="true">
+            Potriv
+          </span>
+          <span className={`${styles.wordmark} ${styles.wordmarkCompact}`} aria-hidden="true">
+            P
+          </span>
+        </Link>
         {organizationName && !collapsed ? (
           <span className={styles.organization}>{organizationName}</span>
         ) : null}
