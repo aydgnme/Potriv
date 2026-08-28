@@ -1,9 +1,11 @@
 import { PageHeader } from "@/shared/ui/PageHeader";
 import type { AccessRole } from "@/shared/types/accessRole";
 
+import { buildDashboardOverview } from "../model/dashboardOverview";
 import { buildWorkspaceSetup } from "../model/workspaceSetup";
 import type { HomeData } from "../server/loadHome";
 
+import { DashboardOverview } from "./DashboardOverview";
 import { DepartmentProjectsSummary } from "./DepartmentProjectsSummary";
 import { ManagedProjectsSummary } from "./ManagedProjectsSummary";
 import { MyCurrentWork } from "./MyCurrentWork";
@@ -48,6 +50,8 @@ export function HomePage({ displayName, roles, data, previewLimit }: HomePagePro
         title="Home"
         description={`Welcome back, ${displayName}. Here is what needs your attention.`}
       />
+
+      <DashboardOverview overview={buildDashboardOverview(roles, data)} />
 
       <div className={styles.sections}>
         {isDepartmentManager && data.pendingProposals ? (

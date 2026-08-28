@@ -1,4 +1,130 @@
-.page { display: flex; flex-direction: column; gap: var(--p-space-6); }
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-6);
+  width: 100%;
+  max-width: var(--p-container);
+}
+
+/* ---------- operational overview ---------- */
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--p-space-5);
+}
+
+.overviewIntro {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--p-space-4);
+  flex-wrap: wrap;
+}
+
+.overviewLabel {
+  color: var(--p-brand-strong);
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-xs);
+  font-weight: var(--p-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.overviewDescription {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-sm);
+}
+
+/* One measured strip, not a grid of floating statistic cards. */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 0;
+  border-block: 1px solid var(--p-border);
+}
+
+.metric {
+  min-width: 0;
+  padding: var(--p-space-4) var(--p-space-5);
+  border-left: 1px solid var(--p-border);
+}
+.metric:first-child { border-left: none; padding-left: 0; }
+
+.metricLabel {
+  color: var(--p-text-muted);
+  font-size: var(--p-text-xs);
+}
+
+.metricValue {
+  margin: var(--p-space-1) 0 0;
+  font-family: var(--p-font-mono);
+  font-size: var(--p-text-2xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--p-weight-semibold);
+  line-height: var(--p-leading-tight);
+}
+
+.metricContext {
+  margin: 2px 0 0;
+  color: var(--p-text-muted);
+  font-size: var(--p-text-xs);
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  min-width: 0;
+}
+
+.chartFigure {
+  min-width: 0;
+  margin: 0;
+  padding-right: var(--p-space-5);
+}
+.chartFigure + .chartFigure {
+  padding-right: 0;
+  padding-left: var(--p-space-5);
+  border-left: 1px solid var(--p-border);
+}
+
+.chartCaption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: var(--p-space-3);
+}
+.chartTitle { font-size: var(--p-text-lg); font-weight: var(--p-weight-semibold); }
+.chartDescription { color: var(--p-text-muted); font-size: var(--p-text-sm); }
+
+@media (max-width: 899px) {
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .metric:nth-child(odd) { border-left: none; padding-left: 0; }
+  .metric:nth-child(n + 3) { border-top: 1px solid var(--p-border); }
+
+  .chartGrid { grid-template-columns: minmax(0, 1fr); }
+  .chartFigure { padding-right: 0; }
+  .chartFigure + .chartFigure {
+    margin-top: var(--p-space-5);
+    padding-top: var(--p-space-5);
+    padding-left: 0;
+    border-top: 1px solid var(--p-border);
+    border-left: none;
+  }
+}
+
+@media (max-width: 479px) {
+  .metrics { grid-template-columns: minmax(0, 1fr); }
+  .metric,
+  .metric:first-child,
+  .metric:nth-child(odd) {
+    padding: var(--p-space-3) 0;
+    border-top: 1px solid var(--p-border);
+    border-left: none;
+  }
+  .metric:first-child { border-top: none; }
+}
 
 /**
  * One continuous page, not a field of cards.
