@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { UserRound } from "lucide-react";
 
 import { SignOutButton } from "@/modules/auth";
 import { resolveProductSession } from "@/modules/auth/server/productSession";
@@ -46,7 +47,10 @@ export default async function ProtectedLayout({
       */
       accountActions={
         <>
-          <Link href="/account">Account</Link>
+          <Link href="/account" title="Account">
+            <UserRound size={16} aria-hidden="true" />
+            <span>Account</span>
+          </Link>
           <SignOutButton />
         </>
       }
