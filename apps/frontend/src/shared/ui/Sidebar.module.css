@@ -25,6 +25,21 @@
 }
 
 .identity { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.brandLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--p-radius);
+  color: var(--p-text);
+  text-decoration: none;
+}
+.brandLink:hover {
+  background: var(--p-surface-hover);
+  color: var(--p-text);
+  text-decoration: none;
+}
 /* The same mark the landing and the auth pages use, so signing in does not
    feel like arriving at a different product. */
 .wordmark {
@@ -33,6 +48,11 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.wordmarkCompact { display: none; }
+.sidebarCollapsed .identity { align-items: center; width: 100%; }
+.sidebarCollapsed .brandLink { align-self: center; justify-content: center; }
+.sidebarCollapsed .wordmarkFull { display: none; }
+.sidebarCollapsed .wordmarkCompact { display: inline; }
 /* Wraps rather than widening the rail — organization names are free text. */
 .organization {
   font-size: var(--p-text-sm);
@@ -209,9 +229,11 @@
     align-items: center;
     padding: var(--p-space-4) var(--p-space-2);
   }
+  .sidebar .identity { align-items: center; width: 100%; }
+  .sidebar .brandLink { align-self: center; justify-content: center; }
   .sidebar .item { justify-content: center; padding: var(--p-space-2); }
 
-  .sidebar .wordmark,
+  .sidebar .wordmarkFull,
   .sidebar .organization,
   .sidebar .itemLabel,
   .sidebar .accountName,
@@ -226,6 +248,7 @@
     white-space: nowrap;
     border: 0;
   }
+  .sidebar .wordmarkCompact { display: inline; }
 
   /* The rail is the layout's decision at this width, not the reader's, so the
      control goes away entirely — UI and accessibility tree. Leaving it would
