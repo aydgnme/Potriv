@@ -12,7 +12,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +36,9 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
     private static final DateTimeFormatter LOCAL_DATE_TIME =
         DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm");
 
+    private static final Pattern ROW_LINK =
+        Pattern.compile("/admin/allocations/([0-9a-fA-F-]{36})");
+
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
@@ -49,6 +56,16 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
         return "/admin/allocations/" + allocationId;
     }
 
+    /** Every allocation linked from a review page, in the order the page lists them. */
+    private static List<String> rowsOn(String html) {
+        List<String> ids = new ArrayList<>();
+        Matcher matcher = ROW_LINK.matcher(html);
+        while (matcher.find()) {
+            ids.add(matcher.group(1));
+        }
+        return ids;
+    }
+
     private static String asFilterValue(OffsetDateTime value) {
         return value.atZoneSameInstant(ZoneOffset.UTC).format(LOCAL_DATE_TIME);
     }
@@ -64,12 +81,42 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
     }
 
     /**
-     * Builds a complete allocation graph directly. The product's own approval flow
-     * is exercised by the allocation module's tests; what needs proving here is the
-     * console's query, so the rows are written rather than negotiated.
+     * Builds a complete allocation graph directly, in an organization of its own.
+     * The product's own approval flow is exercised by the allocation module's
+     * tests; what needs proving here is the console's query, so the rows are
+     * written rather than negotiated.
      */
     private Seed seedAllocation(OffsetDateTime allocatedAt, OffsetDateTime deallocatedAt) {
+        return seedAllocation(seedOrganization(), allocatedAt, deallocatedAt);
+    }
+
+    /**
+     * A fresh, empty organization, for tests that need more than one allocation
+     * inside the same one.
+     *
+     * <p>The review page lists at most {@code AdminPaging.DEFAULT_SIZE} (25) rows,
+     * newest allocation first, and every integration test in this run shares a
+     * single database. "The page contains my row" is therefore only true while the
+     * rest of the suite has not already filled that first page with allocations of
+     * its own -- and it does: by the time this class runs, page one is full, which
+     * is exactly how these tests failed in CI while passing when the class was run
+     * alone. A test that asserts on an unscoped listing is asserting on the whole
+     * suite's leftovers, so the ones below scope the page to the organization they
+     * just seeded and assert only about their own rows.
+     */
+    private UUID seedOrganization() {
         UUID organizationId = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        jdbcTemplate.update("insert into organizations "
+            + "(id, created_at, updated_at, name, headquarter_address) values (?, ?, ?, ?, ?)",
+            organizationId, now, now,
+            "AllocOrg " + organizationId.toString().substring(0, 8), "Address 1");
+        return organizationId;
+    }
+
+    /** The same graph, inside an organization the caller already seeded. */
+    private Seed seedAllocation(
+        UUID organizationId, OffsetDateTime allocatedAt, OffsetDateTime deallocatedAt) {
         UUID departmentId = UUID.randomUUID();
         UUID employeeId = UUID.randomUUID();
         UUID managerId = UUID.randomUUID();
@@ -77,11 +124,10 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
         UUID proposalId = UUID.randomUUID();
         UUID allocationId = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        String suffix = organizationId.toString().substring(0, 8);
+        // Per-seed, not per-organization: two allocations can now share one
+        // organization, and the department name and user emails below are unique.
+        String suffix = allocationId.toString().substring(0, 8);
 
-        jdbcTemplate.update("insert into organizations "
-            + "(id, created_at, updated_at, name, headquarter_address) values (?, ?, ?, ?, ?)",
-            organizationId, now, now, "AllocOrg " + suffix, "Address 1");
         jdbcTemplate.update("insert into departments "
             + "(id, created_at, updated_at, organization_id, name, normalized_name) "
             + "values (?, ?, ?, ?, ?, ?)",
@@ -184,11 +230,13 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
 
     @Test
     void statusFilterSeparatesActiveFromPast() throws Exception {
-        Seed active = seedAllocation(hoursAgo(4), null);
-        Seed past = seedAllocation(hoursAgo(4), hoursAgo(1));
+        UUID organizationId = seedOrganization();
+        String scope = organizationId.toString();
+        Seed active = seedAllocation(organizationId, hoursAgo(4), null);
+        Seed past = seedAllocation(organizationId, hoursAgo(4), hoursAgo(1));
 
-        String actives = allocationPage("status", "ACTIVE");
-        String pasts = allocationPage("status", "PAST");
+        String actives = allocationPage("organizationId", scope, "status", "ACTIVE");
+        String pasts = allocationPage("organizationId", scope, "status", "PAST");
 
         assertThat(actives).contains(row(active.allocationId()))
             .doesNotContain(row(past.allocationId()));
@@ -198,23 +246,29 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
 
     @Test
     void dateBoundsExcludeAllocationsOutsideTheWindow() throws Exception {
-        Seed old = seedAllocation(hoursAgo(72), null);
-        Seed recent = seedAllocation(hoursAgo(1), null);
+        UUID organizationId = seedOrganization();
+        String scope = organizationId.toString();
+        Seed old = seedAllocation(organizationId, hoursAgo(72), null);
+        Seed recent = seedAllocation(organizationId, hoursAgo(1), null);
 
-        assertThat(allocationPage("from", asFilterValue(hoursAgo(24))))
+        assertThat(allocationPage("organizationId", scope, "from", asFilterValue(hoursAgo(24))))
             .contains(row(recent.allocationId())).doesNotContain(row(old.allocationId()));
-        assertThat(allocationPage("to", asFilterValue(hoursAgo(24))))
+        assertThat(allocationPage("organizationId", scope, "to", asFilterValue(hoursAgo(24))))
             .contains(row(old.allocationId())).doesNotContain(row(recent.allocationId()));
     }
 
     @Test
     void combinedFiltersUseAndSemantics() throws Exception {
-        Seed wanted = seedAllocation(hoursAgo(2), null);
-        Seed wrongStatus = seedAllocation(hoursAgo(2), hoursAgo(1));
-        Seed tooOld = seedAllocation(hoursAgo(72), null);
+        // All three in one organization: with one organization each, the two rows
+        // this asserts are filtered out were being excluded by the organization
+        // filter alone, so the status and date halves of "AND" proved nothing.
+        UUID organizationId = seedOrganization();
+        Seed wanted = seedAllocation(organizationId, hoursAgo(2), null);
+        Seed wrongStatus = seedAllocation(organizationId, hoursAgo(2), hoursAgo(1));
+        Seed tooOld = seedAllocation(organizationId, hoursAgo(72), null);
 
         String html = allocationPage(
-            "organizationId", wanted.organizationId().toString(),
+            "organizationId", organizationId.toString(),
             "status", "ACTIVE",
             "from", asFilterValue(hoursAgo(24)));
 
@@ -224,10 +278,15 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
 
     @Test
     void paginationPreservesFilters() throws Exception {
-        Seed first = seedAllocation(hoursAgo(4), null);
-        Seed second = seedAllocation(hoursAgo(2), null);
+        UUID organizationId = seedOrganization();
+        Seed first = seedAllocation(organizationId, hoursAgo(4), null);
+        Seed second = seedAllocation(organizationId, hoursAgo(2), null);
 
-        String page = allocationPage("status", "ACTIVE", "size", "1");
+        // Scoped to this organization, the page has exactly the two rows above to
+        // choose from, so size=1 showing one of them is a statement about the page
+        // size rather than about whatever the rest of the suite left behind.
+        String page = allocationPage(
+            "organizationId", organizationId.toString(), "status", "ACTIVE", "size", "1");
 
         assertThat(page).contains("status=ACTIVE", "size=1", "page=1");
         // Exactly one of the two seeded rows is on this page.
@@ -250,8 +309,14 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
             "page", "-2",
             "size", "999999");
 
-        // Every unreadable value was dropped, so the row is still listed.
-        assertThat(html).contains(row(seed.allocationId()));
+        // Every unreadable value was dropped, so this is the unfiltered listing --
+        // asserted as "exactly the rows no filters at all would show" rather than
+        // "the row I just seeded is in there", which would depend on that row
+        // surviving onto page one of a list every test in this run writes into.
+        assertThat(rowsOn(html)).isNotEmpty().isEqualTo(rowsOn(allocationPage()));
+        // The seeded row is findable too; nothing above filtered it away.
+        assertThat(allocationPage("organizationId", seed.organizationId().toString()))
+            .contains(row(seed.allocationId()));
         // A filter form must show what was typed, so the values do come back — but
         // only escaped. The raw tag never reaches the document.
         assertThat(html).doesNotContain("<script>alert");
