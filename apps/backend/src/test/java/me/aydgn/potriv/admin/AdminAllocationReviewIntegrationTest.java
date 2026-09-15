@@ -309,11 +309,17 @@ class AdminAllocationReviewIntegrationTest extends AbstractAdminIntegrationTest 
             "page", "-2",
             "size", "999999");
 
-        // Every unreadable value was dropped, so this is the unfiltered listing --
-        // asserted as "exactly the rows no filters at all would show" rather than
+        // Every unreadable filter value was dropped, so this lists exactly what the
+        // same request without any filters lists. Asserted that way rather than as
         // "the row I just seeded is in there", which would depend on that row
         // surviving onto page one of a list every test in this run writes into.
-        assertThat(rowsOn(html)).isNotEmpty().isEqualTo(rowsOn(allocationPage()));
+        //
+        // The comparison keeps page and size on both sides: unlike the filters,
+        // those two are not dropped -- AdminPaging reads "-2" as page 0 and clamps
+        // "999999" to MAX_SIZE -- so a baseline without them would be a differently
+        // sized page and the two row lists could not match.
+        assertThat(rowsOn(html)).isNotEmpty()
+            .isEqualTo(rowsOn(allocationPage("page", "-2", "size", "999999")));
         // The seeded row is findable too; nothing above filtered it away.
         assertThat(allocationPage("organizationId", seed.organizationId().toString()))
             .contains(row(seed.allocationId()));
