@@ -8,6 +8,7 @@ import { checkSuppressionPolicy, stripXmlComments } from '../src/suppressionPoli
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const REAL_SUPPRESSIONS_FILE = join(REPO_ROOT, 'apps', 'backend', 'dependency-check-suppressions.xml');
+const REAL_BACKEND_POM = join(REPO_ROOT, 'apps', 'backend', 'pom.xml');
 
 function wrap(body: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -336,85 +337,67 @@ describe('multiple suppress blocks', () => {
  * to report on was tried twice and failed twice; both are now suppressed
  * explicitly and independently.
  */
-describe('the real dependency-check-suppressions.xml — the CVE-2026-66299 contract', () => {
+describe('the real dependency-check-suppressions.xml — the empty-by-upgrade contract', () => {
   const realXml = readFileSync(REAL_SUPPRESSIONS_FILE, 'utf8');
-  // The file's own header comment contains a literal, deliberately-fake
-  // documentation example (CVE-2026-XXXXX, until="2026-12-31") explaining
-  // the required shape. Real-entry assertions below match against the
-  // comment-stripped text -- the same view checkSuppressionPolicy itself
-  // uses -- so that example is never counted as a third, real suppression.
+  const backendPom = readFileSync(REAL_BACKEND_POM, 'utf8');
+  // The file's comments contain a literal, deliberately-fake documentation
+  // example (CVE-2026-XXXXX, until="2026-12-31") showing the required shape,
+  // and a history note that quotes the CVE id this file used to suppress.
+  // Assertions below match against the comment-stripped text -- the same view
+  // checkSuppressionPolicy itself uses -- so neither is ever mistaken for a
+  // real suppression.
   const realEntriesOnly = stripXmlComments(realXml);
 
-  it('passes the policy, and the documentation example inside the header comment is not treated as a real entry', () => {
-    const result = checkSuppressionPolicy(realXml);
-    expect(result).toEqual({ ok: true, suppressionCount: 2 });
+  it('passes the policy, and neither the documentation example nor the history note is treated as a real entry', () => {
+    expect(checkSuppressionPolicy(realXml)).toEqual({ ok: true, suppressionCount: 0 });
   });
 
-  it('contains exactly two <suppress> blocks naming CVE-2026-66299, and nothing else', () => {
-    const cveMatches = [...realEntriesOnly.matchAll(/<cve>([^<]*)<\/cve>/g)].map((m) => m[1]);
-    expect(cveMatches).toEqual(['CVE-2026-66299', 'CVE-2026-66299']);
+  it('contains no real <suppress> block at all', () => {
+    expect([...realEntriesOnly.matchAll(/<suppress\b/g)]).toHaveLength(0);
+    expect([...realEntriesOnly.matchAll(/<cve>([^<]*)<\/cve>/g)]).toHaveLength(0);
   });
 
-  it('has one suppression scoped to exactly tomcat-embed-core@10.1.57', () => {
-    expect(realEntriesOnly).toContain(
-      '<packageUrl regex="true">^pkg:maven/org\\.apache\\.tomcat\\.embed/tomcat\\-embed\\-core@10\\.1\\.57(\\?.*)?$</packageUrl>',
-    );
+  // The CVE-2026-66299 entries this file used to carry (tomcat-embed-core and
+  // tomcat-embed-websocket at 10.1.57, expiring 2026-09-30) were removed
+  // because apps/backend/pom.xml moved to a Tomcat that fixes it -- 10.1.59,
+  // Apache having never published 10.1.58. Those two facts have to move
+  // together: dropping the pom back below 10.1.58 without restoring a
+  // reviewed suppression would put an unfixed, unsuppressed finding straight
+  // back into the scan, which is exactly the drift this asserts against.
+  it('is consistent with apps/backend/pom.xml: no suppression, because the pom is on a Tomcat that carries the fix', () => {
+    const tomcat = /<tomcat\.version>([^<]+)<\/tomcat\.version>/.exec(backendPom);
+    expect(tomcat, 'apps/backend/pom.xml must pin tomcat.version').not.toBeNull();
+    const parts = (tomcat?.[1] ?? '').trim().split('.').map(Number);
+    expect(parts.slice(0, 2)).toEqual([10, 1]);
+    expect(parts[2] ?? -1).toBeGreaterThanOrEqual(58);
+    expect(realEntriesOnly).not.toContain('CVE-2026-66299');
   });
 
-  it('has one suppression scoped to exactly tomcat-embed-websocket@10.1.57', () => {
-    expect(realEntriesOnly).toContain(
-      '<packageUrl regex="true">^pkg:maven/org\\.apache\\.tomcat\\.embed/tomcat\\-embed\\-websocket@10\\.1\\.57(\\?.*)?$</packageUrl>',
-    );
+  // With no real entries left, the fail-closed checks below add one
+  // well-formed, policy-conformant entry to the real document and mutate that,
+  // one thing wrong at a time. That keeps the coverage the removed entries
+  // used to provide -- the real file, really parsed -- instead of losing it
+  // along with them.
+  const REPRESENTATIVE_ENTRY = [
+    '   <suppress until="2027-01-31">',
+    '      <notes>',
+    '         CVE-2026-12345: the vulnerable code path is never reached from',
+    '         this application. Reviewed by Test Owner, 2026-09-15.',
+    '      </notes>',
+    '      <packageUrl regex="true">^pkg:maven/com\\.example/example\\-lib@1\\.2\\.3(\\?.*)?$</packageUrl>',
+    '      <cve>CVE-2026-12345</cve>',
+    '   </suppress>',
+  ].join('\n');
+  const withEntry = realXml.replace('</suppressions>', `${REPRESENTATIVE_ENTRY}\n</suppressions>`);
+
+  it('accepts a well-formed entry added to the real document, so the mutations below are not vacuous', () => {
+    expect(withEntry).not.toEqual(realXml);
+    expect(checkSuppressionPolicy(withEntry)).toEqual({ ok: true, suppressionCount: 1 });
   });
 
-  it('does not scope either suppression to tomcat-embed-el, or to any other tomcat-embed artifact', () => {
-    // Exactly two packageUrl matchers overall, and neither mentions "el" as
-    // the artifact segment -- a regression here would mean a suppression
-    // was added for a finding nothing has ever actually reported.
-    const packageUrls = [...realEntriesOnly.matchAll(/<packageUrl[^>]*>([^<]*)<\/packageUrl>/g)].map((m) => m[1]);
-    expect(packageUrls).toHaveLength(2);
-    // The matchers are regex text themselves, so hyphens/dots are
-    // backslash-escaped in the file (tomcat\-embed\-core) -- \\? tolerates
-    // that escaping without requiring it.
-    for (const url of packageUrls) {
-      expect(url).toMatch(/tomcat\\?-embed\\?-(core|websocket)@10\\?\.1\\?\.57/);
-    }
-  });
-
-  it('both suppressions expire on exactly 2026-09-30', () => {
-    const untilMatches = [...realEntriesOnly.matchAll(/<suppress until="([^"]*)"/g)].map((m) => m[1]);
-    expect(untilMatches).toEqual(['2026-09-30', '2026-09-30']);
-  });
-
-  it('both suppressions independently carry an owner, a review date, and the official advisory link', () => {
-    const notesBlocks = [...realEntriesOnly.matchAll(/<notes>([\s\S]*?)<\/notes>/g)].map((m) => m[1]);
-    expect(notesBlocks).toHaveLength(2);
-    for (const notes of notesBlocks) {
-      expect(notes).toMatch(/reviewed\s+by\s+\S/i);
-      expect(notes).toMatch(/\b2026-08-25\b/);
-      expect(notes).toContain('https://tomcat.apache.org/security-10.html');
-    }
-  });
-
-  it('removing either suppression breaks the exact-two-suppressions regression test', () => {
-    // Deletes the second (websocket) <suppress>...</suppress> block by
-    // matching the same structural pattern the real checker uses, proving
-    // the exact-count assertion above is not vacuous -- it really does
-    // depend on both entries being present.
-    const blocks = [...realEntriesOnly.matchAll(/<suppress\b[^>]*>[\s\S]*?<\/suppress>/g)];
-    expect(blocks).toHaveLength(2);
-    const withOneRemoved = realXml.replace(blocks[1]![0], '');
-    const result = checkSuppressionPolicy(withOneRemoved);
-    expect(result).not.toEqual({ ok: true, suppressionCount: 2 });
-    expect(result).toEqual({ ok: true, suppressionCount: 1 });
-  });
-
-  it('broadening either package expression to match any version fails the policy check', () => {
-    const broadened = realXml.replace(
-      'tomcat\\-embed\\-core@10\\.1\\.57(\\?.*)?$',
-      'tomcat\\-embed\\-core@.*$',
-    );
-    expect(broadened).not.toEqual(realXml);
+  it('broadening the package expression to match any version fails the policy check', () => {
+    const broadened = withEntry.replace('example\\-lib@1\\.2\\.3(\\?.*)?$', 'example\\-lib@.*$');
+    expect(broadened).not.toEqual(withEntry);
     const result = checkSuppressionPolicy(broadened);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -422,12 +405,9 @@ describe('the real dependency-check-suppressions.xml — the CVE-2026-66299 cont
     }
   });
 
-  it('broadening either package expression to match the whole tomcat-embed family fails the policy check', () => {
-    const broadened = realXml.replace(
-      'org\\.apache\\.tomcat\\.embed/tomcat\\-embed\\-websocket@10\\.1\\.57',
-      'org\\.apache\\.tomcat\\.embed/.*@10\\.1\\.57',
-    );
-    expect(broadened).not.toEqual(realXml);
+  it('broadening the package expression to match a whole package family fails the policy check', () => {
+    const broadened = withEntry.replace('com\\.example/example\\-lib@1\\.2\\.3', 'com\\.example/.*@1\\.2\\.3');
+    expect(broadened).not.toEqual(withEntry);
     const result = checkSuppressionPolicy(broadened);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -435,14 +415,9 @@ describe('the real dependency-check-suppressions.xml — the CVE-2026-66299 cont
     }
   });
 
-  it('stripping the owner attribution from a real entry fails closed', () => {
-    // The real notes text line-wraps ("Reviewed by Mert\n  Aydoğan (...)"),
-    // so \s+ between words, not a literal space, is required to match it.
-    const withoutOwner = realXml.replace(
-      /Reviewed\s+by\s+Mert\s+Aydoğan\s+\(aydgnme\),\s*2026-08-25\.\s*/g,
-      '',
-    );
-    expect(withoutOwner).not.toEqual(realXml);
+  it('stripping the owner attribution fails closed', () => {
+    const withoutOwner = withEntry.replace('Reviewed by Test Owner', 'Noted by Test Owner');
+    expect(withoutOwner).not.toEqual(withEntry);
     const result = checkSuppressionPolicy(withoutOwner);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -450,9 +425,9 @@ describe('the real dependency-check-suppressions.xml — the CVE-2026-66299 cont
     }
   });
 
-  it('stripping the until= expiry from a real entry fails closed', () => {
-    const withoutExpiry = realXml.replace('<suppress until="2026-09-30">', '<suppress>');
-    expect(withoutExpiry).not.toEqual(realXml);
+  it('stripping the until= expiry fails closed', () => {
+    const withoutExpiry = withEntry.replace('<suppress until="2027-01-31">', '<suppress>');
+    expect(withoutExpiry).not.toEqual(withEntry);
     const result = checkSuppressionPolicy(withoutExpiry);
     expect(result.ok).toBe(false);
     if (!result.ok) {
@@ -460,9 +435,9 @@ describe('the real dependency-check-suppressions.xml — the CVE-2026-66299 cont
     }
   });
 
-  it('stripping the CVE identifier from a real entry fails closed', () => {
-    const withoutCve = realXml.replace('<cve>CVE-2026-66299</cve>', '');
-    expect(withoutCve).not.toEqual(realXml);
+  it('stripping the CVE identifier fails closed', () => {
+    const withoutCve = withEntry.replace('<cve>CVE-2026-12345</cve>', '');
+    expect(withoutCve).not.toEqual(withEntry);
     const result = checkSuppressionPolicy(withoutCve);
     expect(result.ok).toBe(false);
     if (!result.ok) {
