@@ -1,0 +1,68 @@
+name: Dependency Scan Tooling CI
+
+# tools/dependency-scan implements every fail-closed gate dependency-check.yml
+# relies on (NVD preflight classification, report validation, cache-freshness
+# checking) — see that workflow's own header. Its own tests only ever touch a
+# local mock server and fixtures, never the real NVD service, so they run on
+# every pull request rather than being gated behind a schedule the way the
+# real scan is.
+#
+# There is deliberately no `paths:` filter, matching backend-ci.yml and
+# frontend-ci.yml: a path-filtered workflow reports no status at all on a PR
+# that misses the filter, which would permanently block any such PR the day
+# this becomes a required check.
+on:
+  # `v2` is the V2 integration branch. Every V2 slice is reviewed into it and
+  # never into `main`, so a workflow that only watched `main` would let an
+  # entire redesign programme merge without ever running.
+  pull_request:
+    branches: [main, v2]
+  push:
+    branches: [main, v2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-scan-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-scan-verify:
+    name: dependency-scan-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Node 22
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/dependency-scan/package-lock.json
+
+      - name: Install dependencies
+        working-directory: tools/dependency-scan
+        run: npm ci
+
+      # Mirrors frontend-ci.yml's and api-e2e.yml's gate: before anything
+      # else, fail closed on any high-or-above advisory rather than only
+      # warning.
+      - name: Audit high-severity dependencies
+        working-directory: tools/dependency-scan
+        run: npm audit --audit-level=high
+
+      - name: Typecheck
+        working-directory: tools/dependency-scan
+        run: npm run typecheck
+
+      # Every scenario dependency-check.yml depends on being classified
+      # correctly — missing key, invalid key, NVD unreachable, NVD erroring,
+      # a stale/corrupt/missing freshness record, a critical-CVE report, a
+      # clean report — is proven here, deterministically, on every PR.
+      - name: Test
+        working-directory: tools/dependency-scan
+        run: npm test

@@ -1,0 +1,19 @@
+{
+  "reportSchema": "1.1",
+  "dependencies": [
+    {
+      "fileName": "spring-boot-starter-web-3.5.16.jar",
+      "vulnerabilities": []
+    },
+    {
+      "fileName": "jackson-databind-2.18.2.jar",
+      "vulnerabilities": [
+        {
+          "name": "CVE-2099-00001",
+          "severity": "MEDIUM",
+          "cvssv3": { "baseScore": 5.3 }
+        }
+      ]
+    }
+  ]
+}

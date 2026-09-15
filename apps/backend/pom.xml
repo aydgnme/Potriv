@@ -28,6 +28,27 @@
     </scm>
     <properties>
         <java.version>21</java.version>
+        <!--
+          Overrides of versions the spring-boot-starter-parent BOM would
+          otherwise pick, applied because the BOM's own pinned versions had
+          real, NVD-confirmed CVEs at or above this project's CVSS gate
+          (see tools/dependency-scan and .github/workflows/dependency-check.yml).
+          Format is FROM to TO, then the reason.
+
+            tomcat.version:     10.1.55 to 10.1.57. CVE-2026-53434,
+                                55276, 59083, 59084 (v4/v3 9.1, CRITICAL) and
+                                others, fixed by 57. CVE-2026-66299 remains
+                                open until 10.1.58 is released; see the
+                                narrowly-scoped, expiring suppression in
+                                dependency-check-suppressions.xml.
+            postgresql.version: 42.7.11 to 42.7.13. CVE-2026-54291 (v4 8.2).
+            log4j2.version:     2.24.3 to 2.25.4. CVE-2026-34479 (v3 7.5,
+                                re-scored under v4 as 6.9; upgraded
+                                regardless of the score generation used).
+        -->
+        <tomcat.version>10.1.57</tomcat.version>
+        <postgresql.version>42.7.13</postgresql.version>
+        <log4j2.version>2.25.4</log4j2.version>
     </properties>
     <dependencies>
         <dependency>
